@@ -25,9 +25,11 @@ void PrintUsage(void)
     printf("Usage:\n"
            "    withdll.exe [options] [command line]\n"
            "    withdll.exe /d:simple64.dll /d:expHDll64.dll\n"
+           "    withdll.exe /f /d:simple64.dll /d:expHDll64.dll\n"
            "Options:\n"
            "    /d:file.dll   : Start the process with file.dll.\n"
            "    /v            : Verbose, display memory at start.\n"
+           "    /f            : FreeLibrary dlls.\n"
            "    /?            : This help screen.\n");
 }
 
@@ -422,8 +424,6 @@ static NTSTATUS (*PNtMapViewOfSection)(
     ULONG AllocationType,
     ULONG Win32Protect);
 
-
-
 DWORD findPidByName(const char *pname)
 {
     HANDLE h;
@@ -433,7 +433,7 @@ DWORD findPidByName(const char *pname)
 
     do
     {
-        if (!strcmp((const char*)procSnapshot.szExeFile, pname))
+        if (!strcmp((const char *)procSnapshot.szExeFile, pname))
         {
             DWORD pid = procSnapshot.th32ProcessID;
             CloseHandle(h);
@@ -445,6 +445,31 @@ DWORD findPidByName(const char *pname)
     return 0;
 }
 
+HMODULE findRemoteHModule(DWORD dwProcessId, const char *szdllout)
+{
+    MODULEENTRY32 me = {sizeof(me)};
+    BOOL bMore = FALSE;
+    HANDLE hSnapshot;
+
+    hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
+
+    bMore = Module32First(hSnapshot, &me);
+    for (; bMore; bMore = Module32Next(hSnapshot, &me))
+    {
+        //printf("%s\n", (LPCSTR)me.szModule);
+        //printf("%s\n", (LPCSTR)me.szExePath);
+        if (
+            //!_stricmp((LPCSTR)me.szModule, szdllout) ||
+            !_stricmp((LPCSTR)me.szExePath, szdllout))
+        {
+            printf("find!\n");
+            printf("%s\n", (LPCSTR)me.szExePath);
+
+            return (HMODULE)me.modBaseAddr;
+        }
+    }
+    return NULL;
+}
 
 //////////////////////////////////////////////////////////////////////// main.
 //
@@ -452,6 +477,7 @@ int CDECL main(int argc, char **argv)
 {
     BOOLEAN fNeedHelp = FALSE;
     BOOLEAN fVerbose = FALSE;
+    BOOLEAN isFree = FALSE;
     LPCSTR rpszDllsRaw[256];
     LPCSTR rpszDllsOut[256];
     DWORD nDlls = 0;
@@ -498,6 +524,10 @@ int CDECL main(int argc, char **argv)
             fNeedHelp = TRUE;
             break;
 
+        case 'f': // free
+            isFree = TRUE;
+            break;
+
         default:
             fNeedHelp = TRUE;
             printf("withdll.exe: Bad argument: %s\n", argv[arg]);
@@ -505,12 +535,12 @@ int CDECL main(int argc, char **argv)
         }
     }
 
-    if (--arg >= argc)
+    if (--arg >= argc )
     {
         fNeedHelp = TRUE;
     }
 
-    if (nDlls == 0)
+    if (nDlls == 0 )
     {
         fNeedHelp = TRUE;
     }
@@ -621,13 +651,11 @@ int CDECL main(int argc, char **argv)
     }
     */
 
-
-
     // if (  sizeof(rpszDllsOut[1]) != sizeof(pValue2)
     //     || strncmp(pValue2,rpszDllsOut[0],sizeof(rpszDllsOut[0]) ) != 0 ){
-           
+
     // }
-    ::SetEnvironmentVariableA("expHDll", rpszDllsOut[0]);
+    SendMessage(HWND_BROADCAST, WM_SETTINGCHANGE, 0, (LPARAM)TEXT("Environment"));
     char *pValue2 = NULL;
     size_t len = NULL;
     _dupenv_s(&pValue2, &len, "path");
@@ -658,34 +686,17 @@ int CDECL main(int argc, char **argv)
 
     LPTHREAD_START_ROUTINE pThreadProc;
 
-    HANDLE fm;
+    HANDLE fm = NULL;
     char *map_addr;
     LPVOID lpMap = 0;
     SIZE_T viewsize = 0;
     PNtMapViewOfSection = (NTSTATUS(*)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID * BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect)) GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtMapViewOfSection");
-
-
-    LPCSTR sz = rpszDllsOut[1];
-    DWORD dwBufSize = (DWORD)(strlen(sz) + 1) * sizeof(char);
 
     hMod = GetModuleHandleA("kernel32.dll");
     if (!hMod)
     {
         return FALSE;
     }
-
-    pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
-    if (!pThreadProc)
-    {
-        return FALSE;
-    }
-
-    fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, dwBufSize, NULL);
-
-    map_addr = (char *)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-
-    memcpy(map_addr, sz, dwBufSize);
-
 
     DWORD dwProcessId = findPidByName("explorer.exe");
 
@@ -695,22 +706,63 @@ int CDECL main(int argc, char **argv)
     {
         printf("OpenProcess(%ld) explorer.exe failed!!! [%ld]\n", dwProcessId, GetLastError());
         //return FALSE;
-
         return FALSE;
     }
     printf("OpenProcess(%ld) explorer.exe Succeed!!! \n", dwProcessId);
-    (*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, dwBufSize, nullptr, &viewsize, ViewUnmap, 0, PAGE_READWRITE);
 
     if (fVerbose)
     {
         DumpProcess(hProcess);
     }
 
-    hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
-    if (!hThread)
+    LPCSTR sz = NULL;
+    DWORD dwBufSize = 0;
+
+    if (!isFree)
     {
-        //return FALSE;
-        printf("CreateRemoteThread(%ld) explorer.exe failed!!! [%ld]\n", dwProcessId, GetLastError());
+
+        sz = rpszDllsOut[1];
+        dwBufSize = (DWORD)(strlen(sz) + 1) * sizeof(char);
+
+        fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, dwBufSize, NULL);
+
+        map_addr = (char *)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+
+        printf("Injection...\n");
+        pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
+
+        memcpy(map_addr, sz, dwBufSize);
+        (*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, dwBufSize, nullptr, &viewsize, ViewUnmap, 0, PAGE_READWRITE);
+        hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
+        if (!hThread)
+        {
+            //return FALSE;
+            printf("CreateRemoteThread(%ld) explorer.exe failed!!! [%ld]\n", dwProcessId, GetLastError());
+            return FALSE;
+        }
+    }
+    else
+    {
+        printf("Freeing...\n");
+        pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "FreeLibrary");
+        HMODULE fdllpath = findRemoteHModule(dwProcessId, (const char *)rpszDllsOut[1]);
+        if (fdllpath != NULL)
+        {
+            hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
+            hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
+            if (!hThread)
+            {
+                //return FALSE;
+                printf("CreateRemoteThread(%ld) explorer.exe failed!!! [%ld]\n", dwProcessId, GetLastError());
+                return FALSE;
+            }
+
+
+        }
+    }
+
+    if (!pThreadProc)
+    {
         return FALSE;
     }
 
@@ -719,24 +771,21 @@ int CDECL main(int argc, char **argv)
         DumpProcess(hProcess);
     }
 
-    WaitForSingleObject(hThread, INFINITE);
+    //WaitForSingleObject(hThread, INFINITE);
     CloseHandle(hThread);
     CloseHandle(hProcess);
 
-    sz = rpszDllsOut[0];
-    dwBufSize = (DWORD)(strlen(sz) + 1) * sizeof(char);
+    if (!isFree)
+    {
+        sz = rpszDllsOut[0];
+        dwBufSize = (DWORD)(strlen(sz) + 1) * sizeof(char);
 
+        fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, dwBufSize, NULL);
 
-    fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, dwBufSize, NULL);
+        map_addr = (char *)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
-    map_addr = (char *)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-
-    memcpy(map_addr, sz, dwBufSize);
-
-
-
-
-
+        memcpy(map_addr, sz, dwBufSize);
+    }
 
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     PROCESSENTRY32 entry = {sizeof(PROCESSENTRY32)};
@@ -761,12 +810,29 @@ int CDECL main(int argc, char **argv)
             DumpProcess(hProcess);
         }
 
-        hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
-        if (!hThread)
+        if (!isFree)
         {
-            //return FALSE;
-            printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
-            continue;
+            hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
+            if (!hThread)
+            {
+                //return FALSE;
+                printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
+                continue;
+            }
+        }
+        else
+        {
+            HMODULE fdllpath = findRemoteHModule(entry.th32ProcessID, (const char *)rpszDllsOut[0]);
+            if (fdllpath != NULL)
+            {
+                hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
+                if (!hThread)
+                {
+                    //return FALSE;
+                    printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
+                    continue;
+                }
+            }
         }
 
         if (fVerbose)

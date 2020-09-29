@@ -9,7 +9,7 @@
 
 !include ..\common.mak
 
-LIBS=$(LIBS) kernel32.lib advapi32.lib
+LIBS=$(LIBS) kernel32.lib advapi32.lib user32.lib
 
 ##############################################################################
 
