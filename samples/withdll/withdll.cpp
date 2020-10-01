@@ -24,8 +24,8 @@ void PrintUsage(void)
 {
     printf("Usage:\n"
            "    withdll.exe [options] [command line]\n"
-           "    withdll.exe /d:simple64.dll /d:expHDll64.dll\n"
-           "    withdll.exe /f /d:simple64.dll /d:expHDll64.dll\n"
+           "    withdll.exe /d:simple64.dll \n"
+           "    withdll.exe /f /d:simple64.dll \n"
            "Options:\n"
            "    /d:file.dll   : Start the process with file.dll.\n"
            "    /v            : Verbose, display memory at start.\n"
@@ -684,7 +684,7 @@ int CDECL main(int argc, char **argv)
 
     //LPCSTR sz = rpszDllsRaw[0];
 
-    LPTHREAD_START_ROUTINE pThreadProc;
+    LPTHREAD_START_ROUTINE pThreadProc = NULL;
 
     HANDLE fm = NULL;
     char *map_addr;
@@ -698,22 +698,23 @@ int CDECL main(int argc, char **argv)
         return FALSE;
     }
 
-    DWORD dwProcessId = findPidByName("explorer.exe");
+    //DWORD dwProcessId = findPidByName("explorer.exe");
 
     //hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, (DWORD)atol((const char *)argv[arg]));
-    hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, dwProcessId);
-    if (!(hProcess))
-    {
-        printf("OpenProcess(%ld) explorer.exe failed!!! [%ld]\n", dwProcessId, GetLastError());
-        //return FALSE;
-        return FALSE;
-    }
-    printf("OpenProcess(%ld) explorer.exe Succeed!!! \n", dwProcessId);
+    // hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, dwProcessId);
+    // if (!(hProcess))
+    // {
+    //     printf("OpenProcess(%ld) explorer.exe failed!!! [%ld]\n", dwProcessId, GetLastError());
+    //     //return FALSE;
+    //     return FALSE;
+    // }
+    // printf("OpenProcess(%ld) explorer.exe Succeed!!! \n", dwProcessId);
 
-    if (fVerbose)
-    {
-        DumpProcess(hProcess);
-    }
+    // if (fVerbose)
+    // {
+    //     DumpProcess(hProcess);
+    // }
+
 
     LPCSTR sz = NULL;
     DWORD dwBufSize = 0;
@@ -721,44 +722,44 @@ int CDECL main(int argc, char **argv)
     if (!isFree)
     {
 
-        sz = rpszDllsOut[1];
-        dwBufSize = (DWORD)(strlen(sz) + 1) * sizeof(char);
+    //     sz = rpszDllsOut[0];
+    //     dwBufSize = (DWORD)(strlen(sz) + 1) * sizeof(char);
 
-        fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, dwBufSize, NULL);
+    //     fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, dwBufSize, NULL);
 
-        map_addr = (char *)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+    //     map_addr = (char *)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
         printf("Injection...\n");
         pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
 
-        memcpy(map_addr, sz, dwBufSize);
-        (*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, dwBufSize, nullptr, &viewsize, ViewUnmap, 0, PAGE_READWRITE);
-        hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
-        if (!hThread)
-        {
-            //return FALSE;
-            printf("CreateRemoteThread(%ld) explorer.exe failed!!! [%ld]\n", dwProcessId, GetLastError());
-            return FALSE;
-        }
+    //     memcpy(map_addr, sz, dwBufSize);
+    //     (*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, dwBufSize, nullptr, &viewsize, ViewUnmap, 0, PAGE_READWRITE);
+    //     hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
+    //     if (!hThread)
+    //     {
+    //         //return FALSE;
+    //         printf("CreateRemoteThread(%ld) explorer.exe failed!!! [%ld]\n", dwProcessId, GetLastError());
+    //         return FALSE;
+    //     }
     }
     else
     {
-        printf("Freeing...\n");
-        pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "FreeLibrary");
-        HMODULE fdllpath = findRemoteHModule(dwProcessId, (const char *)rpszDllsOut[1]);
-        if (fdllpath != NULL)
-        {
-            hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
-            hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
-            if (!hThread)
-            {
-                //return FALSE;
-                printf("CreateRemoteThread(%ld) explorer.exe failed!!! [%ld]\n", dwProcessId, GetLastError());
-                return FALSE;
-            }
+         printf("Freeing...\n");
+         pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "FreeLibrary");
+    //     HMODULE fdllpath = findRemoteHModule(dwProcessId, (const char *)rpszDllsOut[0]);
+    //     if (fdllpath != NULL)
+    //     {
+    //         hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
+    //         hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
+    //         if (!hThread)
+    //         {
+    //             //return FALSE;
+    //             printf("CreateRemoteThread(%ld) explorer.exe failed!!! [%ld]\n", dwProcessId, GetLastError());
+    //             return FALSE;
+    //         }
 
 
-        }
+    //     }
     }
 
     if (!pThreadProc)
@@ -766,14 +767,14 @@ int CDECL main(int argc, char **argv)
         return FALSE;
     }
 
-    if (fVerbose)
-    {
-        DumpProcess(hProcess);
-    }
+    // if (fVerbose)
+    // {
+    //     DumpProcess(hProcess);
+    // }
 
-    //WaitForSingleObject(hThread, INFINITE);
-    CloseHandle(hThread);
-    CloseHandle(hProcess);
+    // //WaitForSingleObject(hThread, INFINITE);
+    // CloseHandle(hThread);
+    // CloseHandle(hProcess);
 
     if (!isFree)
     {

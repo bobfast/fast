@@ -17,7 +17,7 @@
 #include "detours.h"
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
-#define HOOKDLL_PATH "C:\\simple.dll"
+#define HOOKDLL_PATH "C:\\simple64.dll"
 
 static LONG dwSlept = 0;
 static DWORD (WINAPI * TrueSleepEx)(DWORD dwMilliseconds, BOOL bAlertable) = SleepEx;
@@ -119,7 +119,7 @@ HMODULE hMod = NULL;
 
 DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 {
-    printf("sleep5.exe: is Hooked.\n");
+    //printf("sleep5.exe: is Hooked.\n");
     DWORD dwBeg = GetTickCount();
     DWORD ret = TrueSleepEx(dwMilliseconds, bAlertable);
     DWORD dwEnd = GetTickCount();
