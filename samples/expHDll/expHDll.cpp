@@ -3,9 +3,10 @@
 #include <processthreadsapi.h>
 #include <detours.h>
 #define DLLBASIC_API extern "C" __declspec(dllexport)
-#define HOOKDLL_PATH "C:\\simple64.dll"  // DLL경로
+#define HOOKDLL_PATH "C:\\Fast64.dll"  // DLL경로
 #define HOOKDLL32_PATH "C:\\simple32.dll"  // DLL경로
-//#pragma comment(lib, "detours.lib")
+
+
 
 
 
@@ -158,13 +159,13 @@ BOOL APIENTRY DllMain(HMODULE hModule,
     {
 
     case DLL_PROCESS_ATTACH:
-        hMod = GetModuleHandleA("kernelbase.dll");
-        CreateProcessInternalA = (CREATEPROCESSINTERNALA)GetProcAddress(hMod, "CreateProcessInternalA");
+        //hMod = GetModuleHandleA("kernelbase.dll");
+        //CreateProcessInternalA = (CREATEPROCESSINTERNALA)GetProcAddress(hMod, "CreateProcessInternalA");
 
         DetourRestoreAfterWith();
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&(PVOID&)CreateProcessInternalA, MyCreateProcessInternalA);
+        //DetourAttach(&(PVOID&)CreateProcessInternalA, MyCreateProcessInternalA);
         DetourAttach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
         DetourAttach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
   
@@ -180,7 +181,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
     case DLL_PROCESS_DETACH:
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourDetach(&(PVOID&)CreateProcessInternalA, MyCreateProcessInternalA);
+        //DetourDetach(&(PVOID&)CreateProcessInternalA, MyCreateProcessInternalA);
         DetourDetach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
         DetourDetach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
         DetourTransactionCommit();
