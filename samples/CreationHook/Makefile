@@ -38,6 +38,8 @@ $(BIND)\CreationHook$(DETOURS_BITS).dll $(BIND)\CreationHook$(DETOURS_BITS).lib:
         /link $(LINKFLAGS) /subsystem:console \
         /export:DetourFinishHelperProcess,@1,NONAME \
         /export:MyNtMapViewOfSection \
+        /export:MyNtCreateThreadEx \
+        /export:MyNtAllocateVirtualMemory \
         $(LIBS)
 
 $(OBJD)\CreationHook$(DETOURS_BITS).bsc : $(OBJD)\CreationHook.obj

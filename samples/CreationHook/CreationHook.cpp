@@ -2,30 +2,12 @@
 #include <stdio.h>
 // #include "../../src/detours.h"
 #include "detours.h"
+#include "CreationHook.h"
 
-#define DLLBASIC_API extern "C" __declspec(dllexport)
-
-// Enumeration type for NtMapViewOfSection
-typedef enum _SECTION_INHERIT {
-	ViewShare = 1,
-	ViewUnmap = 2
-} SECTION_INHERIT, * PSECTION_INHERIT;
-
-// NtMapViewOfSection Function Pointer
-typedef NTSTATUS (NTAPI* NTMAPVIEWOFSECTION)(
-	HANDLE SectionHandle,
-	HANDLE ProcessHandle,
-	PVOID *BaseAddress,
-	ULONG ZeroBits,
-	ULONG CommitSize,
-	PLARGE_INTEGER SectionOffset,
-	PULONG ViewSize,
-	SECTION_INHERIT InheritDisposition,
-	ULONG AllocationType,
-	ULONG Protect
-	);
-
-static NTMAPVIEWOFSECTION NtMapViewOfSection;
+static NTMAPVIEWOFSECTION pNtMapViewOfSection;
+static NTCREATETHREADEX pNtCreateThreadEx;
+static NTALLOCATEVIRTUALMEMORY pNtAllocateVirtualMemory;
+HMODULE hMod = NULL;
 
 // My NtMapViewOfSection Hooking Function
 DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
@@ -42,7 +24,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 {
 	printf("CreationHook: NtMapViewOfSection is hooked!\n");
 
-	return NtMapViewOfSection(
+	return pNtMapViewOfSection(
 		SectionHandle,
 		ProcessHandle,
 		BaseAddress,
@@ -55,8 +37,57 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		Protect);
 }
 
+// My NtCreateThreadEx Hooking Function
+DLLBASIC_API NTSTATUS NTAPI MyNtCreateThreadEx (
+	PHANDLE ThreadHandle,
+	ACCESS_MASK DesiredAccess,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	HANDLE ProcessHandle,
+	LPTHREAD_START_ROUTINE StartAddress,
+	LPVOID Parameter,
+	BOOL CreateSuspended,
+	DWORD StackZeroBits,
+	DWORD SizeOfStackCommit,
+	DWORD SizeOfStackReserve,
+	CREATE_THREAD_INFO* ThreadInfo)
+{
+	printf("CreationHook: NtCreateThreadEx is hooked!\n");
 
-HMODULE hMod = NULL;
+	return pNtCreateThreadEx(
+		ThreadHandle,
+		DesiredAccess,
+		ObjectAttributes,
+		ProcessHandle,
+		StartAddress,
+		Parameter,
+		CreateSuspended,
+		StackZeroBits,
+		SizeOfStackCommit,
+		SizeOfStackReserve,
+		ThreadInfo
+	);
+}
+
+// My NtAllocateVirtualMemory Hooking Function
+DLLBASIC_API NTSTATUS NTAPI MyNtAllocateVirtualMemory(
+	HANDLE ProcessHandle,
+	PVOID* BaseAddress,
+	ULONG_PTR ZeroBits,
+	PSIZE_T RegionSize,
+	ULONG AllocationType,
+	ULONG Protect)
+{
+	printf("CreationHook: MyNtAllocateVirtualMemory is hooked!\n");
+
+	return pNtAllocateVirtualMemory(
+		ProcessHandle,
+		BaseAddress,
+		ZeroBits,
+		RegionSize,
+		AllocationType,
+		Protect
+	);
+}
 
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
@@ -70,9 +101,24 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		printf("CreationHook: Process attached.\n");
 
 		hMod = GetModuleHandleA("ntdll.dll");
-		NtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
-		if (NtMapViewOfSection == NULL) {
+		if (hMod == NULL) {
+			printf("CreationHook: Error - cannot get ntdll.dll module.\n");
+			return 1;
+		}
+
+		pNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
+		if (pNtMapViewOfSection == NULL) {
 			printf("CreationHook: Error - cannot get NtMapViewOfSection's address.\n");
+			return 1;
+		}
+		pNtCreateThreadEx = (NTCREATETHREADEX)GetProcAddress(hMod, "NtCreateThreadEx");
+		if (pNtCreateThreadEx == NULL) {
+			printf("CreationHook: Error - cannot get NtCreateThreadEx's address.\n");
+			return 1;
+		}
+		pNtAllocateVirtualMemory = (NTALLOCATEVIRTUALMEMORY)GetProcAddress(hMod, "NtAllocateVirtualMemory");
+		if (pNtAllocateVirtualMemory == NULL) {
+			printf("CreationHook: Error - cannot get NtAllocateVirtualMemory's address.\n");
 			return 1;
 		}
 
@@ -81,7 +127,9 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourUpdateThread(GetCurrentThread());
 
 		// TODO: attaching
-		DetourAttach(&(PVOID&)NtMapViewOfSection, MyNtMapViewOfSection);
+		DetourAttach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
+		DetourAttach(&(PVOID&)pNtCreateThreadEx, MyNtCreateThreadEx);
+		DetourAttach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
 
 		DetourTransactionCommit();
 		break;
@@ -100,7 +148,9 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourUpdateThread(GetCurrentThread());
 
 		// TODO: detaching
-		DetourDetach(&(PVOID&)NtMapViewOfSection, MyNtMapViewOfSection);
+		DetourDetach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
+		DetourDetach(&(PVOID&)pNtCreateThreadEx, MyNtCreateThreadEx);
+		DetourDetach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
 
 		DetourTransactionCommit();
 		break;
