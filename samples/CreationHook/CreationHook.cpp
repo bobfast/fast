@@ -7,6 +7,9 @@
 static NTMAPVIEWOFSECTION pNtMapViewOfSection;
 static NTCREATETHREADEX pNtCreateThreadEx;
 static NTALLOCATEVIRTUALMEMORY pNtAllocateVirtualMemory;
+static NTWRITEVIRTUALMEMORY pNtWriteVirtualMemory;
+static NTPROTECTVIRTUALMEMORY pNtProtectVirtualMemory;
+static DBGPRINT pDbgPrint;  // for debug printing 
 HMODULE hMod = NULL;
 
 // My NtMapViewOfSection Hooking Function
@@ -22,9 +25,9 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	ULONG AllocationType,
 	ULONG Protect)
 {
-	printf("CreationHook: NtMapViewOfSection is hooked!\n");
+	pDbgPrint("CreationHook: NtMapViewOfSection is hooked!\n");
 
-	return pNtMapViewOfSection(
+	return (*pNtMapViewOfSection)(
 		SectionHandle,
 		ProcessHandle,
 		BaseAddress,
@@ -51,9 +54,9 @@ DLLBASIC_API NTSTATUS NTAPI MyNtCreateThreadEx (
 	DWORD SizeOfStackReserve,
 	CREATE_THREAD_INFO* ThreadInfo)
 {
-	printf("CreationHook: NtCreateThreadEx is hooked!\n");
+	pDbgPrint("CreationHook: NtCreateThreadEx is hooked!\n");
 
-	return pNtCreateThreadEx(
+	return (*pNtCreateThreadEx)(
 		ThreadHandle,
 		DesiredAccess,
 		ObjectAttributes,
@@ -77,15 +80,53 @@ DLLBASIC_API NTSTATUS NTAPI MyNtAllocateVirtualMemory(
 	ULONG AllocationType,
 	ULONG Protect)
 {
-	printf("CreationHook: MyNtAllocateVirtualMemory is hooked!\n");
+	pDbgPrint("CreationHook: NtAllocateVirtualMemory is hooked!\n");
 
-	return pNtAllocateVirtualMemory(
+	return (*pNtAllocateVirtualMemory)(
 		ProcessHandle,
 		BaseAddress,
 		ZeroBits,
 		RegionSize,
 		AllocationType,
 		Protect
+	);
+}
+
+// My NtWriteVirtualMemory Hooking Function
+DLLBASIC_API NTSTATUS NTAPI MyNtWriteVirtualMemory(
+	HANDLE ProcessHandle,
+	PVOID BaseAddress,
+	PVOID Buffer,
+	ULONG NumberOfBytesToWrite,
+	PULONG NumberOfBytesWritten)
+{
+	pDbgPrint("CreationHook: NtWriteVirtualMemory is hooked!\n");
+
+	return (*pNtWriteVirtualMemory)(
+		ProcessHandle,
+		BaseAddress,
+		Buffer,
+		NumberOfBytesToWrite,
+		NumberOfBytesWritten
+	);
+}
+
+// My NtProtectVirtualMemory Hooking Function
+DLLBASIC_API NTSTATUS NTAPI MyNtProtectVirtualMemory(
+	HANDLE ProcessHandle,
+	PVOID* BaseAddress,
+	PULONG NumberOfBytesToProtect,
+	ULONG NewAccessProtection,
+	PULONG OldAccessProtection)
+{
+	pDbgPrint("CreationHook: NtProtectVirtualMemory is hooked!\n");
+
+	return (*pNtProtectVirtualMemory)(
+		ProcessHandle,
+		BaseAddress,
+		NumberOfBytesToProtect,
+		NewAccessProtection,
+		OldAccessProtection
 	);
 }
 
@@ -98,14 +139,14 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 	switch (dwReason)
 	{
 	case DLL_PROCESS_ATTACH:
-		printf("CreationHook: Process attached.\n");
-
+		// get ntdll module
 		hMod = GetModuleHandleA("ntdll.dll");
 		if (hMod == NULL) {
 			printf("CreationHook: Error - cannot get ntdll.dll module.\n");
 			return 1;
 		}
 
+		// get functions in ntdll
 		pNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
 		if (pNtMapViewOfSection == NULL) {
 			printf("CreationHook: Error - cannot get NtMapViewOfSection's address.\n");
@@ -121,6 +162,21 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 			printf("CreationHook: Error - cannot get NtAllocateVirtualMemory's address.\n");
 			return 1;
 		}
+		pNtWriteVirtualMemory = (NTWRITEVIRTUALMEMORY)GetProcAddress(hMod, "NtWriteVirtualMemory");
+		if (pNtWriteVirtualMemory == NULL) {
+			printf("CreationHook: Error - cannot get NtWriteVirtualMemory's address.\n");
+			return 1;
+		}
+		pNtProtectVirtualMemory = (NTPROTECTVIRTUALMEMORY)GetProcAddress(hMod, "NtProtectVirtualMemory");
+		if (pNtProtectVirtualMemory == NULL) {
+			printf("CreationHook: Error - cannot get NtProtectVirtualMemory's address.\n");
+			return 1;
+		}
+		pDbgPrint = (DBGPRINT)GetProcAddress(hMod, "DbgPrint");
+		if (pDbgPrint == NULL) {
+			printf("CreationHook: Error - cannot get DbgPrint's address.\n");
+			return 1;
+		}
 
 		DetourRestoreAfterWith();
 		DetourTransactionBegin();
@@ -130,8 +186,12 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourAttach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourAttach(&(PVOID&)pNtCreateThreadEx, MyNtCreateThreadEx);
 		DetourAttach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
+		DetourAttach(&(PVOID&)pNtWriteVirtualMemory, MyNtWriteVirtualMemory);
+		DetourAttach(&(PVOID&)pNtProtectVirtualMemory, MyNtProtectVirtualMemory);
 
 		DetourTransactionCommit();
+
+		printf("CreationHook: Process attached.\n");
 		break;
 
 	case DLL_THREAD_ATTACH:
@@ -143,7 +203,6 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		break;
 
 	case DLL_PROCESS_DETACH:
-		printf("CreationHook: Process detached.\n");
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 
@@ -151,8 +210,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourDetach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourDetach(&(PVOID&)pNtCreateThreadEx, MyNtCreateThreadEx);
 		DetourDetach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
+		DetourDetach(&(PVOID&)pNtWriteVirtualMemory, MyNtWriteVirtualMemory);
+		DetourDetach(&(PVOID&)pNtProtectVirtualMemory, MyNtProtectVirtualMemory);
 
 		DetourTransactionCommit();
+		printf("CreationHook: Process detached.\n");
 		break;
 	}
 

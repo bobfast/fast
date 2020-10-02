@@ -40,6 +40,8 @@ $(BIND)\CreationHook$(DETOURS_BITS).dll $(BIND)\CreationHook$(DETOURS_BITS).lib:
         /export:MyNtMapViewOfSection \
         /export:MyNtCreateThreadEx \
         /export:MyNtAllocateVirtualMemory \
+        /export:MyNtWriteVirtualMemory \
+        /export:MyNtProtectVirtualMemory \
         $(LIBS)
 
 $(OBJD)\CreationHook$(DETOURS_BITS).bsc : $(OBJD)\CreationHook.obj

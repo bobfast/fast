@@ -76,3 +76,27 @@ typedef NTSTATUS(NTAPI* NTALLOCATEVIRTUALMEMORY)(
 	ULONG AllocationType,
 	ULONG Protect
 	);
+
+// NtWriteVirtualMemory Function Pointer Type
+typedef NTSTATUS(NTAPI* NTWRITEVIRTUALMEMORY)(
+	HANDLE ProcessHandle,
+	PVOID BaseAddress,
+	PVOID Buffer,
+	ULONG NumberOfBytesToWrite,
+	PULONG NumberOfBytesWritten
+	);
+
+// NtProtectVirtualMemory Function Pointer Type
+typedef NTSTATUS(NTAPI* NTPROTECTVIRTUALMEMORY)(
+	HANDLE ProcessHandle,
+	PVOID *BaseAddress,
+	PULONG NumberOfBytesToProtect,
+	ULONG NewAccessProtection,
+	PULONG OldAccessProtection
+	);
+
+// DbgPrint Function Pointer Type
+typedef NTSTATUS(NTAPI* DBGPRINT)(
+	LPCSTR Format,
+	...
+	);
