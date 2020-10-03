@@ -21,12 +21,12 @@ typedef struct POBJECT_ATTRIBUTES {
 	ULONG           Attributes;
 	PVOID           SecurityDescriptor;
 	PVOID           SecurityQualityOfService;
-} POBJECT_ATTRIBUTES, * POBJECT_ATTRIBUTES;
+} POBJECT_ATTRIBUTES;
 
 typedef struct PCLIENT_ID {
 	HANDLE UniqueProcess;
 	HANDLE UniqueThread;
-} PCLIENT_ID, * PCLIENT_ID;
+} PCLIENT_ID;
 
 typedef NTSTATUS(NTAPI* NTOPENPROCESS)(
 	PHANDLE            ProcessHandle,
