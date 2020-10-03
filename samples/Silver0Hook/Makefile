@@ -29,7 +29,7 @@ dirs:
 
 $(OBJD)\Silver0Hook.obj : Silver0Hook.cpp
 
-#$(OBJD)\CreationHook.res : CreationHook.rc
+$(OBJD)\Silver0Hook.res : Silver0Hook.rc
 
 $(BIND)\Silver0Hook$(DETOURS_BITS).dll $(BIND)\Silver0Hook$(DETOURS_BITS).lib: \
         $(OBJD)\Silver0Hook.obj $(OBJD)\Silver0Hook.res $(DEPS)
@@ -38,6 +38,7 @@ $(BIND)\Silver0Hook$(DETOURS_BITS).dll $(BIND)\Silver0Hook$(DETOURS_BITS).lib: \
         /link $(LINKFLAGS) /subsystem:console \
         /export:DetourFinishHelperProcess,@1,NONAME \
         /export:MyNtOpenProcess \
+        /export:CreateFileMappingNumaW \
         $(LIBS)
 
 $(OBJD)\Silver0Hook$(DETOURS_BITS).bsc : $(OBJD)\Silver0Hook.obj

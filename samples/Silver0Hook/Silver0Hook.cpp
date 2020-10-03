@@ -2,14 +2,13 @@
 #include <stdio.h>
 #include "detours.h"
 #include "Silver0Hook.h"
+#include <memoryapi.h>
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
-
-//#pragma comment(lib, "detours.lib")
-//#pragma comment(lib, "ntdll.lib")
-
 static NTOPENPROCESS NtOpenProcess;
+HMODULE hMod = NULL;
 
+// NtOpenProcess Hooking
 DLLBASIC_API NTSTATUS NTAPI MyNtOpenProcess(
 	PHANDLE            ProcessHandle,
 	ACCESS_MASK        DesiredAccess,
@@ -27,7 +26,29 @@ DLLBASIC_API NTSTATUS NTAPI MyNtOpenProcess(
 	);
 }
 
-HMODULE hMod = NULL;
+// CreateFileMappingNumaW
+DLLBASIC_API HANDLE WINAPI MyCreateFileMappingNumaW(
+	HANDLE                hFile,
+	LPSECURITY_ATTRIBUTES lpFileMappingAttributes,
+	DWORD                 flProtect,
+	DWORD                 dwMaximumSizeHigh,
+	DWORD                 dwMaximumSizeLow,
+	LPCWSTR               lpName,
+	DWORD                 nndPreferred
+)
+{
+	printf("CreateFileMappingNumaW is HOOKED!########################################\n");
+
+	return CreateFileMappingNumaW(
+		hFile,
+		lpFileMappingAttributes,
+		flProtect,
+		dwMaximumSizeHigh,
+		dwMaximumSizeLow,
+		lpName,
+		nndPreferred
+	);
+}
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 {
@@ -55,13 +76,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)NtOpenProcess, MyNtOpenProcess);
-		if (DetourTransactionCommit() == NO_ERROR) {
-			printf("Detour Attach GOOOOOOOOOOOOOOOOOOD!!\n");
-		}
-		else {
-			printf("Detour Attach FAILED\n");
-		}
-		//DetourTransactionCommit();
+		DetourAttach(&(PVOID&)TrueCreateFileMappingNumaW, MyCreateFileMappingNumaW);
+		DetourTransactionCommit();
 		break;
 
 	case DLL_THREAD_ATTACH:
@@ -77,6 +93,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourDetach(&(PVOID&)NtOpenProcess, MyNtOpenProcess);
+		DetourDetach(&(PVOID&)TrueCreateFileMappingNumaW, MyCreateFileMappingNumaW);
 		DetourTransactionCommit();
 		break;
 	}
