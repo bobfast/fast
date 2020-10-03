@@ -32,7 +32,7 @@ typedef NTSTATUS(NTAPI* NTOPENPROCESS)(
 
 
 /// <summary>
-/// CreateFileMappingNumaW
+/// CreateFileMappingNumaW  (memoryapi.h)
 /// </summary>
 static HANDLE (WINAPI* TrueCreateFileMappingNumaW)(
 	HANDLE                hFile,

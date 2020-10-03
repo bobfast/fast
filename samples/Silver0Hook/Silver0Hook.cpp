@@ -16,7 +16,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtOpenProcess(
 	PCLIENT_ID         ClientId
 )
 {
-	printf("NtOpenProcess is HOOKED!########################################\n");
+	printf("NtOpenProcess is HOOKED!\n");
 
 	return NtOpenProcess(
 		ProcessHandle,
@@ -37,7 +37,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateFileMappingNumaW(
 	DWORD                 nndPreferred
 )
 {
-	printf("CreateFileMappingNumaW is HOOKED!########################################\n");
+	printf("CreateFileMappingNumaW is HOOKED!\n");
 
 	return CreateFileMappingNumaW(
 		hFile,
