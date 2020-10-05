@@ -1,8 +1,6 @@
-#include <Windows.h>
-#include <stdio.h>
-// #include "../../src/detours.h"
+﻿// dllmain.cpp : DLL 애플리케이션의 진입점을 정의합니다.
+#include "pch.h"
 #include "detours.h"
-#include "CreationHook.h"
 
 static NTMAPVIEWOFSECTION pNtMapViewOfSection;
 static NTCREATETHREADEX pNtCreateThreadEx;
@@ -10,6 +8,7 @@ static NTALLOCATEVIRTUALMEMORY pNtAllocateVirtualMemory;
 static NTWRITEVIRTUALMEMORY pNtWriteVirtualMemory;
 static NTPROTECTVIRTUALMEMORY pNtProtectVirtualMemory;
 static DBGPRINT pDbgPrint;  // for debug printing 
+static NTQUERYSYSTEMINFORMATION pNtQuerySystemInformation;  // for getting system info
 HMODULE hMod = NULL;
 
 // My NtMapViewOfSection Hooking Function
@@ -25,7 +24,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	ULONG AllocationType,
 	ULONG Protect)
 {
-	pDbgPrint("CreationHook: NtMapViewOfSection is hooked!\n");
+	pDbgPrint("CreationHook: PID=%d, NtMapViewOfSection is hooked!\n", GetCurrentProcessId());
 
 	return (*pNtMapViewOfSection)(
 		SectionHandle,
@@ -41,7 +40,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 }
 
 // My NtCreateThreadEx Hooking Function
-DLLBASIC_API NTSTATUS NTAPI MyNtCreateThreadEx (
+DLLBASIC_API NTSTATUS NTAPI MyNtCreateThreadEx(
 	PHANDLE ThreadHandle,
 	ACCESS_MASK DesiredAccess,
 	POBJECT_ATTRIBUTES ObjectAttributes,
@@ -54,7 +53,50 @@ DLLBASIC_API NTSTATUS NTAPI MyNtCreateThreadEx (
 	DWORD SizeOfStackReserve,
 	CREATE_THREAD_INFO* ThreadInfo)
 {
-	pDbgPrint("CreationHook: NtCreateThreadEx is hooked!\n");
+	/* ProcessID가 0으로 되는 등 제대로 출력이 안돼서 주석으로 남겨두었습니다. */
+	/*
+	NTSTATUS status;
+	ULONG cbBuffer = 131072;
+	PVOID pBuffer;
+	PSYSTEM_PROCESS_INFORMATION info;
+
+	while (1) {
+		pBuffer = malloc(cbBuffer);
+		if (pBuffer == NULL) {
+			pDbgPrint("CreationHook: NtCreateThreadEx is hooked!\n");
+			break;
+		}
+
+		status = pNtQuerySystemInformation(SystemProcessInformation, pBuffer, cbBuffer, &cbBuffer);
+		pDbgPrint("CreationHook: status=%d\n", status);
+
+		if (status == STATUS_INFO_LENGTH_MISMATCH) {
+			free(pBuffer);
+			cbBuffer *= 2;
+			continue;
+		}
+		else if (status < 0) {
+			pDbgPrint("CreationHook: NtCreateThreadEx is hooked!\n");
+			free(pBuffer);
+			break;
+		}
+		else {
+			info = (PSYSTEM_PROCESS_INFORMATION)pBuffer;
+			pDbgPrint("CreationHook: NtCreateThreadEx is hooked!\n");
+			while (info->NextEntryDelta != 0) {
+				pDbgPrint("              ProcessID=%u\n", info->ProcessId);
+				pDbgPrint("              ProcessName=%wZ\n", (info->ProcessName).Buffer);
+				pDbgPrint("              ThreadCount=%u\n", info->ThreadCount);
+
+				info = (PSYSTEM_PROCESS_INFORMATION)(info->NextEntryDelta + (PBYTE)info);
+			}
+			free(pBuffer);
+			break;
+		}
+	}
+	*/
+
+	pDbgPrint("CreationHook: PID=%d, NtCreateThreadEx is hooked!\n", GetCurrentProcessId());
 
 	return (*pNtCreateThreadEx)(
 		ThreadHandle,
@@ -68,7 +110,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtCreateThreadEx (
 		SizeOfStackCommit,
 		SizeOfStackReserve,
 		ThreadInfo
-	);
+		);
 }
 
 // My NtAllocateVirtualMemory Hooking Function
@@ -80,7 +122,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtAllocateVirtualMemory(
 	ULONG AllocationType,
 	ULONG Protect)
 {
-	pDbgPrint("CreationHook: NtAllocateVirtualMemory is hooked!\n");
+	pDbgPrint("CreationHook: PID=%d, NtAllocateVirtualMemory is hooked!\n", GetCurrentProcessId());
 
 	return (*pNtAllocateVirtualMemory)(
 		ProcessHandle,
@@ -89,7 +131,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtAllocateVirtualMemory(
 		RegionSize,
 		AllocationType,
 		Protect
-	);
+		);
 }
 
 // My NtWriteVirtualMemory Hooking Function
@@ -100,7 +142,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtWriteVirtualMemory(
 	ULONG NumberOfBytesToWrite,
 	PULONG NumberOfBytesWritten)
 {
-	pDbgPrint("CreationHook: NtWriteVirtualMemory is hooked!\n");
+	pDbgPrint("CreationHook: PID=%d, NtWriteVirtualMemory is hooked!\n", GetCurrentProcessId());
 
 	return (*pNtWriteVirtualMemory)(
 		ProcessHandle,
@@ -108,7 +150,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtWriteVirtualMemory(
 		Buffer,
 		NumberOfBytesToWrite,
 		NumberOfBytesWritten
-	);
+		);
 }
 
 // My NtProtectVirtualMemory Hooking Function
@@ -119,7 +161,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtProtectVirtualMemory(
 	ULONG NewAccessProtection,
 	PULONG OldAccessProtection)
 {
-	pDbgPrint("CreationHook: NtProtectVirtualMemory is hooked!\n");
+	pDbgPrint("CreationHook: PID=%d, NtProtectVirtualMemory is hooked!\n", GetCurrentProcessId());
 
 	return (*pNtProtectVirtualMemory)(
 		ProcessHandle,
@@ -127,7 +169,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtProtectVirtualMemory(
 		NumberOfBytesToProtect,
 		NewAccessProtection,
 		OldAccessProtection
-	);
+		);
 }
 
 
@@ -175,6 +217,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		pDbgPrint = (DBGPRINT)GetProcAddress(hMod, "DbgPrint");
 		if (pDbgPrint == NULL) {
 			printf("CreationHook: Error - cannot get DbgPrint's address.\n");
+			return 1;
+		}
+		pNtQuerySystemInformation = (NTQUERYSYSTEMINFORMATION)GetProcAddress(hMod, "NtQuerySystemInformation");
+		if (pNtQuerySystemInformation == NULL) {
+			printf("CreationHook: Error - cannot get NtQuerySystemInformation's address.\n");
 			return 1;
 		}
 
