@@ -25,6 +25,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	ULONG Protect)
 {
 	pDbgPrint("CreationHook: PID=%d, NtMapViewOfSection is hooked!\n", GetCurrentProcessId());
+	pDbgPrint("              AllocationType = %x, Protect = %x\n", AllocationType, Protect);
 
 	return (*pNtMapViewOfSection)(
 		SectionHandle,
@@ -123,6 +124,19 @@ DLLBASIC_API NTSTATUS NTAPI MyNtAllocateVirtualMemory(
 	ULONG Protect)
 {
 	pDbgPrint("CreationHook: PID=%d, NtAllocateVirtualMemory is hooked!\n", GetCurrentProcessId());
+	pDbgPrint("              AllocationType = %x, Protect = %x\n", AllocationType, Protect);
+	//MEM_COMMIT: 0x00001000
+	//MEM_RESERVE: 0x00002000
+	//MEM_RESET: 0x00080000
+
+	//PAGE_NOACCESS: 0x01
+	//PAGE_READONLY: 0x02
+	//PAGE_READWRITE: 0x04
+	//PAGE_EXECUTE: 0x10
+	//PAGE_EXECUTE_READ: 0x20
+	//PAGE_GUARD: 0x100
+	//PAGE_NOCACHE: 0x200
+	//PAGE_WRITECOMBINE: 0x400
 
 	return (*pNtAllocateVirtualMemory)(
 		ProcessHandle,
