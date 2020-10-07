@@ -12,7 +12,7 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 예방하는 Bo
 + CreationHook: Pinjectra #2 (OpenProcess_VirtualAllocEx_WriteProcessMemory(\"MsgBoxOnProcessAttach.dll\") \[Entry: LoadLibraryA\]) 기법에 대응하는 API Hooking 솔루션
 + NtAddAtomEx+JS
 + Rua-A
-+ Silver0Hook
++ Silver0Hook: Pinjectra #3 (CreateFileMappingA_MapViewOfFile_OpenProcess_PNtMapViewOfSection)
 + kmkmi
 + Microsoft Detours 프로젝트
   + include
