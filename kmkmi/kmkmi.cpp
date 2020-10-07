@@ -17,12 +17,27 @@
 #include <windows.h>
 #include <processthreadsapi.h>
 #include "detours.h"
+#include "kmkmi.h"
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
 #define HOOKDLL_PATH "C:\\simple64.dll"
 
+
+static TrueNtUserSetWindowLongPtr pNtUserSetWindowLongPtr;
+
+
 static LONG dwSlept = 0;
 static DWORD (WINAPI * TrueSleepEx)(DWORD dwMilliseconds, BOOL bAlertable) = SleepEx;
+
+DLLBASIC_API LONG_PTR NTAPI MyNtUserSetWindowLongPtr(
+    HWND hWnd,
+    DWORD Index,
+    LONG_PTR NewValue,
+    BOOL Ansi
+) {
+    //printf("NtUserSetWindowLongPtr hooked.\n");
+    return (*pNtUserSetWindowLongPtr)(hWnd, Index, NewValue, Ansi);
+}
 
 static BOOL(WINAPI * TrueCreateProcessA)(
     LPCSTR                lpApplicationName,
@@ -137,6 +152,20 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
     (void)hinst;
     (void)reserved;
 
+    HMODULE hMod = NULL;
+    hMod = GetModuleHandleA("Win32u.dll");
+    if (hMod == NULL) {
+        printf("GetModuleHandleA ntdll.dll Failed.\n");
+        return 1;
+    }
+
+
+    pNtUserSetWindowLongPtr = (TrueNtUserSetWindowLongPtr)GetProcAddress(hMod, "NtUserSetWindowLongPtr");
+    if (pNtUserSetWindowLongPtr == NULL) {
+        printf("GetProcAddress NtUserSetWindowLongPtr Failed.\n");
+        return 1;
+    }
+
     if (DetourIsHelperProcess()) {
         return TRUE;
     }
@@ -153,6 +182,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         DetourAttach(&(PVOID&)TrueSleepEx, TimedSleepEx);
         DetourAttach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
         DetourAttach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
+        DetourAttach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
         error = DetourTransactionCommit();
 
         if (error == NO_ERROR) {
@@ -170,6 +200,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         DetourDetach(&(PVOID&)TrueSleepEx, TimedSleepEx);
         DetourDetach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
         DetourDetach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
+        DetourDetach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
+
         error = DetourTransactionCommit();
 
         printf("simple" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"

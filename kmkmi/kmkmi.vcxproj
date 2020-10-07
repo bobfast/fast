@@ -21,6 +21,9 @@
   <ItemGroup>
     <ClCompile Include="kmkmi.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="kmkmi.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
