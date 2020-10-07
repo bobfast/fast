@@ -20,10 +20,59 @@
 #include "kmkmi.h"
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
-#define HOOKDLL_PATH "C:\\simple64.dll"
+#define HOOKDLL_PATH "C:\simple64.dll"
 
+
+typedef
+ULONG(__cdecl* fnDbgPrintEx) (
+    _In_ ULONG ComponentId,
+    _In_ ULONG Level,
+    _In_z_ _Printf_format_string_ PCSTR Format,
+    ...
+    );
+static fnDbgPrintEx _dbg_print = nullptr;
 
 static TrueNtUserSetWindowLongPtr pNtUserSetWindowLongPtr;
+
+
+void dbg_print(_In_ uint32_t log_level, _In_ const char* msg)
+{
+    //
+    //	log level º¯È¯
+    //
+    uint32_t ll = DPFLTR_ERROR_LEVEL;
+    switch (log_level)
+    {
+    case log_level_debug:
+        ll = DPFLTR_INFO_LEVEL;
+        break;
+    case log_level_info:
+        ll = DPFLTR_TRACE_LEVEL;
+        break;
+    case log_level_warn:
+        ll = DPFLTR_WARNING_LEVEL;
+        break;
+    case log_level_error:
+        ll = DPFLTR_ERROR_LEVEL;
+        break;
+    }
+
+    if (_dbg_print)
+    {
+        _dbg_print(DPFLTR_IHVDRIVER_ID,
+            ll,
+            "%s",
+            msg);
+    }
+    else
+    {
+        OutputDebugStringA(msg);
+    }
+}
+
+
+
+
 
 
 static LONG dwSlept = 0;
@@ -35,6 +84,7 @@ DLLBASIC_API LONG_PTR NTAPI MyNtUserSetWindowLongPtr(
     LONG_PTR NewValue,
     BOOL Ansi
 ) {
+    //dbg_print(log_level_info, "NtUserSetWindowLongPtr hooked.\n");
     //printf("NtUserSetWindowLongPtr hooked.\n");
     return (*pNtUserSetWindowLongPtr)(hWnd, Index, NewValue, Ansi);
 }
@@ -152,15 +202,22 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
     (void)hinst;
     (void)reserved;
 
-    HMODULE hMod = NULL;
-    hMod = GetModuleHandleA("Win32u.dll");
-    if (hMod == NULL) {
+    HMODULE nt = GetModuleHandleW(L"ntdll.dll");
+    if (nt == NULL) {
         printf("GetModuleHandleA ntdll.dll Failed.\n");
+        return 1;
+    }
+    _dbg_print = (fnDbgPrintEx)GetProcAddress(nt, "DbgPrintEx");
+
+
+    HMODULE w32u = GetModuleHandleA("Win32u.dll");
+    if (w32u == NULL) {
+        printf("GetModuleHandleA Win32u.dll Failed.\n");
         return 1;
     }
 
 
-    pNtUserSetWindowLongPtr = (TrueNtUserSetWindowLongPtr)GetProcAddress(hMod, "NtUserSetWindowLongPtr");
+    pNtUserSetWindowLongPtr = (TrueNtUserSetWindowLongPtr)GetProcAddress(w32u, "NtUserSetWindowLongPtr");
     if (pNtUserSetWindowLongPtr == NULL) {
         printf("GetProcAddress NtUserSetWindowLongPtr Failed.\n");
         return 1;
