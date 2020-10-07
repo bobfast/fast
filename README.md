@@ -1,56 +1,22 @@
-# Microsoft Research Detours Package
+# FAST (Fileless Attack Solution Team) Hooking Project
 
-Detours is a software package for monitoring and instrumenting API calls on Windows. Detours
-has been used by many ISVs and  is also  used by product teams at Microsoft. Detours is now available under
-a standard open source  license ([MIT](https://github.com/microsoft/Detours/blob/master/LICENSE.md)).  This simplifies licensing for programmers using Detours
-and allows the community to support Detours using open source tools and processes.
+FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 예방하는 BoB 프로젝트입니다.
 
-Detours is compatible with the Windows NT family of 
-operating systems: Windows NT, Windows XP, Windows Server 2003, Windows 7,
-Windows 8, and Windows 10.  It cannot be used by Windows Store apps
-because Detours requires APIs not available to those applications. 
-This repo contains the source code for version 4.0.1 of Detours.
+[Pinjectra](https://github.com/SafeBreach-Labs/pinjectra)에 수록된 각 번호별 공격에 대응하기 위해
 
-For technical documentation on Detours, see the [Detours Wiki](https://github.com/microsoft/Detours/wiki).
-For directions on how to build and run samples, see the
-samples [README.txt](https://github.com/Microsoft/Detours/blob/master/samples/README.TXT) file.
+[MS Detours 라이브러리](https://github.com/microsoft/Detours)를 사용해 API 후킹을 합니다.
 
-## Contributing
+## 파일 및 디렉터리 구성
 
-The [`Detours`](https://github.com/microsoft/detours) repository is where development is done.
-Here are some ways you can participate in the project:
-
-* [Answer questions](https://github.com/microsoft/detours/issues) about using Detours.
-* [Improve the Wiki](https://github.com/microsoft/detours/wiki).
-* [Submit bugs](https://github.com/microsoft/detours/issues) and help us verify fixes and changes as they are checked in.
-* Review [source code changes](https://github.com/microsoft/detours/pulls).
-
-Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that
-you have the right to, and actually do, grant us the rights to use your contribution.
-For details, visit https://cla.opensource.microsoft.com.
-
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
-
-## Issues, questions, and feedback
-
-* Open an issue on [GitHub Issues](https://github.com/Microsoft/detours/issues).
-
-## Mailing list for announcements
-
-The detours-announce mailing list is a low-traffic email list for important announcements 
-about the project, such as the availability of new versions of Detours.  To join it, send 
-an email to listserv@lists.research.microsoft.com with a 
-message body containing only the text SUBSCRIBE DETOURS-ANNOUNCE.
-To leave it, send an email to listserv@lists.research.microsoft.com with a 
-message body containing only the text UNSUBSCRIBE DETOURS-ANNOUNCE.
-
-
-## License
-
-Copyright (c) Microsoft Corporation. All rights reserved.
-
-Licensed under the [MIT](LICENSE.md) License.
++ FAST-Reflective-DLL-Injection: 별도의 함수(LoadLibraryR)를 직접 구현하여 공격하는 Reflective DLL 공격 프로그램 (참고 프로젝트: [stephenfewer / ReflectiveDLLInjection](https://github.com/stephenfewer/ReflectiveDLLInjection))
++ CreationHook: Pinjectra #2 (OpenProcess_VirtualAllocEx_WriteProcessMemory(\"MsgBoxOnProcessAttach.dll\") \[Entry: LoadLibraryA\]) 기법에 대응하는 API Hooking 솔루션
++ NtAddAtomEx+JS
++ Rua-A
++ Silver0Hook
++ kmkmi
++ Microsoft Detours 프로젝트
+  + include
+  + samples
+  + src
+  + vc
+  + Makefile
