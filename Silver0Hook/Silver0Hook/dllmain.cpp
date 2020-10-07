@@ -5,26 +5,33 @@
 #include <stdio.h>
 #include <detours.h>
 #include <memoryapi.h>
+#include <winnt.h>
 
 #pragma comment(lib, "detours.lib")
+#pragma comment(lib, "ntdll.lib")
 #define DLLBASIC_API extern "C" __declspec(dllexport)
 static NTOPENPROCESS pNtOpenProcess;
 static NTMAPVIEWOFSECTION pNtMapViewOfSection;
 HMODULE hMod = NULL;
 
+int a = 0;
+int b = 0;
+int c = 0;
+
 // NtOpenProcess Hooking
 DLLBASIC_API NTSTATUS NTAPI MyNtOpenProcess(
-	PHANDLE            ProcessHandle,
-	ACCESS_MASK        DesiredAccess,
-	POBJECT_ATTRIBUTES ObjectAttributes,
-	PCLIENT_ID         ClientId
+	PHANDLE				 ProcessHandle,
+	ACCESS_MASK          AccessMask,
+	POBJECT_ATTRIBUTES   ObjectAttributes,
+	PCLIENT_ID           ClientId
 )
 {
 	printf("NtOpenProcess is HOOKED!\n");
+	a++;
 
-	return pNtOpenProcess(
+	return (*pNtOpenProcess)(
 		ProcessHandle,
-		DesiredAccess,
+		AccessMask,
 		ObjectAttributes,
 		ClientId
 	);
@@ -44,6 +51,8 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	ULONG Protect)
 {
 	printf("NtMapViewOfSection is HOOKED!\n");
+	b++;
+
 	return (*pNtMapViewOfSection)(
 		SectionHandle,
 		ProcessHandle,
@@ -58,7 +67,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 }
 
 // CreateFileMappingNumaW
-DLLBASIC_API HANDLE WINAPI MyCreateFileMappingNumaW(
+DLLBASIC_API HANDLE MyCreateFileMappingNumaW(
 	HANDLE                hFile,
 	LPSECURITY_ATTRIBUTES lpFileMappingAttributes,
 	DWORD                 flProtect,
@@ -69,8 +78,9 @@ DLLBASIC_API HANDLE WINAPI MyCreateFileMappingNumaW(
 )
 {
 	printf("CreateFileMappingNumaW is HOOKED!\n");
+	c++;
 
-	return CreateFileMappingNumaW(
+	return (*TrueCreateFileMappingNumaW)(
 		hFile,
 		lpFileMappingAttributes,
 		flProtect,
@@ -90,6 +100,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 	{
 	case DLL_PROCESS_ATTACH:
 		printf("Process attached\n");
+		printf("Attach: %d, %d, %d\n", a, b, c);
 
 		hMod = GetModuleHandleA("ntdll.dll");
 		if (hMod == NULL) {
@@ -105,7 +116,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 		pNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
 		if (pNtMapViewOfSection == NULL) {
-			printf("CreationHook: Error - cannot get NtMapViewOfSection's address.\n");
+			printf("Failed to get NtMapViewOfSection()\n");
 			return 1;
 		}
 
@@ -134,6 +145,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourDetach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourDetach(&(PVOID&)TrueCreateFileMappingNumaW, MyCreateFileMappingNumaW);
 		DetourTransactionCommit();
+		printf("Detach: %d, %d, %d\n", a, b, c);
 		break;
 	}
 

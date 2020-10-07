@@ -4,6 +4,23 @@
 // Windows 헤더 파일
 #include <windows.h>
 
+/*
+#define PAGE_EXECUTE_READ					(0x00000020)
+#define PAGE_EXECUTE_READWRITE				(0x00000040)
+#define PAGE_EXECUTE_WRITECOPY				(0x00000080)
+#define PAGE_READONLY						(0x00000002)
+#define PAGE_READWRITE						(0x00000004)
+#define PAGE_WRITECOPY						(0x00000008)
+#define SEC_COMMIT							(0x08000000)
+#define SEC_IMAGE							(0x01000000)
+#define SEC_IMAGE_NO_EXECUTE				(0x11000000)
+#define SEC_LARGE_PAGES						(0x80000000)
+#define SEC_NOCACHE							(0x10000000)
+#define SEC_RESERVE							(0x04000000)
+#define SEC_WRITECOMBINE					(0x40000000)
+#define NUMA_NO_PREFERRED_NODE				(0xffffffff)
+*/
+
 /// <summary>
 /// NtOpenProcess 
 /// </summary>
@@ -28,17 +45,17 @@ typedef struct PCLIENT_ID {
 } PCLIENT_ID;
 
 typedef NTSTATUS(NTAPI* NTOPENPROCESS)(
-	PHANDLE            ProcessHandle,
-	ACCESS_MASK        DesiredAccess,
-	POBJECT_ATTRIBUTES ObjectAttributes,
-	PCLIENT_ID         ClientId
-	);
+	PHANDLE             ProcessHandle,
+	ACCESS_MASK          AccessMask,
+	POBJECT_ATTRIBUTES   ObjectAttributes,
+	PCLIENT_ID           ClientId
+);
 
 
 /// <summary>
 /// CreateFileMappingNumaW  (memoryapi.h)
 /// </summary>
-static HANDLE(WINAPI* TrueCreateFileMappingNumaW)(
+static HANDLE(*TrueCreateFileMappingNumaW)(
 	HANDLE                hFile,
 	LPSECURITY_ATTRIBUTES lpFileMappingAttributes,
 	DWORD                 flProtect,
