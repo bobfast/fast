@@ -98,6 +98,11 @@ DLLBASIC_API NTSTATUS NTAPI MyNtCreateThreadEx(
 	*/
 
 	pDbgPrint("CreationHook: PID=%d, NtCreateThreadEx is hooked!\n", GetCurrentProcessId());
+	pDbgPrint("              StartAddress=%p\n", StartAddress);
+	
+	if (StartAddress == (LPTHREAD_START_ROUTINE)LoadLibraryA) {
+		pDbgPrint("************* LoadLibraryA DETECTED! *************\n");
+	}
 
 	return (*pNtCreateThreadEx)(
 		ThreadHandle,
@@ -134,6 +139,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtAllocateVirtualMemory(
 	//PAGE_READWRITE: 0x04
 	//PAGE_EXECUTE: 0x10
 	//PAGE_EXECUTE_READ: 0x20
+	//PAGE_EXECUTE_READWRITE: 0x40
 	//PAGE_GUARD: 0x100
 	//PAGE_NOCACHE: 0x200
 	//PAGE_WRITECOMBINE: 0x400
@@ -157,6 +163,14 @@ DLLBASIC_API NTSTATUS NTAPI MyNtWriteVirtualMemory(
 	PULONG NumberOfBytesWritten)
 {
 	pDbgPrint("CreationHook: PID=%d, NtWriteVirtualMemory is hooked!\n", GetCurrentProcessId());
+	pDbgPrint("              NumberOfBytesToWrite=%d\n", NumberOfBytesToWrite);
+	pDbgPrint("              Buffer(first 30) = ");
+
+	for (ULONG i = 0; i < NumberOfBytesToWrite && i < 30; i++) {
+		pDbgPrint("%02x ", ((const char*)Buffer)[i]);
+	}
+
+	pDbgPrint("\n");
 
 	return (*pNtWriteVirtualMemory)(
 		ProcessHandle,
