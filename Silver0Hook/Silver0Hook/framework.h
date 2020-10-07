@@ -47,3 +47,25 @@ static HANDLE(WINAPI* TrueCreateFileMappingNumaW)(
 	LPCWSTR               lpName,
 	DWORD                 nndPreferred
 	) = CreateFileMappingNumaW;
+
+
+/// <summary>
+/// NtMapViewOfSection
+/// </summary>
+typedef enum _SECTION_INHERIT {
+	ViewShare = 1,
+	ViewUnmap = 2
+} SECTION_INHERIT, * PSECTION_INHERIT;
+
+typedef NTSTATUS(NTAPI* NTMAPVIEWOFSECTION)(
+	HANDLE SectionHandle,
+	HANDLE ProcessHandle,
+	PVOID* BaseAddress,
+	ULONG ZeroBits,
+	ULONG CommitSize,
+	PLARGE_INTEGER SectionOffset,
+	PULONG ViewSize,
+	SECTION_INHERIT InheritDisposition,
+	ULONG AllocationType,
+	ULONG Protect
+	);

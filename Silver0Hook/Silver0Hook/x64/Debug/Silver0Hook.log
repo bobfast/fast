@@ -1,3 +1,4 @@
 ﻿  pch.cpp
   dllmain.cpp
-C:\Users\real1\source\repos\Silver0Hook\Silver0Hook\dllmain.cpp(6,10): fatal error C1083: 포함 파일을 열 수 없습니다. 'detours.h': No such file or directory
+     Creating library C:\Users\User\Desktop\fast\Silver0Hook\x64\Debug\Silver0Hook.lib and object C:\Users\User\Desktop\fast\Silver0Hook\x64\Debug\Silver0Hook.exp
+  Silver0Hook.vcxproj -> C:\Users\User\Desktop\fast\Silver0Hook\x64\Debug\Silver0Hook.dll

@@ -8,7 +8,8 @@
 
 #pragma comment(lib, "detours.lib")
 #define DLLBASIC_API extern "C" __declspec(dllexport)
-static NTOPENPROCESS NtOpenProcess;
+static NTOPENPROCESS pNtOpenProcess;
+static NTMAPVIEWOFSECTION pNtMapViewOfSection;
 HMODULE hMod = NULL;
 
 // NtOpenProcess Hooking
@@ -21,12 +22,39 @@ DLLBASIC_API NTSTATUS NTAPI MyNtOpenProcess(
 {
 	printf("NtOpenProcess is HOOKED!\n");
 
-	return NtOpenProcess(
+	return pNtOpenProcess(
 		ProcessHandle,
 		DesiredAccess,
 		ObjectAttributes,
 		ClientId
 	);
+}
+
+// NtMapViewOfSection
+DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
+	HANDLE SectionHandle,
+	HANDLE ProcessHandle,
+	PVOID* BaseAddress,
+	ULONG ZeroBits,
+	ULONG CommitSize,
+	PLARGE_INTEGER SectionOffset,
+	PULONG ViewSize,
+	SECTION_INHERIT InheritDisposition,
+	ULONG AllocationType,
+	ULONG Protect)
+{
+	printf("NtMapViewOfSection is HOOKED!\n");
+	return (*pNtMapViewOfSection)(
+		SectionHandle,
+		ProcessHandle,
+		BaseAddress,
+		ZeroBits,
+		CommitSize,
+		SectionOffset,
+		ViewSize,
+		InheritDisposition,
+		AllocationType,
+		Protect);
 }
 
 // CreateFileMappingNumaW
@@ -69,16 +97,23 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 			return 1;
 		}
 
-		NtOpenProcess = (NTOPENPROCESS)GetProcAddress(hMod, "NtOpenProcess");
-		if (NtOpenProcess == NULL) {
+		pNtOpenProcess = (NTOPENPROCESS)GetProcAddress(hMod, "NtOpenProcess");
+		if (pNtOpenProcess == NULL) {
 			printf("Failed to get NtOpenProcess()\n");
+			return 1;
+		}
+
+		pNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
+		if (pNtMapViewOfSection == NULL) {
+			printf("CreationHook: Error - cannot get NtMapViewOfSection's address.\n");
 			return 1;
 		}
 
 		DetourRestoreAfterWith();
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)NtOpenProcess, MyNtOpenProcess);
+		DetourAttach(&(PVOID&)pNtOpenProcess, MyNtOpenProcess);
+		DetourAttach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourAttach(&(PVOID&)TrueCreateFileMappingNumaW, MyCreateFileMappingNumaW);
 		DetourTransactionCommit();
 		break;
@@ -95,7 +130,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		printf("Process detached\n");
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)NtOpenProcess, MyNtOpenProcess);
+		DetourDetach(&(PVOID&)pNtOpenProcess, MyNtOpenProcess);
+		DetourDetach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourDetach(&(PVOID&)TrueCreateFileMappingNumaW, MyCreateFileMappingNumaW);
 		DetourTransactionCommit();
 		break;
