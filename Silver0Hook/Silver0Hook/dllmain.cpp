@@ -1,62 +1,78 @@
 ﻿// dllmain.cpp : DLL 애플리케이션의 진입점을 정의합니다.
 #include "pch.h"
 #include "framework.h"
-#include <Windows.h>
 #include <stdio.h>
 #include <detours.h>
-#include <memoryapi.h>
-#include <winnt.h>
 
 #pragma comment(lib, "detours.lib")
-#pragma comment(lib, "ntdll.lib")
 #define DLLBASIC_API extern "C" __declspec(dllexport)
-static NTOPENPROCESS pNtOpenProcess;
-static NTMAPVIEWOFSECTION pNtMapViewOfSection;
+
 HMODULE hMod = NULL;
 
-int a = 0;
-int b = 0;
-int c = 0;
+static NTOPENPROCESS TrueNtOpenProcess = NULL;
+//static NTMAPVIEWOFSECTION TrueNtMapViewOfSection;
+static HANDLE(WINAPI* TrueCreateFileMappingA)(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMappingAttributes, DWORD flProtect, DWORD dwMaximumSizeHigh, DWORD dwMaximumSizeLow, LPCSTR lpName) = CreateFileMappingA;
+static LPVOID(WINAPI* TrueMapViewOfFile)(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, SIZE_T dwNumberOfBytesToMap) = MapViewOfFile;
 
-// NtOpenProcess Hooking
-DLLBASIC_API NTSTATUS NTAPI MyNtOpenProcess(
-	PHANDLE				 ProcessHandle,
-	ACCESS_MASK          AccessMask,
-	POBJECT_ATTRIBUTES   ObjectAttributes,
-	PCLIENT_ID           ClientId
+// NtOpenProcess
+NTSTATUS MyNtOpenProcess(
+	PHANDLE ProcessHandle,
+	ACCESS_MASK DesiredAccess,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PCLIENT_ID ClientId OPTIONAL
 )
 {
-	printf("NtOpenProcess is HOOKED!\n");
-	a++;
-
-	return (*pNtOpenProcess)(
-		ProcessHandle,
-		AccessMask,
-		ObjectAttributes,
-		ClientId
-	);
+	printf("NtOpenProcess is HOOKED@@@\n");
+	return TrueNtOpenProcess(ProcessHandle, DesiredAccess, ObjectAttributes, &ClientId);
+}
+// CreateFileMappingA
+DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
+	HANDLE                hFile,
+	LPSECURITY_ATTRIBUTES lpFileMappingAttributes,
+	DWORD                 flProtect,
+	DWORD                 dwMaximumSizeHigh,
+	DWORD                 dwMaximumSizeLow,
+	LPCSTR                lpName
+)
+{
+	printf("CreateFileMappingA is HOOKED!!\n");
+	return TrueCreateFileMappingA(hFile, lpFileMappingAttributes, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
+}
+// MapViewOfFile
+DLLBASIC_API LPVOID	WINAPI MyMapViewOfFile(
+	HANDLE hFileMappingObject,
+	DWORD  dwDesiredAccess,
+	DWORD  dwFileOffsetHigh,
+	DWORD  dwFileOffsetLow,
+	SIZE_T dwNumberOfBytesToMap
+)
+{
+	printf("MapViewOfFile is HOOKED!!\n");
+	return TrueMapViewOfFile(hFileMappingObject, dwDesiredAccess, dwFileOffsetHigh, dwFileOffsetLow, dwNumberOfBytesToMap);
 }
 
+
+/*
 // NtMapViewOfSection
 DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	HANDLE SectionHandle,
 	HANDLE ProcessHandle,
-	PVOID* BaseAddress,
+	PVOID BaseAddress,
 	ULONG ZeroBits,
 	ULONG CommitSize,
 	PLARGE_INTEGER SectionOffset,
 	PULONG ViewSize,
 	SECTION_INHERIT InheritDisposition,
 	ULONG AllocationType,
-	ULONG Protect)
+	ULONG Protect
+)
 {
 	printf("NtMapViewOfSection is HOOKED!\n");
-	b++;
 
-	return (*pNtMapViewOfSection)(
+	return TrueNtMapViewOfSection(
 		SectionHandle,
 		ProcessHandle,
-		BaseAddress,
+		&BaseAddress,
 		ZeroBits,
 		CommitSize,
 		SectionOffset,
@@ -65,31 +81,8 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		AllocationType,
 		Protect);
 }
+*/
 
-// CreateFileMappingNumaW
-DLLBASIC_API HANDLE MyCreateFileMappingNumaW(
-	HANDLE                hFile,
-	LPSECURITY_ATTRIBUTES lpFileMappingAttributes,
-	DWORD                 flProtect,
-	DWORD                 dwMaximumSizeHigh,
-	DWORD                 dwMaximumSizeLow,
-	LPCWSTR               lpName,
-	DWORD                 nndPreferred
-)
-{
-	printf("CreateFileMappingNumaW is HOOKED!\n");
-	c++;
-
-	return (*TrueCreateFileMappingNumaW)(
-		hFile,
-		lpFileMappingAttributes,
-		flProtect,
-		dwMaximumSizeHigh,
-		dwMaximumSizeLow,
-		lpName,
-		nndPreferred
-	);
-}
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 {
@@ -100,7 +93,6 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 	{
 	case DLL_PROCESS_ATTACH:
 		printf("Process attached\n");
-		printf("Attach: %d, %d, %d\n", a, b, c);
 
 		hMod = GetModuleHandleA("ntdll.dll");
 		if (hMod == NULL) {
@@ -108,24 +100,28 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 			return 1;
 		}
 
-		pNtOpenProcess = (NTOPENPROCESS)GetProcAddress(hMod, "NtOpenProcess");
-		if (pNtOpenProcess == NULL) {
+		
+		TrueNtOpenProcess = (NTOPENPROCESS)GetProcAddress(hMod, "NtOpenProcess");
+		if (TrueNtOpenProcess == NULL) {
 			printf("Failed to get NtOpenProcess()\n");
 			return 1;
 		}
-
-		pNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
-		if (pNtMapViewOfSection == NULL) {
+		
+		/*
+		TrueNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
+		if (TrueNtMapViewOfSection == NULL) {
 			printf("Failed to get NtMapViewOfSection()\n");
 			return 1;
 		}
+		*/
 
 		DetourRestoreAfterWith();
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)pNtOpenProcess, MyNtOpenProcess);
-		DetourAttach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
-		DetourAttach(&(PVOID&)TrueCreateFileMappingNumaW, MyCreateFileMappingNumaW);
+		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
+		DetourAttach(&(PVOID&)TrueMapViewOfFile, MyMapViewOfFile);
+		DetourAttach(&(PVOID&)TrueNtOpenProcess, MyNtOpenProcess);
+		//DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourTransactionCommit();
 		break;
 
@@ -141,11 +137,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		printf("Process detached\n");
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
-		DetourDetach(&(PVOID&)pNtOpenProcess, MyNtOpenProcess);
-		DetourDetach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
-		DetourDetach(&(PVOID&)TrueCreateFileMappingNumaW, MyCreateFileMappingNumaW);
+		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
+		DetourDetach(&(PVOID&)TrueMapViewOfFile, MyMapViewOfFile);
+		DetourDetach(&(PVOID&)TrueNtOpenProcess, MyNtOpenProcess);
+		//DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourTransactionCommit();
-		printf("Detach: %d, %d, %d\n", a, b, c);
 		break;
 	}
 
