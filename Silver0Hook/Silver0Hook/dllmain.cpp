@@ -14,7 +14,7 @@ HANDLE temp2 = NULL;
 int MagicNum_read = 0;
 int MagicNum_write = 0;
 
-static NTMAPVIEWOFSECTION pNtMapViewOfSection;
+static NTMAPVIEWOFSECTION TrueNtMapViewOfSection;
 static HANDLE(WINAPI* TrueCreateFileMappingA)(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMappingAttributes, DWORD flProtect, DWORD dwMaximumSizeHigh, DWORD dwMaximumSizeLow, LPCSTR lpName) = CreateFileMappingA;
 static LPVOID(WINAPI* TrueMapViewOfFile)(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, SIZE_T dwNumberOfBytesToMap) = MapViewOfFile;
 static HANDLE(WINAPI* TrueOpenProcess)(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProcessId) = OpenProcess;
@@ -83,7 +83,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		MagicNum_write = 1;
 	}
 	// Protect = PAGE_EXECUTE_READWRITE CHECKING!!!
-	return (*pNtMapViewOfSection)(
+	return (*TrueNtMapViewOfSection)(
 		SectionHandle,
 		ProcessHandle,
 		BaseAddress,
@@ -112,9 +112,9 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 			return 1;
 		}
 
-		pNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
-		if (pNtMapViewOfSection == NULL) {
-			printf("CreationHook: Error - cannot get NtMapViewOfSection's address.\n");
+		TrueNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
+		if (TrueNtMapViewOfSection == NULL) {
+			printf("Failed to get NtMapViewOfSection\n");
 			return 1;
 		}
 
@@ -124,7 +124,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourAttach(&(PVOID&)TrueMapViewOfFile, MyMapViewOfFile);
 		DetourAttach(&(PVOID&)TrueOpenProcess, MyOpenProcess);
-		DetourAttach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
+		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourTransactionCommit();
 		break;
 
@@ -143,7 +143,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourDetach(&(PVOID&)TrueMapViewOfFile, MyMapViewOfFile);
 		DetourDetach(&(PVOID&)TrueOpenProcess, MyOpenProcess);
-		DetourDetach(&(PVOID&)pNtMapViewOfSection, MyNtMapViewOfSection);
+		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourTransactionCommit();
 		break;
 	}
