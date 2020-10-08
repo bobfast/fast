@@ -10,6 +10,9 @@ static NTPROTECTVIRTUALMEMORY pNtProtectVirtualMemory;
 static DBGPRINT pDbgPrint;  // for debug printing 
 static NTQUERYSYSTEMINFORMATION pNtQuerySystemInformation;  // for getting system info
 HMODULE hMod = NULL;
+unsigned char* writtenBuffer = NULL;
+unsigned int writtenBufferLen = 0;
+HANDLE eventLog = RegisterEventSourceA(NULL, "CreationHookLog");
 
 // My NtMapViewOfSection Hooking Function
 DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
@@ -102,6 +105,22 @@ DLLBASIC_API NTSTATUS NTAPI MyNtCreateThreadEx(
 	
 	if (StartAddress == (LPTHREAD_START_ROUTINE)LoadLibraryA) {
 		pDbgPrint("************* LoadLibraryA DETECTED! *************\n");
+
+		if (writtenBuffer != NULL) {
+			LPCSTR msgs[] = {
+				"LoadLibraryA Detected.",
+				(LPCSTR)writtenBuffer
+			};
+
+			if (eventLog != NULL)
+				ReportEventA(eventLog, EVENTLOG_SUCCESS, 0, 5678, NULL, 2, 0, msgs, NULL);
+		}
+	}
+
+	if (writtenBuffer != NULL) {
+		free(writtenBuffer);
+		writtenBuffer = NULL;
+		writtenBufferLen = 0;
 	}
 
 	return (*pNtCreateThreadEx)(
@@ -163,11 +182,26 @@ DLLBASIC_API NTSTATUS NTAPI MyNtWriteVirtualMemory(
 	PULONG NumberOfBytesWritten)
 {
 	pDbgPrint("CreationHook: PID=%d, NtWriteVirtualMemory is hooked!\n", GetCurrentProcessId());
-	pDbgPrint("              NumberOfBytesToWrite=%d\n", NumberOfBytesToWrite);
+	pDbgPrint("              NumberOfBytesToWrite=%u\n", NumberOfBytesToWrite);
 	pDbgPrint("              Buffer(first 30) = ");
 
-	for (ULONG i = 0; i < NumberOfBytesToWrite && i < 30; i++) {
-		pDbgPrint("%02x ", ((const char*)Buffer)[i]);
+	if (writtenBuffer != NULL) {
+		free(writtenBuffer);
+		writtenBuffer = NULL;
+		writtenBufferLen = 0;
+	}
+		
+	writtenBuffer = (unsigned char*) malloc(NumberOfBytesToWrite);
+	writtenBufferLen = NumberOfBytesToWrite;
+
+	if (writtenBuffer != NULL) {
+		memcpy(writtenBuffer, Buffer, NumberOfBytesToWrite);
+		for (ULONG i = 0; i < 30 && i < NumberOfBytesToWrite; i++) {
+			pDbgPrint("%02x ", writtenBuffer[i]);
+		}
+	}
+	else {
+		pDbgPrint("(memory allocation failed)");
 	}
 
 	pDbgPrint("\n");
@@ -190,6 +224,9 @@ DLLBASIC_API NTSTATUS NTAPI MyNtProtectVirtualMemory(
 	PULONG OldAccessProtection)
 {
 	pDbgPrint("CreationHook: PID=%d, NtProtectVirtualMemory is hooked!\n", GetCurrentProcessId());
+	pDbgPrint("              NumberOfBytesToProtect=%u", *NumberOfBytesToProtect);
+	pDbgPrint("              Previous AccessProtection=%x\n", *OldAccessProtection);
+	pDbgPrint("              Updating AccessProtection=%x\n", NewAccessProtection);
 
 	return (*pNtProtectVirtualMemory)(
 		ProcessHandle,
