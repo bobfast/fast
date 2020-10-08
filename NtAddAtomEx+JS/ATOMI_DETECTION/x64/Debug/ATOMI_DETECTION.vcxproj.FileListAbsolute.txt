@@ -1,0 +1,2 @@
+C:\Users\kkura\source\repos\ATOMI_DETECTION\x64\Debug\ATOMI_DETECTION.dll
+C:\Users\kkura\source\repos\ATOMI_DETECTION\x64\Debug\ATOMI_DETECTION.pdb
