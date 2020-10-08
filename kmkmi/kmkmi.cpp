@@ -20,7 +20,7 @@
 #include "kmkmi.h"
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
-#define HOOKDLL_PATH "C:\simple64.dll"
+#define HOOKDLL_PATH "C:\\kmkmi.dll"
 
 
 typedef
@@ -89,6 +89,12 @@ DLLBASIC_API LONG_PTR NTAPI MyNtUserSetWindowLongPtr(
     return (*pNtUserSetWindowLongPtr)(hWnd, Index, NewValue, Ansi);
 }
 
+static LONG_PTR(WINAPI* TrueSetWindowLongPtrA) (
+	HWND     hWnd,
+	int      nIndex,
+	LONG_PTR dwNewLong
+	) = SetWindowLongPtrA;
+
 static BOOL(WINAPI * TrueCreateProcessA)(
     LPCSTR                lpApplicationName,
     LPSTR                 lpCommandLine,
@@ -115,6 +121,17 @@ static BOOL(WINAPI * TrueCreateProcessW)(
     LPSTARTUPINFOW        lpStartupInfo,
     LPPROCESS_INFORMATION lpProcessInformation
     ) = CreateProcessW;
+
+DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
+(HWND     hWnd,
+	int      nIndex,
+	LONG_PTR dwNewLong) {
+
+	dbg_print(log_level_info, "SetWindowLongPtrA hooked.\n");
+	printf("SetWindowLongPtrA hooked.");
+    printf("\t%ull\n", dwNewLong);
+	return TrueSetWindowLongPtrA(hWnd, nIndex, dwNewLong);
+}
 
 DLLBASIC_API BOOL WINAPI HookCreateProcessA(
     LPCSTR                lpApplicationName,
@@ -230,7 +247,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
     if (dwReason == DLL_PROCESS_ATTACH) {
         DetourRestoreAfterWith();
 
-        printf("simple" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
+        printf("kmkmi" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
                " Starting.\n");
         fflush(stdout);
 
@@ -239,15 +256,16 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         DetourAttach(&(PVOID&)TrueSleepEx, TimedSleepEx);
         DetourAttach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
         DetourAttach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
-        DetourAttach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
+        //DetourAttach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
+        DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
         error = DetourTransactionCommit();
 
         if (error == NO_ERROR) {
-            printf("simple" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
+            printf("kmkmi" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
                    " Detoured SleepEx().\n");
         }
         else {
-            printf("simple" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
+            printf("kmkmi" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
                    " Error detouring SleepEx(): %ld\n", error);
         }
     }
@@ -257,11 +275,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         DetourDetach(&(PVOID&)TrueSleepEx, TimedSleepEx);
         DetourDetach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
         DetourDetach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
-        DetourDetach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
-
+        //DetourDetach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
+        DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
         error = DetourTransactionCommit();
 
-        printf("simple" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
+        printf("kmkmi" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
                " Removed SleepEx() (result=%ld), slept %ld ticks.\n", error, dwSlept);
         fflush(stdout);
     }
