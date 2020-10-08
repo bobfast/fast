@@ -1,4 +1,4 @@
-﻿// dllmain.cpp : DLL 애플리케이션의 진입점을 정의합니다.
+// dllmain.cpp : DLL 애플리케이션의 진입점을 정의합니다.
 #include "pch.h"
 #include <Windows.h>
 #include <detours.h>
@@ -10,7 +10,7 @@
 static LONG dwSlept = 0;
 static pNtQueueApcThread NtQueueApcThread = NULL;
 static DWORD(WINAPI* TrueSleepEx)(DWORD dwMilliseconds, BOOL bAlertable) = SleepEx;
-
+static LPVOID(WINAPI* TrueVirtualAllocEx)(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize,DWORD flAllocationType,DWORD flProtect) = VirtualAllocEx;
 DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
     HANDLE ThreadHandle,
     PVOID ApcRoutine,
@@ -26,7 +26,12 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
         ApcReserved OPTIONAL);
 }
 
+DLLBASIC_API LPVOID WINAPI DetectVirtualAllocEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect) {
+    
+    printf("VirtualAllocEx is used\n");
+    return TrueVirtualAllocEx(hProcess, lpAddress, dwSize, flAllocationType, flProtect);
 
+}
 DLLBASIC_API DWORD WINAPI DetectSleepEx(DWORD dwMilliseconds, BOOL bAlertable) {
     DWORD dwBeg = GetTickCount();
     DWORD ret = TrueSleepEx(dwMilliseconds, bAlertable);
@@ -54,20 +59,19 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         NtQueueApcThread = (pNtQueueApcThread)GetProcAddress(hModule, "NtQueueApcThread");
 
         DetourRestoreAfterWith();
-        printf("starting sleepEx \n");
-        fflush(stdout);
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&)TrueSleepEx, DetectSleepEx);
+        DetourAttach(&(PVOID&)TrueVirtualAllocEx, DetectVirtualAllocEx);
         if (NtQueueApcThread != NULL)
             DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
         error = DetourTransactionCommit();
         if (error == NO_ERROR) {
             printf(DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
-                " Detoured SleepEx().\n");
+                " Detoured start().\n");
         }
         else {
-            printf( DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
+            printf("simple" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
                 " Error detouring SleepEx(): %ld\n", error);
         }
         break;
@@ -79,6 +83,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourDetach(&(PVOID&)TrueSleepEx, DetectSleepEx);
+        DetourDetach(&(PVOID&)TrueVirtualAllocEx, DetectVirtualAllocEx);
         if (NtQueueApcThread != NULL)
             DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
         error = DetourTransactionCommit();
