@@ -95,7 +95,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		}
 		pNtResumeThread = (RESUMETHREAD)GetProcAddress(hMod, "NtResumeThread");
 		if (pNtResumeThread == NULL) {
-			printf("CreationHook: Error - cannot find NtResumeThread's address.\n");
+			printf("N4Hook: Error - cannot find NtResumeThread's address.\n");
 			return 1;
 		}
 
