@@ -4,37 +4,36 @@
 #include <windows.h>
 #include <WINDEF.H>
 
-/// <summary>
-/// NtMapViewOfSection
-/// </summary>
-
+// Enumeration type for NtMapViewOfSection
 typedef enum class _SECTION_INHERIT {
 	ViewShare = 1,
 	ViewUnmap = 2
 } SECTION_INHERIT, * PSECTION_INHERIT;
 
+// NtMapViewOfSection Function Pointer Type
 typedef NTSTATUS(NTAPI* NTMAPVIEWOFSECTION)(
 	HANDLE SectionHandle,
 	HANDLE ProcessHandle,
 	PVOID* BaseAddress,
-	ULONG ZeroBits,
-	ULONG CommitSize,
+	ULONG_PTR ZeroBits,
+	SIZE_T CommitSize,
 	PLARGE_INTEGER SectionOffset,
-	PULONG ViewSize,
+	PSIZE_T ViewSize,
 	SECTION_INHERIT InheritDisposition,
 	ULONG AllocationType,
-	ULONG Protect
-);
-
+	ULONG Win32Protect
+	);
 
 /// <summary>
 /// NtOpenProcess
 /// </summary>
+/*
 typedef struct _UNICODE_STRING {
 	USHORT Length;
 	USHORT MaximumLength;
 	PWSTR  Buffer;
 } UNICODE_STRING;
+
 typedef UNICODE_STRING* PUNICODE_STRING;
 
 typedef struct _OBJECT_ATTRIBUTES {
@@ -45,16 +44,18 @@ typedef struct _OBJECT_ATTRIBUTES {
 	PVOID SecurityDescriptor;
 	PVOID SecurityQualityOfService;
 } OBJECT_ATTRIBUTES;
+
 typedef OBJECT_ATTRIBUTES* POBJECT_ATTRIBUTES;
 
 typedef struct _CLIENT_ID {
 	PVOID UniqueProcess;
 	PVOID UniqueThread;
-} CLIENT_ID, *PCLIENT_ID;
+} CLIENT_ID, * PCLIENT_ID;
 
 typedef NTSTATUS(NTAPI* NTOPENPROCESS)(
 	PHANDLE ProcessHandle,
 	ACCESS_MASK DesiredAccess,
 	POBJECT_ATTRIBUTES ObjectAttributes,
-	PCLIENT_ID *ClientId
-);
+	PCLIENT_ID* ClientId
+	);
+*/
