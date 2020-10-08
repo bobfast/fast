@@ -24,4 +24,19 @@ typedef LONG_PTR(NTAPI* TrueNtUserSetWindowLongPtr)(
     LONG_PTR NewValue,
     BOOL Ansi);
 
+typedef NTSTATUS(NTAPI* TrueNtAllocateVirtualMemory)(
+	HANDLE ProcessHandle,
+	PVOID* BaseAddress,
+	ULONG_PTR ZeroBits,
+	PSIZE_T RegionSize,
+	ULONG AllocationType,
+	ULONG Protect
+	);
 
+typedef NTSTATUS(NTAPI* TrueNtWriteVirtualMemory)(
+	HANDLE ProcessHandle,
+	PVOID BaseAddress,
+	PVOID Buffer,
+	ULONG NumberOfBytesToWrite,
+	PULONG NumberOfBytesWritten
+	);
