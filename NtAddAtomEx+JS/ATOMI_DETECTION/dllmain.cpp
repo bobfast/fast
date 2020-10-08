@@ -63,11 +63,11 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
         error = DetourTransactionCommit();
         if (error == NO_ERROR) {
-            printf("simple" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
+            printf(DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
                 " Detoured SleepEx().\n");
         }
         else {
-            printf("simple" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
+            printf( DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
                 " Error detouring SleepEx(): %ld\n", error);
         }
         break;
