@@ -1,5 +1,5 @@
 #pragma once
-#include <Windows.h>
+#include <windows.h>
 #include <stdio.h>
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)

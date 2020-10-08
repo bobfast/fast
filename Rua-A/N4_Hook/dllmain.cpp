@@ -1,9 +1,10 @@
-#include "pch.h"
-#include "detours.h"
 #include <stdio.h>
 #include <processthreadsapi.h>
 #include <winternl.h>
 #include <iostream>
+#include <Windows.h>
+#include "pch.h"
+#include "detours.h"
 
 
 static NTSUSPENDTHREAD pNtSuspendThread;
