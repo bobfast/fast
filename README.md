@@ -1,6 +1,6 @@
 # FAST (Fileless Attack Solution Team) Hooking Project
 
-FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 예방하는 BoB 프로젝트입니다.
+FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단하는 BoB 프로젝트입니다.
 
 [Pinjectra](https://github.com/SafeBreach-Labs/pinjectra)에 수록된 각 번호별 공격에 대응하기 위해
 
@@ -13,7 +13,7 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 예방하는 Bo
 + NtAddAtomEx+JS
 + Rua-A
 + Silver0Hook: Pinjectra #3 (CreateFileMappingA_MapViewOfFile_OpenProcess_PNtMapViewOfSection)
-+ kmkmi
++ kmkmi #6 #10
 + Microsoft Detours 프로젝트
   + include
   + samples
