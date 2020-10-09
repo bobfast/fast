@@ -8,11 +8,11 @@
 #define DLLBASIC_API extern "C" __declspec(dllexport)
 
 HMODULE hMod = NULL;
-HANDLE temp1 = NULL;
-HANDLE temp2 = NULL;
+HANDLE CheckPoint_W = NULL;
+HANDLE CheckPoint_M = NULL;
 
-int MagicNum_read = 0;
-int MagicNum_write = 0;
+int MagicNum_W = 0;
+int MagicNum_M = 0;
 
 static NTMAPVIEWOFSECTION TrueNtMapViewOfSection;
 static HANDLE(WINAPI* TrueCreateFileMappingA)(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMappingAttributes, DWORD flProtect, DWORD dwMaximumSizeHigh, DWORD dwMaximumSizeLow, LPCSTR lpName) = CreateFileMappingA;
@@ -32,8 +32,8 @@ DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
 	printf("CreateFileMappingA is HOOKED!!\n");
 	// hFile = INVALID_HANDLE_VALUE CHECKING!!!
 	// flProtect = PAGE_EXECUTE_READWRITE CHECKING!!!
-	temp1 = TrueCreateFileMappingA(hFile, lpFileMappingAttributes, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
-	return temp1;
+	CheckPoint_W = TrueCreateFileMappingA(hFile, lpFileMappingAttributes, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
+	return CheckPoint_W;
 }
 // MapViewOfFile
 DLLBASIC_API LPVOID	WINAPI MyMapViewOfFile(
@@ -45,8 +45,8 @@ DLLBASIC_API LPVOID	WINAPI MyMapViewOfFile(
 )
 {
 	printf("MapViewOfFile is HOOKED!!\n");
-	if (hFileMappingObject == temp1) {
-		MagicNum_read = 1;
+	if (hFileMappingObject == CheckPoint_W) {
+		MagicNum_W = 1;
 	}
 	// dwDesiredAccess = FILE_MAP_ALL_ACCESS CHECKING!!!
 	return TrueMapViewOfFile(hFileMappingObject, dwDesiredAccess, dwFileOffsetHigh, dwFileOffsetLow, dwNumberOfBytesToMap);
@@ -60,8 +60,8 @@ DLLBASIC_API HANDLE	WINAPI MyOpenProcess(
 {
 	printf("OpenProcess is HOOKED!!~~~~~~\n");
 	// dwDesiredAccess = (PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD) CHECKING!!!
-	temp2 = TrueOpenProcess(dwDesiredAccess, bInheritHandle, dwProcessId);
-	return temp2;
+	CheckPoint_M = TrueOpenProcess(dwDesiredAccess, bInheritHandle, dwProcessId);
+	return CheckPoint_M;
 }
 
 // My NtMapViewOfSection Hooking Function
@@ -79,8 +79,8 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 )
 {
 	printf("NtMapViewOfSection is HOOKED!\n");
-	if ((temp1 == SectionHandle) && (temp2 == ProcessHandle)) {
-		MagicNum_write = 1;
+	if ((CheckPoint_W == SectionHandle) && (CheckPoint_M == ProcessHandle)) {
+		MagicNum_M = 1;
 	}
 	// Protect = PAGE_EXECUTE_READWRITE CHECKING!!!
 	return (*TrueNtMapViewOfSection)(
@@ -95,6 +95,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		AllocationType,
 		Win32Protect);
 }
+
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 {
@@ -148,7 +149,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		break;
 	}
 
-	if ((MagicNum_read == 1) && (MagicNum_write == 1)) {
+	if ((MagicNum_W == 1) && (MagicNum_M == 1)) {
 		// ALERT
 		// PUTS BUFFERRRRRR
 		// (buffer : map_addr, this->m_buf, this->m_nbyte)

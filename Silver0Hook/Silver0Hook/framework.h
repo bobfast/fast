@@ -27,7 +27,7 @@ typedef NTSTATUS(NTAPI* NTMAPVIEWOFSECTION)(
 /// <summary>
 /// NtOpenProcess
 /// </summary>
-/*
+
 typedef struct _UNICODE_STRING {
 	USHORT Length;
 	USHORT MaximumLength;
@@ -58,4 +58,3 @@ typedef NTSTATUS(NTAPI* NTOPENPROCESS)(
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	PCLIENT_ID* ClientId
 	);
-*/
