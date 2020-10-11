@@ -30,8 +30,9 @@ DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
 )
 {
 	printf("CreateFileMappingA is HOOKED!!\n");
-	// hFile = INVALID_HANDLE_VALUE CHECKING!!!
-	// flProtect = PAGE_EXECUTE_READWRITE CHECKING!!!
+	if ((hFile == INVALID_HANDLE_VALUE) && (flProtect == PAGE_EXECUTE_READWRITE)) {
+		MagicNum_W = 1;
+	}
 	CheckPoint_W = TrueCreateFileMappingA(hFile, lpFileMappingAttributes, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
 	return CheckPoint_W;
 }
@@ -45,10 +46,9 @@ DLLBASIC_API LPVOID	WINAPI MyMapViewOfFile(
 )
 {
 	printf("MapViewOfFile is HOOKED!!\n");
-	if (hFileMappingObject == CheckPoint_W) {
-		MagicNum_W = 1;
+	if ((hFileMappingObject != CheckPoint_W) && (dwDesiredAccess !=  FILE_MAP_ALL_ACCESS)){
+		MagicNum_W = 0;
 	}
-	// dwDesiredAccess = FILE_MAP_ALL_ACCESS CHECKING!!!
 	return TrueMapViewOfFile(hFileMappingObject, dwDesiredAccess, dwFileOffsetHigh, dwFileOffsetLow, dwNumberOfBytesToMap);
 }
 // OpenProcess
@@ -59,7 +59,9 @@ DLLBASIC_API HANDLE	WINAPI MyOpenProcess(
 )
 {
 	printf("OpenProcess is HOOKED!!~~~~~~\n");
-	// dwDesiredAccess = (PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD) CHECKING!!!
+	if (dwDesiredAccess == (PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD)) {
+		MagicNum_M = 1;
+	}
 	CheckPoint_M = TrueOpenProcess(dwDesiredAccess, bInheritHandle, dwProcessId);
 	return CheckPoint_M;
 }
@@ -79,10 +81,9 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 )
 {
 	printf("NtMapViewOfSection is HOOKED!\n");
-	if ((CheckPoint_W == SectionHandle) && (CheckPoint_M == ProcessHandle)) {
-		MagicNum_M = 1;
+	if ((CheckPoint_W == SectionHandle) && (CheckPoint_M == ProcessHandle) && (Win32Protect == PAGE_EXECUTE_READWRITE)) {
+		MagicNum_M = 2;
 	}
-	// Protect = PAGE_EXECUTE_READWRITE CHECKING!!!
 	return (*TrueNtMapViewOfSection)(
 		SectionHandle,
 		ProcessHandle,
@@ -149,7 +150,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		break;
 	}
 
-	if ((MagicNum_W == 1) && (MagicNum_M == 1)) {
+	if ((MagicNum_W == 1) && (MagicNum_M == 2)) {
 		// ALERT
 		// PUTS BUFFERRRRRR
 		// (buffer : map_addr, this->m_buf, this->m_nbyte)
