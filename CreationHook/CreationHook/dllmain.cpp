@@ -190,12 +190,13 @@ DLLBASIC_API NTSTATUS NTAPI MyNtWriteVirtualMemory(
 		writtenBuffer = NULL;
 		writtenBufferLen = 0;
 	}
-		
-	writtenBuffer = (unsigned char*) malloc(NumberOfBytesToWrite);
-	writtenBufferLen = NumberOfBytesToWrite;
+	
+	writtenBufferLen = NumberOfBytesToWrite < 64 ? NumberOfBytesToWrite : 64;
+	writtenBuffer = (unsigned char*) malloc(writtenBufferLen + 1);
 
 	if (writtenBuffer != NULL) {
-		memcpy(writtenBuffer, Buffer, NumberOfBytesToWrite);
+		memcpy(writtenBuffer, Buffer, writtenBufferLen);
+		writtenBuffer[writtenBufferLen] = '\0';
 		for (ULONG i = 0; i < 30 && i < NumberOfBytesToWrite; i++) {
 			pDbgPrint("%02x ", writtenBuffer[i]);
 		}
@@ -224,7 +225,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtProtectVirtualMemory(
 	PULONG OldAccessProtection)
 {
 	pDbgPrint("CreationHook: PID=%d, NtProtectVirtualMemory is hooked!\n", GetCurrentProcessId());
-	pDbgPrint("              NumberOfBytesToProtect=%u", *NumberOfBytesToProtect);
+	pDbgPrint("              NumberOfBytesToProtect=%u\n", *NumberOfBytesToProtect);
 	pDbgPrint("              Previous AccessProtection=%x\n", *OldAccessProtection);
 	pDbgPrint("              Updating AccessProtection=%x\n", NewAccessProtection);
 
