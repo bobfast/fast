@@ -8,16 +8,29 @@
 #define DLLBASIC_API extern "C" __declspec(dllexport)
 
 HMODULE hMod = NULL;
-HANDLE temp1 = NULL;
-HANDLE temp2 = NULL;
+HANDLE CheckPoint_W = NULL;
 
-int MagicNum_read = 0;
-int MagicNum_write = 0;
+int MagicNum_W = 0;
+int MagicNum_M = 0;
 
 static NTMAPVIEWOFSECTION TrueNtMapViewOfSection;
-static HANDLE(WINAPI* TrueCreateFileMappingA)(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMappingAttributes, DWORD flProtect, DWORD dwMaximumSizeHigh, DWORD dwMaximumSizeLow, LPCSTR lpName) = CreateFileMappingA;
-static LPVOID(WINAPI* TrueMapViewOfFile)(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, SIZE_T dwNumberOfBytesToMap) = MapViewOfFile;
-static HANDLE(WINAPI* TrueOpenProcess)(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProcessId) = OpenProcess;
+static HANDLE(WINAPI* TrueCreateFileMappingA)(
+	HANDLE					hFile, 
+	LPSECURITY_ATTRIBUTES	lpFileMappingAttributes, 
+	DWORD					flProtect, 
+	DWORD					dwMaximumSizeHigh, 
+	DWORD					dwMaximumSizeLow, 
+	LPCSTR					lpName
+	) = CreateFileMappingA;
+static HANDLE(WINAPI* TrueCreateRemoteThread)(
+	HANDLE                 hProcess,
+	LPSECURITY_ATTRIBUTES  lpThreadAttributes,
+	SIZE_T                 dwStackSize,
+	LPTHREAD_START_ROUTINE lpStartAddress,
+	LPVOID                 lpParameter,
+	DWORD                  dwCreationFlags,
+	LPDWORD                lpThreadId
+	) = CreateRemoteThread;
 
 // CreateFileMappingA
 DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
@@ -30,41 +43,29 @@ DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
 )
 {
 	printf("CreateFileMappingA is HOOKED!!\n");
-	// hFile = INVALID_HANDLE_VALUE CHECKING!!!
-	// flProtect = PAGE_EXECUTE_READWRITE CHECKING!!!
-	temp1 = TrueCreateFileMappingA(hFile, lpFileMappingAttributes, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
-	return temp1;
-}
-// MapViewOfFile
-DLLBASIC_API LPVOID	WINAPI MyMapViewOfFile(
-	HANDLE hFileMappingObject,
-	DWORD  dwDesiredAccess,
-	DWORD  dwFileOffsetHigh,
-	DWORD  dwFileOffsetLow,
-	SIZE_T dwNumberOfBytesToMap
-)
-{
-	printf("MapViewOfFile is HOOKED!!\n");
-	if (hFileMappingObject == temp1) {
-		MagicNum_read = 1;
+	if ((hFile == INVALID_HANDLE_VALUE) && (flProtect == PAGE_EXECUTE_READWRITE)) {
+		MagicNum_W = 1;
 	}
-	// dwDesiredAccess = FILE_MAP_ALL_ACCESS CHECKING!!!
-	return TrueMapViewOfFile(hFileMappingObject, dwDesiredAccess, dwFileOffsetHigh, dwFileOffsetLow, dwNumberOfBytesToMap);
-}
-// OpenProcess
-DLLBASIC_API HANDLE	WINAPI MyOpenProcess(
-	DWORD dwDesiredAccess,
-	BOOL  bInheritHandle,
-	DWORD dwProcessId
-)
-{
-	printf("OpenProcess is HOOKED!!~~~~~~\n");
-	// dwDesiredAccess = (PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD) CHECKING!!!
-	temp2 = TrueOpenProcess(dwDesiredAccess, bInheritHandle, dwProcessId);
-	return temp2;
+	CheckPoint_W = TrueCreateFileMappingA(hFile, lpFileMappingAttributes, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
+	return CheckPoint_W;
 }
 
-// My NtMapViewOfSection Hooking Function
+// CreateRemoteThread
+DLLBASIC_API HANDLE	WINAPI MyCreateRemoteThread(
+	HANDLE                 hProcess,
+	LPSECURITY_ATTRIBUTES  lpThreadAttributes,
+	SIZE_T                 dwStackSize,
+	LPTHREAD_START_ROUTINE lpStartAddress,
+	LPVOID                 lpParameter,
+	DWORD                  dwCreationFlags,
+	LPDWORD                lpThreadId
+)
+{
+	printf("CreteRemoteThread is HOOKED\n");
+	return TrueCreateRemoteThread(hProcess, lpThreadAttributes, dwStackSize, lpStartAddress, lpParameter, dwCreationFlags, lpThreadId);
+}
+
+// NtMapViewOfSection Hooking Function
 DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	HANDLE SectionHandle,
 	HANDLE ProcessHandle,
@@ -79,10 +80,9 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 )
 {
 	printf("NtMapViewOfSection is HOOKED!\n");
-	if ((temp1 == SectionHandle) && (temp2 == ProcessHandle)) {
-		MagicNum_write = 1;
+	if ((CheckPoint_W == SectionHandle) && (Win32Protect == PAGE_EXECUTE_READWRITE)) {
+		MagicNum_M = 1;
 	}
-	// Protect = PAGE_EXECUTE_READWRITE CHECKING!!!
 	return (*TrueNtMapViewOfSection)(
 		SectionHandle,
 		ProcessHandle,
@@ -95,6 +95,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		AllocationType,
 		Win32Protect);
 }
+
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 {
@@ -122,9 +123,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
-		DetourAttach(&(PVOID&)TrueMapViewOfFile, MyMapViewOfFile);
-		DetourAttach(&(PVOID&)TrueOpenProcess, MyOpenProcess);
 		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
+		DetourAttach(&(PVOID&)TrueCreateRemoteThread, MyCreateRemoteThread);
 		DetourTransactionCommit();
 		break;
 
@@ -141,14 +141,13 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
-		DetourDetach(&(PVOID&)TrueMapViewOfFile, MyMapViewOfFile);
-		DetourDetach(&(PVOID&)TrueOpenProcess, MyOpenProcess);
 		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
+		DetourDetach(&(PVOID&)TrueCreateRemoteThread, MyCreateRemoteThread);
 		DetourTransactionCommit();
 		break;
 	}
 
-	if ((MagicNum_read == 1) && (MagicNum_write == 1)) {
+	if ((MagicNum_W == 1) && (MagicNum_M == 1)) {
 		// ALERT
 		// PUTS BUFFERRRRRR
 		// (buffer : map_addr, this->m_buf, this->m_nbyte)
