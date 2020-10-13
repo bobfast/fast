@@ -32,6 +32,16 @@ static HANDLE hProcess = NULL;
 static LPVOID monMMF = NULL;
 static LPVOID dllMMF = NULL;
 
+static LPTHREAD_START_ROUTINE  CallNtAllocateVirtualMemory = NULL;
+static LPTHREAD_START_ROUTINE  CallNtProtectVirtualMemory = NULL;
+static LPTHREAD_START_ROUTINE  CallNtWriteVirtualMemory = NULL;
+static LPTHREAD_START_ROUTINE  CallNtCreateThreadEx = NULL;
+static LPTHREAD_START_ROUTINE  CallNtMapViewOfSection = NULL;
+static LPTHREAD_START_ROUTINE  CallCreateFileMappingA = NULL;
+static LPTHREAD_START_ROUTINE  CallNtGetThreadContext = NULL;
+static LPTHREAD_START_ROUTINE  CallNtSetThreadContext = NULL;
+static LPTHREAD_START_ROUTINE  CallNtQueueApcThread = NULL;
+static LPTHREAD_START_ROUTINE  CallSetWindowLongPtrA = NULL;
 static LPTHREAD_START_ROUTINE  CallSleepEx = NULL;
 
 //#####################################
@@ -56,7 +66,7 @@ static TrueNtWriteVirtualMemory pNtWriteVirtualMemory;
 void dbg_print(_In_ uint32_t log_level, _In_ const char* msg)
 {
     //
-    //	log level 변환
+    //	log level
     //
     uint32_t ll = DPFLTR_ERROR_LEVEL;
     switch (log_level)
@@ -94,7 +104,7 @@ void dbg_print(_In_ uint32_t log_level, _In_ const char* msg)
 
 
 static LONG dwSlept = 0;
-static DWORD (WINAPI * TrueSleepEx)(DWORD dwMilliseconds, BOOL bAlertable) = SleepEx;
+static DWORD(WINAPI* TrueSleepEx)(DWORD dwMilliseconds, BOOL bAlertable) = SleepEx;
 
 unsigned char* writtenBuffer = NULL;
 unsigned int writtenBufferLen = 0;
@@ -186,12 +196,12 @@ DLLBASIC_API LONG_PTR NTAPI MyNtUserSetWindowLongPtr(
 }
 
 static LONG_PTR(WINAPI* TrueSetWindowLongPtrA) (
-	HWND     hWnd,
-	int      nIndex,
-	LONG_PTR dwNewLong
-	) = SetWindowLongPtrA;
+    HWND     hWnd,
+    int      nIndex,
+    LONG_PTR dwNewLong
+    ) = SetWindowLongPtrA;
 
-static BOOL(WINAPI * TrueCreateProcessA)(
+static BOOL(WINAPI* TrueCreateProcessA)(
     LPCSTR                lpApplicationName,
     LPSTR                 lpCommandLine,
     LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -205,7 +215,7 @@ static BOOL(WINAPI * TrueCreateProcessA)(
     ) = CreateProcessA;
 
 
-static BOOL(WINAPI * TrueCreateProcessW)(
+static BOOL(WINAPI* TrueCreateProcessW)(
     LPCWSTR               lpApplicationName,
     LPWSTR                lpCommandLine,
     LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -220,13 +230,17 @@ static BOOL(WINAPI * TrueCreateProcessW)(
 
 DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 (HWND     hWnd,
-	int      nIndex,
-	LONG_PTR dwNewLong) {
+    int      nIndex,
+    LONG_PTR dwNewLong) {
 
-	dbg_print(log_level_info, "SetWindowLongPtrA hooked.\n");
-	printf("SetWindowLongPtrA hooked.");
-    printf("\t%ull\n", dwNewLong);
-	return TrueSetWindowLongPtrA(hWnd, nIndex, dwNewLong);
+    HANDLE hThread = NULL;
+    std::string buf(std::to_string(GetCurrentProcessId()));
+    buf.append(":CallSetWindowLongPtrA:IPC Successed!     ");
+    memcpy(dllMMF, buf.c_str(), buf.size());
+    hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetWindowLongPtrA, monMMF, 0, NULL);
+    WaitForSingleObject(hThread, INFINITE);
+    printf("%s\n", dllMMF);
+    return TrueSetWindowLongPtrA(hWnd, nIndex, dwNewLong);
 }
 
 DLLBASIC_API BOOL WINAPI HookCreateProcessA(
@@ -241,7 +255,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessA(
     LPSTARTUPINFOA        lpStartupInfo,
     LPPROCESS_INFORMATION lpProcessInformation)
 {
-    char *pValue2 = NULL;
+    char* pValue2 = NULL;
     size_t len = NULL;
     _dupenv_s(&pValue2, &len, "expHDll");
     return DetourCreateProcessWithDllA(lpApplicationName,
@@ -273,7 +287,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessW(
     LPPROCESS_INFORMATION lpProcessInformation
 )
 {
-    char *pValue2 = NULL;
+    char* pValue2 = NULL;
     size_t len = NULL;
     _dupenv_s(&pValue2, &len, "expHDll");
 
@@ -305,12 +319,12 @@ DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
     DWORD dwEnd = GetTickCount();
 
     InterlockedExchangeAdd(&dwSlept, dwEnd - dwBeg);
-    
+
     HANDLE hThread = NULL;
     std::string buf(std::to_string(GetCurrentProcessId()));
-    buf.append(":IPC Successed!     ");
-    memcpy(dllMMF , buf.c_str(), buf.size());
-    hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSleepEx, monMMF, 0, NULL); 
+    buf.append(":CallSleepEx:IPC Successed!     ");
+    memcpy(dllMMF, buf.c_str(), buf.size());
+    hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSleepEx, monMMF, 0, NULL);
     WaitForSingleObject(hThread, INFINITE);
     printf("%s\n", dllMMF);
 
@@ -406,11 +420,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
         }
 
-        int sz = strlen((char*)pMemoryMap)+1;
+        int sz = strlen((char*)pMemoryMap) + 1;
 
 
         printf("%s\n", (char*)pMemoryMap);
-        printf("%d\n", *(DWORD*)((char*)pMemoryMap+ sz));
+        printf("%d\n", *(DWORD*)((char*)pMemoryMap + sz));
 
 
         HANDLE fm;
@@ -422,11 +436,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 
         fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, MSG_SIZE, NULL);
-        //MMF를 통해 DLL을 IPC하기 위해 파일 매핑 오브젝트를 만들고 핸들값 가져옴(실제 매핑 안됨)
         map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-        // 메모리 주소와 파일 매핑
-        //If the function succeeds, the return value is the starting address of the mapped view.
-        // 공유메모리에 payload 복사 
+    
         hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD, FALSE, *(DWORD*)((char*)pMemoryMap + sz));
 
         (*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, MSG_SIZE, nullptr, &viewsize, ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
@@ -434,7 +445,20 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         monMMF = (LPVOID)lpMap;
         dllMMF = (LPVOID)map_addr;
 
-        CallSleepEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
+
+
+        CallNtAllocateVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
+        CallNtProtectVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + sizeof(DWORD64)  ));
+        CallNtWriteVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 2* sizeof(DWORD64)));
+        CallNtCreateThreadEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 3 * sizeof(DWORD64)));
+        CallNtMapViewOfSection = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 4 * sizeof(DWORD64)));
+        CallCreateFileMappingA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 5 * sizeof(DWORD64)));
+        CallNtGetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 6 * sizeof(DWORD64)));
+        CallNtSetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 7 * sizeof(DWORD64)));
+        CallNtQueueApcThread = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 8 * sizeof(DWORD64)));
+        CallSetWindowLongPtrA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 9 * sizeof(DWORD64)));
+        CallSleepEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 10 * sizeof(DWORD64)));
+
         printf("%llu\n", *(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
 
 
@@ -445,7 +469,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         DetourRestoreAfterWith();
 
         printf("kmkmi" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
-               " Starting.\n");
+            " Starting.\n");
         fflush(stdout);
 
         DetourTransactionBegin();
@@ -461,11 +485,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
         if (error == NO_ERROR) {
             printf("kmkmi" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
-                   " Detoured SleepEx().\n");
+                " Detoured SleepEx().\n");
         }
         else {
             printf("kmkmi" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
-                   " Error detouring SleepEx(): %ld\n", error);
+                " Error detouring SleepEx(): %ld\n", error);
         }
     }
     else if (dwReason == DLL_PROCESS_DETACH) {
@@ -481,7 +505,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         error = DetourTransactionCommit();
 
         printf("kmkmi" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
-               " Removed SleepEx() (result=%ld), slept %ld ticks.\n", error, dwSlept);
+            " Removed SleepEx() (result=%ld), slept %ld ticks.\n", error, dwSlept);
         fflush(stdout);
     }
     return TRUE;
