@@ -5,7 +5,7 @@
 #include <WINDEF.H>
 
 // Enumeration type for NtMapViewOfSection
-typedef enum class _SECTION_INHERIT {
+typedef enum _SECTION_INHERIT {
 	ViewShare = 1,
 	ViewUnmap = 2
 } SECTION_INHERIT, * PSECTION_INHERIT;
@@ -22,39 +22,4 @@ typedef NTSTATUS(NTAPI* NTMAPVIEWOFSECTION)(
 	SECTION_INHERIT InheritDisposition,
 	ULONG AllocationType,
 	ULONG Win32Protect
-	);
-
-/// <summary>
-/// NtOpenProcess
-/// </summary>
-
-typedef struct _UNICODE_STRING {
-	USHORT Length;
-	USHORT MaximumLength;
-	PWSTR  Buffer;
-} UNICODE_STRING;
-
-typedef UNICODE_STRING* PUNICODE_STRING;
-
-typedef struct _OBJECT_ATTRIBUTES {
-	ULONG Length;
-	HANDLE RootDirectory;
-	PUNICODE_STRING ObjectName;
-	ULONG Attributes;
-	PVOID SecurityDescriptor;
-	PVOID SecurityQualityOfService;
-} OBJECT_ATTRIBUTES;
-
-typedef OBJECT_ATTRIBUTES* POBJECT_ATTRIBUTES;
-
-typedef struct _CLIENT_ID {
-	PVOID UniqueProcess;
-	PVOID UniqueThread;
-} CLIENT_ID, * PCLIENT_ID;
-
-typedef NTSTATUS(NTAPI* NTOPENPROCESS)(
-	PHANDLE ProcessHandle,
-	ACCESS_MASK DesiredAccess,
-	POBJECT_ATTRIBUTES ObjectAttributes,
-	PCLIENT_ID* ClientId
 	);
