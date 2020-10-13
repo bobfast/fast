@@ -15,6 +15,7 @@ static NTSETCONTEXTTHREAD pNtSetThreadContext;
 static RESUMETHREAD pNtResumeThread;
 
 CONTEXT old_ctx, new_ctx;
+RUNTIME_MEM_ENTRY* result;
 HMODULE hMod = NULL;
 DWORD64 old_result,new_result;
 
@@ -36,9 +37,10 @@ DLLBASIC_API NTSTATUS NTAPI NtGetThreadContext(
 ) {
 	old_ctx.ContextFlags = CONTEXT_ALL;
 	GetThreadContext(ThreadHandle, &old_ctx);
+	//pContext = &old_ctx;
 	old_ctx.Rip = old_result;
 	pDbgPrint("N4_HOOK: DETECTED GetThreadContext\n");
-	pDbgPrint("CONTEXT.Rip : %p\n", old_result);
+	pDbgPrint("CONTEXT.Rip : %016I64X\n", old_result);
 	return (*pNtGetThreadContext)(
 		ThreadHandle,
 		pContext
@@ -52,9 +54,10 @@ DLLBASIC_API NTSTATUS NTAPI NtSetThreadContext(
 ) {
 	new_ctx.ContextFlags = CONTEXT_ALL;
 	GetThreadContext(ThreadHandle, &new_ctx);
+	//lpContext = &new_ctx;
 	new_ctx.Rip = new_result;
-	pDbgPrint("N4_HOOK: DETECTED SetThreadContext");
-	pDbgPrint("CONTEXT.Rip : %p\n", new_result);
+	pDbgPrint("N4_HOOK: DETECTED SetThreadContext\n");
+	pDbgPrint("CONTEXT.Rip : %016I64X\n", new_result);
 	return (*pNtSetThreadContext)(
 		ThreadHandle,
 		lpContext
@@ -105,23 +108,22 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 			printf("N4Hook: Error - cannot find NtResumeThread's address.\n");
 			return 1;
 		}
+		pDbgPrint = (DBGPRINT)GetProcAddress(hMod, "DbgPrint");
+		if (pDbgPrint == NULL) {
+			printf("CreationHook: Error - cannot get DbgPrint's address.\n");
+			return 1;
+		}
 
 		DetourRestoreAfterWith();
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 
-		if (pNtSuspendThread != NULL)
-			DetourAttach(&(PVOID&)pNtSuspendThread, NtSuspendThread);
-		if (pNtGetThreadContext != NULL)
-			DetourAttach(&(PVOID&)pNtGetThreadContext, NtGetThreadContext);
-		if (pNtSetThreadContext != NULL)
-			DetourAttach(&(PVOID&)pNtSetThreadContext, NtSetThreadContext);
-		if (pNtResumeThread != NULL)	
-			DetourAttach(&(PVOID&)pNtResumeThread, NtResumeThread);
-
-		printf("DLL_PROCESS_ATTACH\n");
+		DetourAttach(&(PVOID&)pNtSuspendThread, NtSuspendThread);
+		DetourAttach(&(PVOID&)pNtGetThreadContext, NtGetThreadContext);
+		DetourAttach(&(PVOID&)pNtSetThreadContext, NtSetThreadContext);	
+		DetourAttach(&(PVOID&)pNtResumeThread, NtResumeThread);
 		DetourTransactionCommit();
-
+		printf("DLL_PROCESS_ATTACH\n");
 		break;
 	case DLL_THREAD_ATTACH:
 		printf("DLL_THREAD_ATTACH\n");
@@ -132,14 +134,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 	case DLL_PROCESS_DETACH:
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
-		if (pNtSuspendThread != NULL)
-			DetourDetach(&(PVOID&)pNtSuspendThread, NtSuspendThread);
-		if (pNtGetThreadContext != NULL)
-			DetourDetach(&(PVOID&)pNtGetThreadContext, NtGetThreadContext);
-		if (pNtSetThreadContext != NULL)
-			DetourDetach(&(PVOID&)pNtSetThreadContext, NtSetThreadContext);
-		if (pNtResumeThread != NULL)
-			DetourDetach(&(PVOID&)pNtResumeThread, NtResumeThread);
+
+		DetourDetach(&(PVOID&)pNtSuspendThread, NtSuspendThread);
+		DetourDetach(&(PVOID&)pNtGetThreadContext, NtGetThreadContext);
+		DetourDetach(&(PVOID&)pNtSetThreadContext, NtSetThreadContext);
+		DetourDetach(&(PVOID&)pNtResumeThread, NtResumeThread);
 		DetourTransactionCommit();
 		printf("DLL_PROCESS_DETACH\n");
 		break;
@@ -147,7 +146,9 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 	if (old_result =! new_result)
 	{
-		pDbgPrint("Hacked");
+		pDbgPrint("Hacked\n");
+		pDbgPrint("old.CONTEXT.Rip : %016I64X\n", &old_result);
+		pDbgPrint("new.CONTEXT.Rip : %016I64X\n", &new_result);
 	}
 	return TRUE;
 }
