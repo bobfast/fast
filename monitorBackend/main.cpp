@@ -11,6 +11,7 @@
 #include "tchar.h"
 #include <tlhelp32.h>
 #include <detours.h>
+#include < string >
 #pragma warning(push)
 #if _MSC_VER > 1400
 #pragma warning(disable : 6102 6103) // /analyze warnings
@@ -484,9 +485,10 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 void CallSleepEx(LPVOID monMMF){
 
     printf("%s\n", (char*)monMMF);
+    std::string buf(std::to_string(GetCurrentProcessId()));
+    buf.append(":Response Sended!");
+    memcpy(monMMF, buf.c_str(), buf.size());
 
-    char buf[] = "Response Sended!";
-    memcpy(monMMF, buf, sizeof(buf));
 
 }
 

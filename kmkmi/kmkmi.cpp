@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <processthreadsapi.h>
+#include <string>
 #include "detours.h"
 #include "kmkmi.h"
 
@@ -306,8 +307,9 @@ DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
     InterlockedExchangeAdd(&dwSlept, dwEnd - dwBeg);
     
     HANDLE hThread = NULL;
-    char buf[] = "IPC Successed!";
-    memcpy(dllMMF , buf, sizeof(buf));
+    std::string buf(std::to_string(GetCurrentProcessId()));
+    buf.append(":IPC Successed!     ");
+    memcpy(dllMMF , buf.c_str(), buf.size());
     hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSleepEx, monMMF, 0, NULL); 
     WaitForSingleObject(hThread, INFINITE);
     printf("%s\n", dllMMF);
@@ -434,6 +436,10 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
         CallSleepEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
         printf("%llu\n", *(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
+
+
+
+
         //#############################
 
         DetourRestoreAfterWith();
