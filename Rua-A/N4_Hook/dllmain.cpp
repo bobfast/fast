@@ -19,6 +19,9 @@ RUNTIME_MEM_ENTRY* result;
 HMODULE hMod = NULL;
 DWORD64 old_result,new_result;
 
+//TargetThreadHandle
+
+
 //NtSuspendThread
 DLLBASIC_API NTSTATUS NTAPI NtSuspendThread(
 	HANDLE ThreadHandle,
@@ -35,12 +38,12 @@ DLLBASIC_API NTSTATUS NTAPI NtGetThreadContext(
 	HANDLE ThreadHandle,
 	PCONTEXT pContext
 ) {
-	old_ctx.ContextFlags = CONTEXT_ALL;
-	GetThreadContext(ThreadHandle, &old_ctx);
-	//pContext = &old_ctx;
-	old_ctx.Rip = old_result;
-	pDbgPrint("N4_HOOK: DETECTED GetThreadContext\n");
-	pDbgPrint("CONTEXT.Rip : %016I64X\n", old_result);
+	pDbgPrint("1N4_HOOK: PID=%d, NtGetThreadContext is hooked!\n", GetCurrentProcessId());
+	old_ctx.ContextFlags = CONTEXT_INTEGER;
+	pContext = &old_ctx;
+	pDbgPrint("1N4_HOOK: DETECTED GetThreadContext\n");
+	pDbgPrint("1CONTEXT.Rip : %016I64X\n", old_ctx.Rip);
+	printf("1OLD_CONTEXT.Rip : % 016I64X\n", old_ctx.Rip);
 	return (*pNtGetThreadContext)(
 		ThreadHandle,
 		pContext
@@ -52,12 +55,12 @@ DLLBASIC_API NTSTATUS NTAPI NtSetThreadContext(
 	HANDLE ThreadHandle,
 	PCONTEXT lpContext
 ) {
-	new_ctx.ContextFlags = CONTEXT_ALL;
-	GetThreadContext(ThreadHandle, &new_ctx);
-	//lpContext = &new_ctx;
-	new_ctx.Rip = new_result;
-	pDbgPrint("N4_HOOK: DETECTED SetThreadContext\n");
-	pDbgPrint("CONTEXT.Rip : %016I64X\n", new_result);
+	pDbgPrint("1N4_HOOK: PID=%d, NtSetThreadContext is hooked!\n", GetCurrentProcessId());
+	new_ctx.ContextFlags = CONTEXT_INTEGER;
+	lpContext = &new_ctx;
+	pDbgPrint("1N4_HOOK: DETECTED SetThreadContext\n");
+	pDbgPrint("1CONTEXT.Rip : %016I64X\n", new_ctx.Rip);
+	printf("1NEW_CONTEXT.Rip : % 016I64X\n", new_ctx.Rip);
 	return (*pNtSetThreadContext)(
 		ThreadHandle,
 		lpContext
@@ -110,7 +113,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		}
 		pDbgPrint = (DBGPRINT)GetProcAddress(hMod, "DbgPrint");
 		if (pDbgPrint == NULL) {
-			printf("CreationHook: Error - cannot get DbgPrint's address.\n");
+			printf("N4Hook: Error - cannot get DbgPrint's address.\n");
 			return 1;
 		}
 
@@ -144,11 +147,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		break;
 	}
 
-	if (old_result =! new_result)
+	if (old_ctx.Rip =!new_ctx.Rip)
 	{
 		pDbgPrint("Hacked\n");
-		pDbgPrint("old.CONTEXT.Rip : %016I64X\n", &old_result);
-		pDbgPrint("new.CONTEXT.Rip : %016I64X\n", &new_result);
+		pDbgPrint("2old.CONTEXT.Rip : %016I64X\n", old_ctx.Rip);
+		pDbgPrint("2new.CONTEXT.Rip : %016I64X\n", new_ctx.Rip);
 	}
 	return TRUE;
 }
