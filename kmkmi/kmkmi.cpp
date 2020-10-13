@@ -21,6 +21,20 @@
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
 #define HOOKDLL_PATH "C:\\kmkmi.dll"
+#define MSG_SIZE 256
+
+
+//#####################################
+
+static HANDLE hProcess = NULL;
+
+static LPVOID monMMF = NULL;
+static LPVOID dllMMF = NULL;
+
+static LPTHREAD_START_ROUTINE  CallSleepEx = NULL;
+
+//#####################################
+
 
 
 typedef
@@ -35,6 +49,8 @@ static fnDbgPrintEx _dbg_print = nullptr;
 static TrueNtUserSetWindowLongPtr pNtUserSetWindowLongPtr;
 static TrueNtAllocateVirtualMemory pNtAllocateVirtualMemory;
 static TrueNtWriteVirtualMemory pNtWriteVirtualMemory;
+
+
 
 void dbg_print(_In_ uint32_t log_level, _In_ const char* msg)
 {
@@ -164,7 +180,7 @@ DLLBASIC_API LONG_PTR NTAPI MyNtUserSetWindowLongPtr(
     BOOL Ansi
 ) {
     //dbg_print(log_level_info, "NtUserSetWindowLongPtr hooked.\n");
-    //printf("NtUserSetWindowLongPtr hooked.\n");
+    printf("NtUserSetWindowLongPtr hooked.\n");
     return (*pNtUserSetWindowLongPtr)(hWnd, Index, NewValue, Ansi);
 }
 
@@ -288,9 +304,36 @@ DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
     DWORD dwEnd = GetTickCount();
 
     InterlockedExchangeAdd(&dwSlept, dwEnd - dwBeg);
+    
+    HANDLE hThread = NULL;
+    char buf[] = "IPC Successed!";
+    memcpy(dllMMF , buf, sizeof(buf));
+    hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSleepEx, monMMF, 0, NULL); 
+    WaitForSingleObject(hThread, INFINITE);
+    printf("%s\n", dllMMF);
+
 
     return ret;
 }
+
+
+typedef enum _SECTION_INHERIT
+{
+    ViewShare = 1,
+    ViewUnmap = 2
+} SECTION_INHERIT;
+
+static NTSTATUS(*PNtMapViewOfSection)(
+    HANDLE SectionHandle,
+    HANDLE ProcessHandle,
+    PVOID* BaseAddress,
+    ULONG_PTR ZeroBits,
+    SIZE_T CommitSize,
+    PLARGE_INTEGER SectionOffset,
+    PSIZE_T ViewSize,
+    SECTION_INHERIT InheritDisposition,
+    ULONG AllocationType,
+    ULONG Win32Protect);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 {
@@ -335,6 +378,64 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
     }
 
     if (dwReason == DLL_PROCESS_ATTACH) {
+
+        //#############################
+
+
+
+        HANDLE hMemoryMap = NULL;
+
+        LPBYTE pMemoryMap = NULL;
+
+
+
+        hMemoryMap = OpenFileMapping(FILE_MAP_READ, FALSE, (LPCSTR)"shared");
+
+        pMemoryMap = (BYTE*)MapViewOfFile(
+            hMemoryMap, FILE_MAP_READ,
+            0, 0, 0
+        );
+        if (!pMemoryMap)
+        {
+
+            CloseHandle(hMemoryMap);
+            printf("MapViewOfFile Failed.\n");
+            return FALSE;
+
+        }
+
+        int sz = strlen((char*)pMemoryMap)+1;
+
+
+        printf("%s\n", (char*)pMemoryMap);
+        printf("%d\n", *(DWORD*)((char*)pMemoryMap+ sz));
+
+
+        HANDLE fm;
+        char* map_addr;
+
+        LPVOID lpMap = 0;
+        SIZE_T viewsize = 0;
+        PNtMapViewOfSection = (NTSTATUS(*)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID * BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect))GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtMapViewOfSection");
+
+
+        fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, MSG_SIZE, NULL);
+        //MMF를 통해 DLL을 IPC하기 위해 파일 매핑 오브젝트를 만들고 핸들값 가져옴(실제 매핑 안됨)
+        map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+        // 메모리 주소와 파일 매핑
+        //If the function succeeds, the return value is the starting address of the mapped view.
+        // 공유메모리에 payload 복사 
+        hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD, FALSE, *(DWORD*)((char*)pMemoryMap + sz));
+
+        (*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, MSG_SIZE, nullptr, &viewsize, ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
+
+        monMMF = (LPVOID)lpMap;
+        dllMMF = (LPVOID)map_addr;
+
+        CallSleepEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
+        printf("%llu\n", *(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
+        //#############################
+
         DetourRestoreAfterWith();
 
         printf("kmkmi" DETOURS_STRINGIFY(DETOURS_BITS) ".dll:"
