@@ -13,6 +13,7 @@ HMODULE hMod = NULL;
 unsigned char* writtenBuffer = NULL;
 unsigned int writtenBufferLen = 0;
 HANDLE eventLog = RegisterEventSourceA(NULL, "CreationHookLog");
+bool isDetectedRWXPageWhenInitializing = false;
 
 // My NtMapViewOfSection Hooking Function
 DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
@@ -149,6 +150,23 @@ DLLBASIC_API NTSTATUS NTAPI MyNtAllocateVirtualMemory(
 {
 	pDbgPrint("CreationHook: PID=%d, NtAllocateVirtualMemory is hooked!\n", GetCurrentProcessId());
 	pDbgPrint("              AllocationType = %x, Protect = %x\n", AllocationType, Protect);
+
+	if (AllocationType == (MEM_RESERVE | MEM_COMMIT) && Protect == PAGE_EXECUTE_READWRITE) {
+		if (isDetectedRWXPageWhenInitializing) {
+			char pid_msg[20];
+			LPCSTR msgs[] = {
+					"Non-initial RWX Page Detected.",
+					(LPCSTR)pid_msg
+			};
+			sprintf_s(pid_msg, "PID=%d", GetCurrentProcessId());
+
+			pDbgPrint("************* NON-INITIAL PAGE_EXECUTE_READWRITE DETECTED! *************\n");
+			ReportEventA(eventLog, EVENTLOG_SUCCESS, 0, 5678, NULL, 2, 0, msgs, NULL);
+		}
+		else {
+			isDetectedRWXPageWhenInitializing = true;
+		}
+	}
 	//MEM_COMMIT: 0x00001000
 	//MEM_RESERVE: 0x00002000
 	//MEM_RESET: 0x00080000
