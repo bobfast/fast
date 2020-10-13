@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
+#define MSG_SIZE 256
 
 // Enumeration type for NtMapViewOfSection
 typedef enum _SECTION_INHERIT {

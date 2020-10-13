@@ -15,6 +15,27 @@ unsigned int writtenBufferLen = 0;
 HANDLE eventLog = RegisterEventSourceA(NULL, "CreationHookLog");
 bool isDetectedRWXPageWhenInitializing = false;
 
+//#####################################
+
+static HANDLE hProcess = NULL;
+
+static LPVOID monMMF = NULL;
+static LPVOID dllMMF = NULL;
+
+static LPTHREAD_START_ROUTINE  CallNtAllocateVirtualMemory = NULL;
+static LPTHREAD_START_ROUTINE  CallNtProtectVirtualMemory = NULL;
+static LPTHREAD_START_ROUTINE  CallNtWriteVirtualMemory = NULL;
+static LPTHREAD_START_ROUTINE  CallNtCreateThreadEx = NULL;
+static LPTHREAD_START_ROUTINE  CallNtMapViewOfSection = NULL;
+static LPTHREAD_START_ROUTINE  CallCreateFileMappingA = NULL;
+static LPTHREAD_START_ROUTINE  CallNtGetThreadContext = NULL;
+static LPTHREAD_START_ROUTINE  CallNtSetThreadContext = NULL;
+static LPTHREAD_START_ROUTINE  CallNtQueueApcThread = NULL;
+static LPTHREAD_START_ROUTINE  CallSetWindowLongPtrA = NULL;
+static LPTHREAD_START_ROUTINE  CallSleepEx = NULL;
+
+//#####################################
+
 // My NtMapViewOfSection Hooking Function
 DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	HANDLE SectionHandle,
@@ -101,9 +122,22 @@ DLLBASIC_API NTSTATUS NTAPI MyNtCreateThreadEx(
 	}
 	*/
 
+	/*
+	char buf[MSG_SIZE] = "";
+	HANDLE hThread = NULL;
+	*/
+
 	pDbgPrint("CreationHook: PID=%d, NtCreateThreadEx is hooked!\n", GetCurrentProcessId());
 	pDbgPrint("              StartAddress=%p\n", StartAddress);
 	
+	/*
+	sprintf_s(buf, "%d:CallNtCreateThread:IPC Successful!     ", GetCurrentProcessId());
+	memcpy(dllMMF, buf, strlen(buf));
+
+	hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtCreateThreadEx, monMMF, 0, NULL);
+	WaitForSingleObject(hThread, INFINITE);
+	*/
+
 	if (StartAddress == (LPTHREAD_START_ROUTINE)LoadLibraryA) {
 		pDbgPrint("************* LoadLibraryA DETECTED! *************\n");
 
@@ -148,8 +182,18 @@ DLLBASIC_API NTSTATUS NTAPI MyNtAllocateVirtualMemory(
 	ULONG AllocationType,
 	ULONG Protect)
 {
+	char buf[MSG_SIZE] = "";
+	HANDLE hThread = NULL;
+
 	pDbgPrint("CreationHook: PID=%d, NtAllocateVirtualMemory is hooked!\n", GetCurrentProcessId());
 	pDbgPrint("              AllocationType = %x, Protect = %x\n", AllocationType, Protect);
+
+	sprintf_s(buf, "%d:CallNtAllocateVirtualMemory:IPC Successed!     ", GetCurrentProcessId());
+	memcpy(dllMMF, buf, strlen(buf));
+
+	hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtAllocateVirtualMemory, monMMF, 0, NULL);
+	WaitForSingleObject(hThread, INFINITE);
+	pDbgPrint("%s\n", dllMMF);
 
 	if (AllocationType == (MEM_RESERVE | MEM_COMMIT) && Protect == PAGE_EXECUTE_READWRITE) {
 		if (isDetectedRWXPageWhenInitializing) {
@@ -262,9 +306,45 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 	hinst;
 	dwReason;
 	reserved;
+
+	HANDLE hMemoryMap = NULL;
+	LPBYTE pMemoryMap = NULL;
+
+	HANDLE fm;
+	char* map_addr;
+
+	LPVOID lpMap = 0;
+	SIZE_T viewsize = 0;
+
+	int sz;
+
 	switch (dwReason)
 	{
 	case DLL_PROCESS_ATTACH:
+
+		//#############################
+
+		hMemoryMap = OpenFileMappingA(FILE_MAP_READ, FALSE, (LPCSTR)"shared");
+
+		pMemoryMap = (BYTE*)MapViewOfFile(
+			hMemoryMap, FILE_MAP_READ,
+			0, 0, 0
+		);
+		if (!pMemoryMap)
+		{
+
+			CloseHandle(hMemoryMap);
+			printf("MapViewOfFile Failed.\n");
+			return FALSE;
+
+		}
+
+		sz = strlen((char*)pMemoryMap) + 1;
+
+
+		printf("%s\n", (char*)pMemoryMap);
+		printf("%d\n", *(DWORD*)((char*)pMemoryMap + sz));
+
 		// get ntdll module
 		hMod = GetModuleHandleA("ntdll.dll");
 		if (hMod == NULL) {
@@ -308,6 +388,37 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 			printf("CreationHook: Error - cannot get NtQuerySystemInformation's address.\n");
 			return 1;
 		}
+
+		fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, MSG_SIZE, NULL);
+		map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+
+		hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD, FALSE, *(DWORD*)((char*)pMemoryMap + sz));
+
+		(*pNtMapViewOfSection)(fm, hProcess, &lpMap, 0, MSG_SIZE, nullptr, (PULONG)(&viewsize), ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
+
+		monMMF = (LPVOID)lpMap;
+		dllMMF = (LPVOID)map_addr;
+
+
+
+		CallNtAllocateVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
+		CallNtProtectVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + sizeof(DWORD64)));
+		CallNtWriteVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 2 * sizeof(DWORD64)));
+		CallNtCreateThreadEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 3 * sizeof(DWORD64)));
+		CallNtMapViewOfSection = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 4 * sizeof(DWORD64)));
+		CallCreateFileMappingA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 5 * sizeof(DWORD64)));
+		CallNtGetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 6 * sizeof(DWORD64)));
+		CallNtSetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 7 * sizeof(DWORD64)));
+		CallNtQueueApcThread = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 8 * sizeof(DWORD64)));
+		CallSetWindowLongPtrA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 9 * sizeof(DWORD64)));
+		CallSleepEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 10 * sizeof(DWORD64)));
+
+		printf("%llu\n", *(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
+
+
+
+
+		//#############################
 
 		DetourRestoreAfterWith();
 		DetourTransactionBegin();
