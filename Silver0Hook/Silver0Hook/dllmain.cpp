@@ -8,6 +8,7 @@
 
 #pragma comment(lib, "detours.lib")
 #define DLLBASIC_API extern "C" __declspec(dllexport)
+//#define HOOKDLL_PATH "C:\\Users\\real1\\source\\repos\\Silver0Hook\\x64\\Debug\\Silver0Hook.dll"  // DLL경로(CreateProcess)
 #define MSG_SIZE 256
 
 HMODULE hMod = NULL;
@@ -67,14 +68,15 @@ DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
 )
 {
 	//printf("CreateFileMappingA is HOOKED!!\n");
-
-	HANDLE hThread = NULL;
-	std::string buf(std::to_string(GetCurrentProcessId()));
-	buf.append(":CallCreateFileMappingA:IPC Successed!     ");
-	memcpy(dllMMF, buf.c_str(), buf.size());
-	hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallCreateFileMappingA, monMMF, 0, NULL);
-	WaitForSingleObject(hThread, INFINITE);
-	printf("%s\n", (char*)dllMMF);  //#####
+	if ((hFile == INVALID_HANDLE_VALUE) && (flProtect == PAGE_EXECUTE_READWRITE)) {
+		HANDLE hThread = NULL;
+		std::string buf(std::to_string(GetCurrentProcessId()));
+		buf.append(":CallCreateFileMappingA:IPC Successed!     ");
+		memcpy(dllMMF, buf.c_str(), buf.size());
+		hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallCreateFileMappingA, monMMF, 0, NULL);
+		WaitForSingleObject(hThread, INFINITE);
+		printf("%s\n", (char*)dllMMF);  //#####
+	}
 
 	return TrueCreateFileMappingA(hFile, lpFileMappingAttributes, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
 }
@@ -111,14 +113,20 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 )
 {
 	//printf("NtMapViewOfSection is HOOKED!\n");
+	if (Win32Protect == PAGE_EXECUTE_READWRITE) {
+		HANDLE hThread = NULL;
+		std::string buf(std::to_string(GetCurrentProcessId()));
+		buf.append(":CallNtMapViewOfSection:IPC Successed!     ");
+		memcpy(dllMMF, buf.c_str(), buf.size());
+		hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtMapViewOfSection, monMMF, 0, NULL);
+		WaitForSingleObject(hThread, INFINITE);
+		printf("%s\n", (char*)dllMMF); //####
 
-	HANDLE hThread = NULL;
-	std::string buf(std::to_string(GetCurrentProcessId()));
-	buf.append(":CallNtMapViewOfSection:IPC Successed!     ");
-	memcpy(dllMMF, buf.c_str(), buf.size());
-	hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtMapViewOfSection, monMMF, 0, NULL);
-	WaitForSingleObject(hThread, INFINITE);
-	printf("%s\n", (char*)dllMMF); //####
+		if (strncmp((char*)dllMMF, "DROP", 4) == 0) {
+			printf("So Dangerous\n");
+			return 1;
+		}
+	}
 
 	return (*TrueNtMapViewOfSection)(
 		SectionHandle,
@@ -132,6 +140,90 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		AllocationType,
 		Win32Protect);
 }
+
+/*
+// CreateProcess Hooking
+static BOOL(WINAPI* TrueCreateProcessA)(
+	LPCSTR                lpApplicationName,
+	LPSTR                 lpCommandLine,
+	LPSECURITY_ATTRIBUTES lpProcessAttributes,
+	LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	BOOL                  bInheritHandles,
+	DWORD                 dwCreationFlags,
+	LPVOID                lpEnvironment,
+	LPCSTR                lpCurrentDirectory,
+	LPSTARTUPINFOA        lpStartupInfo,
+	LPPROCESS_INFORMATION lpProcessInformation
+	) = CreateProcessA;
+
+static BOOL(WINAPI* TrueCreateProcessW)(
+	LPCWSTR               lpApplicationName,
+	LPWSTR                lpCommandLine,
+	LPSECURITY_ATTRIBUTES lpProcessAttributes,
+	LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	BOOL                  bInheritHandles,
+	DWORD                 dwCreationFlags,
+	LPVOID                lpEnvironment,
+	LPCWSTR               lpCurrentDirectory,
+	LPSTARTUPINFOW        lpStartupInfo,
+	LPPROCESS_INFORMATION lpProcessInformation
+	) = CreateProcessW;
+
+DLLBASIC_API BOOL HookCreateProcessA(
+	LPCSTR                lpApplicationName,
+	LPSTR                 lpCommandLine,
+	LPSECURITY_ATTRIBUTES lpProcessAttributes,
+	LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	BOOL                  bInheritHandles,
+	DWORD                 dwCreationFlags,
+	LPVOID                lpEnvironment,
+	LPCSTR                lpCurrentDirectory,
+	LPSTARTUPINFOA        lpStartupInfo,
+	LPPROCESS_INFORMATION lpProcessInformation)
+{
+	return DetourCreateProcessWithDllExA(
+		lpApplicationName,
+		lpCommandLine,
+		lpProcessAttributes,
+		lpThreadAttributes,
+		bInheritHandles,
+		dwCreationFlags,
+		lpEnvironment,
+		lpCurrentDirectory,
+		lpStartupInfo,
+		lpProcessInformation,
+		HOOKDLL_PATH,
+		NULL);
+}
+
+DLLBASIC_API BOOL WINAPI HookCreateProcessW(
+	LPCWSTR               lpApplicationName,
+	LPWSTR                lpCommandLine,
+	LPSECURITY_ATTRIBUTES lpProcessAttributes,
+	LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	BOOL                  bInheritHandles,
+	DWORD                 dwCreationFlags,
+	LPVOID                lpEnvironment,
+	LPCWSTR               lpCurrentDirectory,
+	LPSTARTUPINFOW        lpStartupInfo,
+	LPPROCESS_INFORMATION lpProcessInformation
+)
+{
+	return DetourCreateProcessWithDll(
+		lpApplicationName,
+		lpCommandLine,
+		lpProcessAttributes,
+		lpThreadAttributes,
+		bInheritHandles,
+		dwCreationFlags,
+		lpEnvironment,
+		lpCurrentDirectory,
+		lpStartupInfo,
+		lpProcessInformation,
+		HOOKDLL_PATH,
+		NULL);
+}
+*/
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 {
@@ -210,6 +302,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourRestoreAfterWith();
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
+		//DetourAttach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
+		//DetourAttach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
 		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		//DetourAttach(&(PVOID&)TrueCreateRemoteThread, MyCreateRemoteThread);
@@ -220,6 +314,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		//printf("Process detached\n");
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
+		//DetourDetach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
+		//DetourDetach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
 		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		//DetourDetach(&(PVOID&)TrueCreateRemoteThread, MyCreateRemoteThread);
