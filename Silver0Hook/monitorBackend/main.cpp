@@ -511,10 +511,10 @@ BOOL checkPinjectra_map = FALSE;
 BOOL checkPinjectra_remote = FALSE;
 
 void CallCreateRemoteThread(LPVOID monMMF) {
-    /*
+    printf("%s\n", (char*)monMMF);
     if (checkPinjectra_remote) {
-        printf("%s\n", (char*)monMMF);
-        std::string buf("DROP");
+        std::string buf("DROP:");
+        buf.append(std::to_string(GetCurrentProcessId()));
         buf.append(":CallCreateRemoteThread:Response Sended!");
         checkPinjectra_remote = FALSE;
         memcpy(monMMF, buf.c_str(), buf.size());
@@ -524,18 +524,13 @@ void CallCreateRemoteThread(LPVOID monMMF) {
         buf.append(":CallCreateRemoteThread:Response Sended!");
         memcpy(monMMF, buf.c_str(), buf.size());
     }
-    */
-    printf("%s\n", (char*)monMMF);
-    std::string buf(std::to_string(GetCurrentProcessId()));
-    buf.append(":CallCreateRemoteThread:Response Sended!");
-    memcpy(monMMF, buf.c_str(), buf.size());
 }
 
 void CallNtMapViewOfSection(LPVOID monMMF) {
 
     printf("%s\n", (char*)monMMF);
     if (checkPinjectra_map) {
-        std::string buf("DROP");
+        std::string buf(std::to_string(GetCurrentProcessId()));
         buf.append(":CallNtMapViewOfSection:Response Sended!");
         checkPinjectra_map = FALSE;
         checkPinjectra_remote = TRUE;

@@ -12,7 +12,7 @@
 
 HMODULE hMod = NULL;
 HANDLE check_map = NULL;
-//BOOL check_remote = FALSE;
+BOOL check_remote = FALSE;
 
 /// <summary>
 ///
@@ -105,14 +105,13 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		hThread = TrueCreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtMapViewOfSection, monMMF, 0, NULL);
 		WaitForSingleObject(hThread, INFINITE);
 		printf("%s\n", (char*)dllMMF); //####
-		//check_remote = TRUE;
+		check_remote = TRUE;
 
-		if (strncmp((char*)dllMMF, "DROP", 4) == 0) {
-			printf("So Dangerous\n");
-			return FALSE;
-		}
+		//if (strncmp((char*)dllMMF, "DROP", 4) == 0) {
+		//	printf("So Dangerous\n");
+		//	return FALSE;
+		//}
 	}
-	
 	return (*TrueNtMapViewOfSection)(
 		SectionHandle,
 		ProcessHandle,
@@ -127,10 +126,10 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 }
 
 
-/*
+
 // CreateRemoteThread
 DLLBASIC_API HANDLE	WINAPI MyCreateRemoteThread(
-	HANDLE                 hProcess,
+	HANDLE                 hProcess1,
 	LPSECURITY_ATTRIBUTES  lpThreadAttributes,
 	SIZE_T                 dwStackSize,
 	LPTHREAD_START_ROUTINE lpStartAddress,
@@ -147,16 +146,16 @@ DLLBASIC_API HANDLE	WINAPI MyCreateRemoteThread(
 		memcpy(dllMMF, buf.c_str(), buf.size());
 		hThread = TrueCreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallCreateRemoteThread, monMMF, 0, NULL);
 		WaitForSingleObject(hThread, INFINITE);
-		check_remote == FALSE;
 		printf("%s\n", (char*)dllMMF);  //#####
+		check_remote = FALSE;
 
 		if (strncmp((char*)dllMMF, "DROP", 4)==0) {
 			printf("So Dangerous\n");
-			return FALSE;
+			//return FALSE;
 		}
 	}
-	return TrueCreateRemoteThread(hProcess, lpThreadAttributes, dwStackSize, lpStartAddress, lpParameter, dwCreationFlags, lpThreadId);
-}*/
+	return TrueCreateRemoteThread(hProcess1, lpThreadAttributes, dwStackSize, lpStartAddress, lpParameter, dwCreationFlags, lpThreadId);
+}
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 {
@@ -237,17 +236,16 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
-		//DetourAttach(&(PVOID&)TrueCreateRemoteThread, MyCreateRemoteThread);
+		DetourAttach(&(PVOID&)TrueCreateRemoteThread, MyCreateRemoteThread);
 		DetourTransactionCommit();
 	}
 	else if(dwReason == DLL_PROCESS_DETACH)
 	{
-		//printf("Process detached\n");
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
-		//DetourDetach(&(PVOID&)TrueCreateRemoteThread, MyCreateRemoteThread);
+		DetourDetach(&(PVOID&)TrueCreateRemoteThread, MyCreateRemoteThread);
 		DetourTransactionCommit();
 		fflush(stdout);
 	}
