@@ -1,0 +1,4 @@
+﻿  main.cpp
+D:\Users\real1\source\repos\fast\monitorBackend\main.cpp(832,16): warning C4477: 'printf' : 서식 문자열 '%llu'에 'unsigned __int64' 형식의 인수가 필요하지만 variadic 인수 1의 형식이 'void (__cdecl *)(LPVOID)'입니다.
+D:\Users\real1\source\repos\fast\monitorBackend\main.cpp(838,16): warning C4477: 'printf' : 서식 문자열 '%llu'에 'unsigned __int64' 형식의 인수가 필요하지만 variadic 인수 1의 형식이 'void (__cdecl *)(LPVOID)'입니다.
+  monitorBackend.vcxproj -> D:\Users\real1\source\repos\fast\monitorBackend\x64\Debug\fast.exe
