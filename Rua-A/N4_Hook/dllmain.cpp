@@ -18,9 +18,7 @@ static NTPROTECTVIRTUALMEMORY pNtProtectVirtualMemory;
 static NTQUERYSYSTEMINFORMATION pNtQuerySystemInformation;  // for getting system info
 
 //#####################################monitor
-
 static HANDLE hProcess = NULL;
-
 static LPVOID monMMF = NULL;
 static LPVOID dllMMF = NULL;
 
@@ -55,6 +53,12 @@ static NTGETCONTEXTTHREAD pNtGetThreadContext;
 static NTSETCONTEXTTHREAD pNtSetThreadContext;
 static RESUMETHREAD pNtResumeThread;
 
+static NTSUSPENDTHREAD RuaNtSuspendThread;
+static NTGETCONTEXTTHREAD RuaNtGetThreadContext;
+static NTSETCONTEXTTHREAD RuaNtSetThreadContext;
+static RESUMETHREAD RuaNtResumeThread;
+
+
 //CONTEXT old_ctx, new_ctx; last use
 RUNTIME_MEM_ENTRY* result;
 HMODULE hMod = NULL;
@@ -75,15 +79,22 @@ DLLBASIC_API NTSTATUS NTAPI NtSuspendThread(
 //NtGetContextThread
 DLLBASIC_API NTSTATUS NTAPI NtGetThreadContext(
 	HANDLE ThreadHandle,
-	PCONTEXT pContext
+	CONTEXT pContext
 ) {
+	char buf[MSG_SIZE] = "";
+	HANDLE hThread = NULL;
 	pDbgPrint("1N4_HOOK: PID=%d, NtGetThreadContext is hooked!\n", GetCurrentProcessId());
-	//old_ctx.ContextFlags = CONTEXT_ALL;
-	//pContext = &old_ctx;
-	//pDbgPrint("1N4_HOOK: DETECTED GetThreadContext\n");
-	//pDbgPrint("1CONTEXT.Rip : %016I64X\n", old_ctx.Rip);
-	//printf("1OLD_CONTEXT.Rip : % 016I64X\n", old_ctx.Rip);
-	//printf("1OLD_CONTEXT.Rip : %X\n", old_ctx);
+	pDbgPrint("1N4_HOOK: DETECTED GetThreadContext\n");
+	pDbgPrint("1CONTEXT.Rip : %016I64X\n", pContext.Rip);
+	//************************************
+	/*sprintf_s(buf, "%d:CallNtAllocateVirtualMemory:IPC Successed!", GetCurrentProcessId());
+	memcpy(dllMMF, buf, strlen(buf));
+
+	hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtAllocateVirtualMemory, monMMF, 0, NULL);
+	WaitForSingleObject(hThread, INFINITE);
+	pDbgPrint("%s\n", dllMMF);
+	printf("%s\n", dllMMF);*/
+	//************************************
 	return (*pNtGetThreadContext)(
 		ThreadHandle,
 		pContext
@@ -93,14 +104,11 @@ DLLBASIC_API NTSTATUS NTAPI NtGetThreadContext(
 //NtSetContextThread
 DLLBASIC_API NTSTATUS NTAPI NtSetThreadContext(
 	HANDLE ThreadHandle,
-	PCONTEXT lpContext
+	CONTEXT lpContext
 ) {
 	pDbgPrint("1N4_HOOK: PID=%d, NtSetThreadContext is hooked!\n", GetCurrentProcessId());
-	//new_ctx.ContextFlags = CONTEXT_INTEGER;
-	//lpContext = &new_ctx;
-	//pDbgPrint("1N4_HOOK: DETECTED SetThreadContext\n");
-	//pDbgPrint("1CONTEXT.Rip : %016I64X\n", new_ctx.Rip);
-	//printf("1NEW_CONTEXT.Rip : % 016I64X\n", new_ctx.Rip);
+	pDbgPrint("1N4_HOOK: DETECTED SetThreadContext\n");
+	pDbgPrint("1CONTEXT.Rip : %016I64X\n", lpContext.Rip);
 	return (*pNtSetThreadContext)(
 		ThreadHandle,
 		lpContext
@@ -137,7 +145,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 	switch (dwReason)
 	{
 	case DLL_PROCESS_ATTACH:
-	
+		/*
 		//#############################monitor
 		hMemoryMap = OpenFileMappingA(FILE_MAP_READ, FALSE, (LPCSTR)"shared");
 
@@ -158,7 +166,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 		printf("%s\n", (char*)pMemoryMap);
 		printf("%d\n", *(DWORD*)((char*)pMemoryMap + sz));
-
+		*/
 		// get ntdll module
 		hMod = GetModuleHandleA("ntdll.dll");
 		if (hMod == NULL) {
@@ -168,32 +176,32 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		// get functions in ntdll
 		pNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
 		if (pNtMapViewOfSection == NULL) {
-			printf("CreationHook: Error - cannot get NtMapViewOfSection's address.\n");
+			printf("N4Hook: Error - cannot get NtMapViewOfSection's address.\n");
 			return 1;
 		}
 		pNtCreateThreadEx = (NTCREATETHREADEX)GetProcAddress(hMod, "NtCreateThreadEx");
 		if (pNtCreateThreadEx == NULL) {
-			printf("CreationHook: Error - cannot get NtCreateThreadEx's address.\n");
+			printf("N4Hook: Error - cannot get NtCreateThreadEx's address.\n");
 			return 1;
 		}
 		pNtAllocateVirtualMemory = (NTALLOCATEVIRTUALMEMORY)GetProcAddress(hMod, "NtAllocateVirtualMemory");
 		if (pNtAllocateVirtualMemory == NULL) {
-			printf("CreationHook: Error - cannot get NtAllocateVirtualMemory's address.\n");
+			printf("N4Hook: Error - cannot get NtAllocateVirtualMemory's address.\n");
 			return 1;
 		}
 		pNtWriteVirtualMemory = (NTWRITEVIRTUALMEMORY)GetProcAddress(hMod, "NtWriteVirtualMemory");
 		if (pNtWriteVirtualMemory == NULL) {
-			printf("CreationHook: Error - cannot get NtWriteVirtualMemory's address.\n");
+			printf("N4Hook: Error - cannot get NtWriteVirtualMemory's address.\n");
 			return 1;
 		}
 		pNtQuerySystemInformation = (NTQUERYSYSTEMINFORMATION)GetProcAddress(hMod, "NtQuerySystemInformation");
 		if (pNtQuerySystemInformation == NULL) {
-			printf("CreationHook: Error - cannot get NtQuerySystemInformation's address.\n");
+			printf("N4Hook: Error - cannot get NtQuerySystemInformation's address.\n");
 			return 1;
 		}
 		pNtProtectVirtualMemory = (NTPROTECTVIRTUALMEMORY)GetProcAddress(hMod, "NtProtectVirtualMemory");
 		if (pNtProtectVirtualMemory == NULL) {
-			printf("CreationHook: Error - cannot get NtProtectVirtualMemory's address.\n");
+			printf("N4Hook: Error - cannot get NtProtectVirtualMemory's address.\n");
 			return 1;
 		}
 		pNtSuspendThread = (NTSUSPENDTHREAD)GetProcAddress(hMod, "NtSuspendThread");
@@ -202,6 +210,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 			return 1;
 		}
 		pNtGetThreadContext = (NTGETCONTEXTTHREAD)GetProcAddress(hMod, "NtGetContextThread");
+		if (pNtGetThreadContext == NULL) {
+			printf("N4Hook: Error - cannot find NtGetContextThread's address.\n");
+			return 1;
+		}
+		RuaNtGetThreadContext = (NTGETCONTEXTTHREAD)GetProcAddress(hMod, "NtGetContextThread");
 		if (pNtGetThreadContext == NULL) {
 			printf("N4Hook: Error - cannot find NtGetContextThread's address.\n");
 			return 1;
@@ -220,7 +233,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		if (pDbgPrint == NULL) {
 			printf("N4Hook: Error - cannot get DbgPrint's address.\n");
 			return 1;
-		}
+		}/*
 		fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, MSG_SIZE, NULL);
 		map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
@@ -230,7 +243,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 		monMMF = (LPVOID)lpMap;
 		dllMMF = (LPVOID)map_addr;
-
+		
 		CallNtAllocateVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
 		CallNtProtectVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + sizeof(DWORD64)));
 		CallNtWriteVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 2 * sizeof(DWORD64)));
@@ -245,6 +258,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 		printf("%llu\n", *(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
 		//#############################
+		*/
 		DetourRestoreAfterWith();
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
@@ -275,11 +289,5 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		break;
 	}
 
-	if (old_ctx.Rip =!new_ctx.Rip)
-	{
-		pDbgPrint("Hacked\n");
-		pDbgPrint("2old.CONTEXT.Rip : %016I64X\n", old_ctx.Rip);
-		pDbgPrint("2new.CONTEXT.Rip : %016I64X\n", new_ctx.Rip);
-	}
 	return TRUE;
 }

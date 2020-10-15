@@ -19,13 +19,13 @@ typedef NTSTATUS (NTAPI* NTSUSPENDTHREAD)(
 //NtGetContextThread
 typedef NTSTATUS (NTAPI* NTGETCONTEXTTHREAD)(
 	HANDLE ThreadHandle,
-	PCONTEXT pContext
+	CONTEXT pContext
 );
 
 //NtSetContextThread
 typedef NTSTATUS (NTAPI* NTSETCONTEXTTHREAD)(
 	HANDLE ThreadHandle,
-	PCONTEXT lpContext
+	CONTEXT lpContext
 );
 //NtResumeThread
 typedef NTSTATUS (NTAPI* RESUMETHREAD)(
