@@ -46,7 +46,13 @@ typedef NTSTATUS(NTAPI* TrueNtWriteVirtualMemory)(
 	PULONG NumberOfBytesWritten
 	);
 
-
+typedef NTSTATUS(NTAPI* pNtQueueApcThread)(
+	_In_ HANDLE ThreadHandle,
+	_In_ PVOID ApcRoutine,
+	_In_ PVOID ApcRoutineContext OPTIONAL,
+	_In_ PVOID ApcStatusBlock OPTIONAL,
+	_In_ PVOID ApcReserved OPTIONAL
+	);
 typedef NTSTATUS(NTAPI* NTMAPVIEWOFSECTION)(
 	HANDLE SectionHandle,
 	HANDLE ProcessHandle,
