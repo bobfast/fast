@@ -50,7 +50,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	pDbgPrint("CreationHook: PID=%d, NtMapViewOfSection is hooked!\n", GetCurrentProcessId());
 	pDbgPrint("              AllocationType = %x, Protect = %x\n", AllocationType, Protect);
 
-	return (*pNtMapViewOfSection)(
+	return pNtMapViewOfSection(
 		SectionHandle,
 		ProcessHandle,
 		BaseAddress,
@@ -73,21 +73,13 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	DWORD                  dwCreationFlags,
 	LPDWORD                lpThreadId)
 {
-	/*
 	char buf[MSG_SIZE] = "";
-	HANDLE hThread = NULL;
-	*/
+	HANDLE hMonThread = NULL;
 
 	pDbgPrint("CreationHook: PID=%d, CreateRemoteThread is hooked!\n", GetCurrentProcessId());
 	pDbgPrint("              lpStartAddress=%p\n", lpStartAddress);
 	
-	/*
 	sprintf_s(buf, "%d:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId());
-	memcpy(dllMMF, buf, strlen(buf));
-
-	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallCreateRemoteThread, monMMF, 0, NULL);
-	WaitForSingleObject(hThread, INFINITE);
-	*/
 
 	if (lpStartAddress == (LPTHREAD_START_ROUTINE)LoadLibraryA) {
 		pDbgPrint("************* LoadLibraryA DETECTED! *************\n");
@@ -98,10 +90,18 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 				(LPCSTR)writtenBuffer
 			};
 
+			strcat_s(buf, "\n     CreationHook:IPC:LoadLibraryA Detected:");
+			strcat_s(buf, (const char*)writtenBuffer);
+
 			if (eventLog != NULL)
 				ReportEventA(eventLog, EVENTLOG_SUCCESS, 0, 5678, NULL, 2, 0, msgs, NULL);
 		}
 	}
+
+	memcpy(dllMMF, buf, strlen(buf));
+	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallCreateRemoteThread, monMMF, 0, NULL);
+	WaitForSingleObject(hMonThread, INFINITE);
+	printf("%s\n", dllMMF);
 
 	if (writtenBuffer != NULL) {
 		free(writtenBuffer);
@@ -129,12 +129,12 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	DWORD  flProtect)
 {
 	char buf[MSG_SIZE] = "";
-	HANDLE hThread = NULL;
+	HANDLE hMonThread = NULL;
 
 	pDbgPrint("CreationHook: PID=%d, VirtualAllocEx is hooked!\n", GetCurrentProcessId());
 	pDbgPrint("              flAllocationType = %x, flProtect = %x\n", flAllocationType, flProtect);
 
-	sprintf_s(buf, "%d:CallVirtualAllocEx:IPC Successful!   ", GetCurrentProcessId());
+	sprintf_s(buf, "%d:CallVirtualAllocEx:IPC Successful!     ", GetCurrentProcessId());
 
 	if (flAllocationType == (MEM_RESERVE | MEM_COMMIT) && flProtect == PAGE_EXECUTE_READWRITE) {
 		if (isDetectedRWXPageWhenInitializing) {
@@ -148,7 +148,7 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 			pDbgPrint("************* NON-INITIAL PAGE_EXECUTE_READWRITE DETECTED! *************\n");
 			
 			ReportEventA(eventLog, EVENTLOG_SUCCESS, 0, 5678, NULL, 2, 0, msgs, NULL);
-			strcat_s(buf, "\nCreationHook:IPC:Non-initial RWX Page Detected.   ");
+			strcat_s(buf, "\n     CreationHook:IPC:Non-initial RWX Page Detected.     ");
 		}
 		else {
 			isDetectedRWXPageWhenInitializing = true;
@@ -156,23 +156,9 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	}
 
 	memcpy(dllMMF, buf, strlen(buf));
-	hThread = CreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallVirtualAllocEx, monMMF, 0, NULL);
-	WaitForSingleObject(hThread, INFINITE);
+	hMonThread = CreateRemoteThread(hMonProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
+	WaitForSingleObject(hMonThread, INFINITE);
 	printf("%s\n", dllMMF);
-
-	//MEM_COMMIT: 0x00001000
-	//MEM_RESERVE: 0x00002000
-	//MEM_RESET: 0x00080000
-
-	//PAGE_NOACCESS: 0x01
-	//PAGE_READONLY: 0x02
-	//PAGE_READWRITE: 0x04
-	//PAGE_EXECUTE: 0x10
-	//PAGE_EXECUTE_READ: 0x20
-	//PAGE_EXECUTE_READWRITE: 0x40
-	//PAGE_GUARD: 0x100
-	//PAGE_NOCACHE: 0x200
-	//PAGE_WRITECOMBINE: 0x400
 
 	return pVirtualAllocEx(
 		hProcess,
@@ -191,9 +177,16 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 	SIZE_T  nSize,
 	SIZE_T* lpNumberOfBytesWritten)
 {
+	/*
+	char buf[MSG_SIZE] = "";
+	HANDLE hMonThread = NULL;
+	*/
+
 	pDbgPrint("CreationHook: PID=%d, WriteProcessMemory is hooked!\n", GetCurrentProcessId());
 	pDbgPrint("              nSize=%u\n", nSize);
 	pDbgPrint("              Buffer(first 30) = ");
+
+	// sprintf_s(buf, "%d:CallWriteProcessMemory:IPC Successful!     ", GetCurrentProcessId());
 
 	if (writtenBuffer != NULL) {
 		free(writtenBuffer);
@@ -216,6 +209,13 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 	}
 
 	pDbgPrint("\n");
+
+	/*
+	memcpy(dllMMF, buf, strlen(buf));
+	hMonThread = CreateRemoteThread(hMonProcess, NULL, 0, CallWriteProcessMemory, monMMF, 0, NULL);
+	WaitForSingleObject(hMonThread, INFINITE);
+	printf("%s\n", dllMMF);
+	*/
 
 	return pWriteProcessMemory(
 		hProcess,
