@@ -21,7 +21,6 @@
 #include "kmkmi.h"
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
-#define HOOKDLL_PATH "C:\\kmkmi.dll"
 #define MSG_SIZE 256
 
 
@@ -31,6 +30,8 @@ static HANDLE hProcess = NULL;
 
 static LPVOID monMMF = NULL;
 static LPVOID dllMMF = NULL;
+
+static LPCSTR dll_path = NULL;
 
 static LPTHREAD_START_ROUTINE  CallVirtualAllocEx = NULL;
 static LPTHREAD_START_ROUTINE  CallLoadLibraryA = NULL;
@@ -255,7 +256,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessA(
         lpCurrentDirectory,
         lpStartupInfo,
         lpProcessInformation,
-        HOOKDLL_PATH,
+        dll_path,
         TrueCreateProcessA);
 }
 
@@ -288,7 +289,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessW(
         lpCurrentDirectory,
         lpStartupInfo,
         lpProcessInformation,
-        HOOKDLL_PATH,
+        dll_path,
         TrueCreateProcessW);
 
 }
@@ -446,6 +447,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         printf("%s\n", (char*)pMemoryMap);
         printf("%d\n", *(DWORD*)((char*)pMemoryMap + sz));
 
+        dll_path = (LPCSTR)pMemoryMap;
 
         HANDLE fm;
         char* map_addr;
