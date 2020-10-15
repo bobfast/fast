@@ -11,7 +11,7 @@
 #include "tchar.h"
 #include <tlhelp32.h>
 #include <detours.h>
-#include < string >
+#include <string>
 #pragma warning(push)
 #if _MSC_VER > 1400
 #pragma warning(disable : 6102 6103) // /analyze warnings
@@ -483,7 +483,7 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 
 
 
-void CallNtAllocateVirtualMemory(LPVOID monMMF) {
+void CallVirtualAllocEx(LPVOID monMMF) {
 
     printf("%s\n", (char*)monMMF);
     std::string buf(std::to_string(GetCurrentProcessId()));
@@ -491,7 +491,7 @@ void CallNtAllocateVirtualMemory(LPVOID monMMF) {
     memcpy(monMMF, buf.c_str(), buf.size());
 }
 
-void CallNtProtectVirtualMemory(LPVOID monMMF) {
+void CallLoadLibraryA(LPVOID monMMF) {
 
     printf("%s\n", (char*)monMMF);
     std::string buf(std::to_string(GetCurrentProcessId()));
@@ -499,7 +499,7 @@ void CallNtProtectVirtualMemory(LPVOID monMMF) {
     memcpy(monMMF, buf.c_str(), buf.size());
 }
 
-void CallNtWriteVirtualMemory(LPVOID monMMF) {
+void CallWriteProcessMemory(LPVOID monMMF) {
 
     printf("%s\n", (char*)monMMF);
     std::string buf(std::to_string(GetCurrentProcessId()));
@@ -507,7 +507,7 @@ void CallNtWriteVirtualMemory(LPVOID monMMF) {
     memcpy(monMMF, buf.c_str(), buf.size());
 }
 
-void CallNtCreateThreadEx(LPVOID monMMF) {
+void CallCreateRemoteThread(LPVOID monMMF) {
 
     printf("%s\n", (char*)monMMF);
     std::string buf(std::to_string(GetCurrentProcessId()));
@@ -531,7 +531,7 @@ void CallCreateFileMappingA(LPVOID monMMF) {
     memcpy(monMMF, buf.c_str(), buf.size());
 }
 
-void CallNtGetThreadContext(LPVOID monMMF) {
+void CallGetThreadContext(LPVOID monMMF) {
 
     printf("%s\n", (char*)monMMF);
     std::string buf(std::to_string(GetCurrentProcessId()));
@@ -539,7 +539,7 @@ void CallNtGetThreadContext(LPVOID monMMF) {
     memcpy(monMMF, buf.c_str(), buf.size());
 }
 
-void CallNtSetThreadContext(LPVOID monMMF) {
+void CallSetThreadContext(LPVOID monMMF) {
 
     printf("%s\n", (char*)monMMF);
     std::string buf(std::to_string(GetCurrentProcessId()));
@@ -787,35 +787,35 @@ int CDECL main(int argc, char** argv)
     if (!isFree)
     {
         sz = rpszDllsOut[0];
-        dwBufSize = (DWORD)(strlen(sz) + 1 ) * sizeof(char);
+        dwBufSize = (DWORD)(strlen(sz) + 1) * sizeof(char);
 
         fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
             0,
-            (DWORD)((dwBufSize + sizeof(DWORD) + 11 * sizeof(DWORD64)) ), (LPCSTR)"shared");
+            (DWORD)((dwBufSize + sizeof(DWORD) + 11 * sizeof(DWORD64))), (LPCSTR)"shared");
 
 
         map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
         memcpy(map_addr, sz, dwBufSize);
-        memcpy(map_addr+dwBufSize, &thispid ,sizeof(DWORD));
+        memcpy(map_addr + dwBufSize, &thispid, sizeof(DWORD));
 
 
-        printf("c %p\n", CallNtAllocateVirtualMemory);
-        printf("c %llu\n", CallNtAllocateVirtualMemory);
-        LPVOID fp = CallNtAllocateVirtualMemory;
+        printf("c %p\n", CallVirtualAllocEx);
+        printf("c %llu\n", CallVirtualAllocEx);
+        LPVOID fp = CallVirtualAllocEx;
         memcpy(map_addr + dwBufSize + sizeof(DWORD), &fp, sizeof(DWORD64));
         printf("%d\t%d\t%llu\n", thispid, *(DWORD*)(map_addr + dwBufSize), *(DWORD64*)(map_addr + dwBufSize + sizeof(DWORD)));
 
-        printf("c %p\n", CallNtProtectVirtualMemory);
-        printf("c %llu\n", CallNtProtectVirtualMemory);
-        fp = CallNtProtectVirtualMemory;
+        printf("c %p\n", CallLoadLibraryA);
+        printf("c %llu\n", CallLoadLibraryA);
+        fp = CallLoadLibraryA;
         memcpy(map_addr + dwBufSize + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
         printf("%d\t%d\t%llu\n", thispid, *(DWORD*)(map_addr + dwBufSize), *(DWORD64*)(map_addr + dwBufSize + sizeof(DWORD) + sizeof(DWORD64)));
 
-        fp = CallNtWriteVirtualMemory;
+        fp = CallWriteProcessMemory;
         memcpy(map_addr + dwBufSize + sizeof(DWORD) + 2 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
-        fp = CallNtCreateThreadEx;
+        fp = CallCreateRemoteThread;
         memcpy(map_addr + dwBufSize + sizeof(DWORD) + 3 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
         fp = CallNtMapViewOfSection;
@@ -824,10 +824,10 @@ int CDECL main(int argc, char** argv)
         fp = CallCreateFileMappingA;
         memcpy(map_addr + dwBufSize + sizeof(DWORD) + 5 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
-        fp = CallNtGetThreadContext;
+        fp = CallGetThreadContext;
         memcpy(map_addr + dwBufSize + sizeof(DWORD) + 6 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
-        fp = CallNtSetThreadContext;
+        fp = CallSetThreadContext;
         memcpy(map_addr + dwBufSize + sizeof(DWORD) + 7 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
         fp = CallNtQueueApcThread;
@@ -840,7 +840,7 @@ int CDECL main(int argc, char** argv)
         memcpy(map_addr + dwBufSize + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 
-     }
+    }
 
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     PROCESSENTRY32 entry = { sizeof(PROCESSENTRY32) };
@@ -860,7 +860,7 @@ int CDECL main(int argc, char** argv)
             continue;
         }
         printf("OpenProcess(%ld) Succeed!!! \n", entry.th32ProcessID);
-        (*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, dwBufSize + sizeof(DWORD) + 11 * sizeof(DWORD64),
+        (*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, dwBufSize ,
             nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
 
 
@@ -910,7 +910,7 @@ int CDECL main(int argc, char** argv)
 
     printf("fast.exe: Finished.\n");
 
-    if(!isFree)
+    if (!isFree)
         while (TRUE)
             Sleep(0);
 

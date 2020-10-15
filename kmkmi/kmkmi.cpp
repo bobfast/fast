@@ -32,14 +32,14 @@ static HANDLE hProcess = NULL;
 static LPVOID monMMF = NULL;
 static LPVOID dllMMF = NULL;
 
-static LPTHREAD_START_ROUTINE  CallNtAllocateVirtualMemory = NULL;
-static LPTHREAD_START_ROUTINE  CallNtProtectVirtualMemory = NULL;
-static LPTHREAD_START_ROUTINE  CallNtWriteVirtualMemory = NULL;
-static LPTHREAD_START_ROUTINE  CallNtCreateThreadEx = NULL;
+static LPTHREAD_START_ROUTINE  CallVirtualAllocEx = NULL;
+static LPTHREAD_START_ROUTINE  CallLoadLibraryA = NULL;
+static LPTHREAD_START_ROUTINE  CallWriteProcessMemory = NULL;
+static LPTHREAD_START_ROUTINE  CallCreateRemoteThread = NULL;
 static LPTHREAD_START_ROUTINE  CallNtMapViewOfSection = NULL;
 static LPTHREAD_START_ROUTINE  CallCreateFileMappingA = NULL;
-static LPTHREAD_START_ROUTINE  CallNtGetThreadContext = NULL;
-static LPTHREAD_START_ROUTINE  CallNtSetThreadContext = NULL;
+static LPTHREAD_START_ROUTINE  CallGetThreadContext = NULL;
+static LPTHREAD_START_ROUTINE  CallSetThreadContext = NULL;
 static LPTHREAD_START_ROUTINE  CallNtQueueApcThread = NULL;
 static LPTHREAD_START_ROUTINE  CallSetWindowLongPtrA = NULL;
 static LPTHREAD_START_ROUTINE  CallSleepEx = NULL;
@@ -60,7 +60,7 @@ static fnDbgPrintEx _dbg_print = nullptr;
 static TrueNtUserSetWindowLongPtr pNtUserSetWindowLongPtr;
 static TrueNtAllocateVirtualMemory pNtAllocateVirtualMemory;
 static TrueNtWriteVirtualMemory pNtWriteVirtualMemory;
-
+static NTMAPVIEWOFSECTION TrueNtMapViewOfSection;
 
 
 void dbg_print(_In_ uint32_t log_level, _In_ const char* msg)
@@ -158,22 +158,9 @@ DLLBASIC_API NTSTATUS NTAPI MyNtAllocateVirtualMemory(
     ULONG AllocationType,
     ULONG Protect)
 {
-    printf("kmkmi: PID=%d, NtAllocateVirtualMemory is hooked!\n", GetCurrentProcessId());
-    printf("              AllocationType = %x, Protect = %x\n", AllocationType, Protect);
-    //MEM_COMMIT: 0x00001000
-    //MEM_RESERVE: 0x00002000
-    //MEM_RESET: 0x00080000
+    if (Protect == PAGE_EXECUTE_READWRITE) {
 
-    //PAGE_NOACCESS: 0x01
-    //PAGE_READONLY: 0x02
-    //PAGE_READWRITE: 0x04
-    //PAGE_EXECUTE: 0x10
-    //PAGE_EXECUTE_READ: 0x20
-    //PAGE_EXECUTE_READWRITE: 0x40
-    //PAGE_GUARD: 0x100
-    //PAGE_NOCACHE: 0x200
-    //PAGE_WRITECOMBINE: 0x400
-
+    }
     return (*pNtAllocateVirtualMemory)(
         ProcessHandle,
         BaseAddress,
@@ -235,7 +222,7 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 
     HANDLE hThread = NULL;
     std::string buf(std::to_string(GetCurrentProcessId()));
-    buf.append(":CallSetWindowLongPtrA:IPC Successed!     ");
+    buf.append(":CallSetWindowLongPtrA:IPC Succeed!     ");
     memcpy(dllMMF, buf.c_str(), buf.size());
     hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetWindowLongPtrA, monMMF, 0, NULL);
     WaitForSingleObject(hThread, INFINITE);
@@ -310,6 +297,54 @@ HMODULE hMod = NULL;
 
 
 
+static NTSTATUS(*PNtMapViewOfSection)(
+    HANDLE SectionHandle,
+    HANDLE ProcessHandle,
+    PVOID* BaseAddress,
+    ULONG_PTR ZeroBits,
+    SIZE_T CommitSize,
+    PLARGE_INTEGER SectionOffset,
+    PSIZE_T ViewSize,
+    SECTION_INHERIT InheritDisposition,
+    ULONG AllocationType,
+    ULONG Win32Protect);
+
+DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
+    HANDLE SectionHandle,
+    HANDLE ProcessHandle,
+    PVOID* BaseAddress,
+    ULONG_PTR ZeroBits,
+    SIZE_T CommitSize,
+    PLARGE_INTEGER SectionOffset,
+    PSIZE_T ViewSize,
+    SECTION_INHERIT InheritDisposition,
+    ULONG AllocationType,
+    ULONG Win32Protect
+)
+{
+
+    if (Win32Protect == PAGE_EXECUTE_READWRITE) {
+        HANDLE hThread = NULL;
+        std::string buf(std::to_string(GetCurrentProcessId()));
+        buf.append(":CallNtMapViewOfSection:PAGE_EXECUTE_READWRITE");
+        memcpy(dllMMF, buf.c_str(), buf.size());
+        hThread = CreateRemoteThread(hProcess, NULL, 0, CallNtMapViewOfSection, monMMF, 0, NULL);
+        WaitForSingleObject(hThread, INFINITE);
+        printf("%s\n", dllMMF);
+    }
+    return (*TrueNtMapViewOfSection)(
+        SectionHandle,
+        ProcessHandle,
+        BaseAddress,
+        ZeroBits,
+        CommitSize,
+        SectionOffset,
+        ViewSize,
+        InheritDisposition,
+        AllocationType,
+        Win32Protect);
+}
+
 
 DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 {
@@ -322,9 +357,9 @@ DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 
     HANDLE hThread = NULL;
     std::string buf(std::to_string(GetCurrentProcessId()));
-    buf.append(":CallSleepEx:IPC Successed!     ");
+    buf.append(":CallSleepEx:IPC Succeed!     ");
     memcpy(dllMMF, buf.c_str(), buf.size());
-    hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSleepEx, monMMF, 0, NULL);
+    hThread = CreateRemoteThread(hProcess, NULL, 0, CallSleepEx, monMMF, 0, NULL);
     WaitForSingleObject(hThread, INFINITE);
     printf("%s\n", dllMMF);
 
@@ -333,23 +368,7 @@ DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 }
 
 
-typedef enum _SECTION_INHERIT
-{
-    ViewShare = 1,
-    ViewUnmap = 2
-} SECTION_INHERIT;
 
-static NTSTATUS(*PNtMapViewOfSection)(
-    HANDLE SectionHandle,
-    HANDLE ProcessHandle,
-    PVOID* BaseAddress,
-    ULONG_PTR ZeroBits,
-    SIZE_T CommitSize,
-    PLARGE_INTEGER SectionOffset,
-    PSIZE_T ViewSize,
-    SECTION_INHERIT InheritDisposition,
-    ULONG AllocationType,
-    ULONG Win32Protect);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 {
@@ -363,6 +382,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         return 1;
     }
     _dbg_print = (fnDbgPrintEx)GetProcAddress(nt, "DbgPrintEx");
+    TrueNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(nt, "NtMapViewOfSection");
 
     pNtAllocateVirtualMemory = (TrueNtAllocateVirtualMemory)GetProcAddress(nt, "NtAllocateVirtualMemory");
     if (pNtAllocateVirtualMemory == NULL) {
@@ -437,7 +457,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
         fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, MSG_SIZE, NULL);
         map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-    
+
         hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD, FALSE, *(DWORD*)((char*)pMemoryMap + sz));
 
         (*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, MSG_SIZE, nullptr, &viewsize, ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
@@ -447,14 +467,14 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 
 
-        CallNtAllocateVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
-        CallNtProtectVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + sizeof(DWORD64)  ));
-        CallNtWriteVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 2* sizeof(DWORD64)));
-        CallNtCreateThreadEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 3 * sizeof(DWORD64)));
+        CallVirtualAllocEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
+        CallLoadLibraryA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + sizeof(DWORD64)));
+        CallWriteProcessMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 2 * sizeof(DWORD64)));
+        CallCreateRemoteThread = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 3 * sizeof(DWORD64)));
         CallNtMapViewOfSection = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 4 * sizeof(DWORD64)));
         CallCreateFileMappingA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 5 * sizeof(DWORD64)));
-        CallNtGetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 6 * sizeof(DWORD64)));
-        CallNtSetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 7 * sizeof(DWORD64)));
+        CallGetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 6 * sizeof(DWORD64)));
+        CallSetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 7 * sizeof(DWORD64)));
         CallNtQueueApcThread = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 8 * sizeof(DWORD64)));
         CallSetWindowLongPtrA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 9 * sizeof(DWORD64)));
         CallSleepEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 10 * sizeof(DWORD64)));
@@ -474,11 +494,12 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&(PVOID&)TrueSleepEx, TimedSleepEx);
+        //DetourAttach(&(PVOID&)TrueSleepEx, TimedSleepEx);
         DetourAttach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
         DetourAttach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
         //DetourAttach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
         DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
+        //DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
         //DetourAttach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
         //DetourAttach(&(PVOID&)pNtWriteVirtualMemory, MyNtWriteVirtualMemory);
         error = DetourTransactionCommit();
@@ -495,11 +516,12 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
     else if (dwReason == DLL_PROCESS_DETACH) {
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourDetach(&(PVOID&)TrueSleepEx, TimedSleepEx);
+        //DetourDetach(&(PVOID&)TrueSleepEx, TimedSleepEx);
         DetourDetach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
         DetourDetach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
         //DetourDetach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
         DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
+        //DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
         //DetourDetach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
         //DetourDetach(&(PVOID&)pNtWriteVirtualMemory, MyNtWriteVirtualMemory);
         error = DetourTransactionCommit();
