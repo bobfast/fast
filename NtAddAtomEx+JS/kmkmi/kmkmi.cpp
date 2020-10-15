@@ -59,7 +59,7 @@ ULONG(__cdecl* fnDbgPrintEx) (
 static fnDbgPrintEx _dbg_print = nullptr;
 
 static TrueNtUserSetWindowLongPtr pNtUserSetWindowLongPtr;
-
+static pNtQueueApcThread NtQueueApcThread = NULL;
 static TrueNtWriteVirtualMemory pNtWriteVirtualMemory;
 static NTMAPVIEWOFSECTION TrueNtMapViewOfSection;
 
@@ -109,6 +109,27 @@ static DWORD(WINAPI* TrueSleepEx)(DWORD dwMilliseconds, BOOL bAlertable) = Sleep
 
 unsigned char* writtenBuffer = NULL;
 unsigned int writtenBufferLen = 0;
+
+DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
+    HANDLE ThreadHandle,
+    PVOID ApcRoutine,
+    PVOID ApcRoutineContext OPTIONAL,
+    PVOID ApcStatusBlock OPTIONAL,
+    PVOID ApcReserved OPTIONAL
+) {
+    HANDLE hThread = NULL;
+    std::string buf(std::to_string(GetCurrentProcessId()));
+    buf.append(":CallNtQueueApcThread:IPC Succeed!     ");
+    memcpy(dllMMF, buf.c_str(), buf.size());
+    hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtQueueApcThread, monMMF, 0, NULL);
+    WaitForSingleObject(hThread, INFINITE);
+    printf("%s\n", dllMMF);
+    return NtQueueApcThread(ThreadHandle,
+        ApcRoutine,
+        ApcRoutineContext OPTIONAL,
+        ApcStatusBlock OPTIONAL,
+        ApcReserved OPTIONAL);
+}
 
 DLLBASIC_API NTSTATUS NTAPI MyNtWriteVirtualMemory(
     HANDLE ProcessHandle,
@@ -394,6 +415,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         printf("GetModuleHandleA ntdll.dll Failed.\n");
         return 1;
     }
+    NtQueueApcThread = (pNtQueueApcThread)GetProcAddress(nt, "NtQueueApcThread");
+    if (NtQueueApcThread == NULL) {
+        printf("GetProcAddress NtQueueApcThread  Failed.\n");
+        return 1;
+    }
     _dbg_print = (fnDbgPrintEx)GetProcAddress(nt, "DbgPrintEx");
     TrueNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(nt, "NtMapViewOfSection");
 
@@ -508,6 +534,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         //DetourAttach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
         DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
         DetourAttach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
+        DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
         //DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
      //   DetourAttach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
         //DetourAttach(&(PVOID&)pNtWriteVirtualMemory, MyNtWriteVirtualMemory);
@@ -531,6 +558,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         //DetourDetach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
         DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
         DetourDetach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
+        DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
         //DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
      //   DetourDetach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
         //DetourDetach(&(PVOID&)pNtWriteVirtualMemory, MyNtWriteVirtualMemory);
