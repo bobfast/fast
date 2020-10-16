@@ -11,9 +11,9 @@
 #define MSG_SIZE 256
 
 static NTMAPVIEWOFSECTION pNtMapViewOfSection;
-static NTCREATETHREADEX pNtCreateThreadEx;
-static NTALLOCATEVIRTUALMEMORY pNtAllocateVirtualMemory;
-static NTWRITEVIRTUALMEMORY pNtWriteVirtualMemory;
+static CREATEREMOTETHREAD pCreateRemoteThread = CreateRemoteThread;
+static VIRTUALALLOCEX pVirtualAllocEx = VirtualAllocEx;
+static WRITEPROCESSMEMORY pWriteProcessMemory = WriteProcessMemory;
 static NTPROTECTVIRTUALMEMORY pNtProtectVirtualMemory;
 static NTQUERYSYSTEMINFORMATION pNtQuerySystemInformation;  // for getting system info
 HMODULE hMod = NULL;
@@ -23,15 +23,16 @@ static LPVOID monMMF = NULL;
 static LPVOID dllMMF = NULL;
 unsigned char* writtenBuffer = NULL;
 unsigned int writtenBufferLen = 0;
+static HANDLE hMonProcess = NULL;
 
-static LPTHREAD_START_ROUTINE  CallNtAllocateVirtualMemory = NULL;
-static LPTHREAD_START_ROUTINE  CallNtProtectVirtualMemory = NULL;
-static LPTHREAD_START_ROUTINE  CallNtWriteVirtualMemory = NULL;
-static LPTHREAD_START_ROUTINE  CallNtCreateThreadEx = NULL;
+static LPTHREAD_START_ROUTINE  CallVirtualAllocEx = NULL;
+static LPTHREAD_START_ROUTINE  CallLoadLibraryA = NULL;
+static LPTHREAD_START_ROUTINE  CallWriteProcessMemory = NULL;
+static LPTHREAD_START_ROUTINE  CallCreateRemoteThread = NULL;
 static LPTHREAD_START_ROUTINE  CallNtMapViewOfSection = NULL;
 static LPTHREAD_START_ROUTINE  CallCreateFileMappingA = NULL;
-static LPTHREAD_START_ROUTINE  CallNtGetThreadContext = NULL;
-static LPTHREAD_START_ROUTINE  CallNtSetThreadContext = NULL;
+static LPTHREAD_START_ROUTINE  CallGetThreadContext = NULL;
+static LPTHREAD_START_ROUTINE  CallSetThreadContext = NULL;
 static LPTHREAD_START_ROUTINE  CallNtQueueApcThread = NULL;
 static LPTHREAD_START_ROUTINE  CallSetWindowLongPtrA = NULL;
 static LPTHREAD_START_ROUTINE  CallSleepEx = NULL;
@@ -50,45 +51,78 @@ static NTSTATUS(*PNtMapViewOfSection)(
 //#####################################
 
 static DBGPRINT pDbgPrint; // for debug printing 
-static NTSUSPENDTHREAD pNtSuspendThread;
-static NTGETCONTEXTTHREAD pNtGetThreadContext;
-static NTSETCONTEXTTHREAD pNtSetThreadContext;
-static RESUMETHREAD pNtResumeThread;
+static NTSUSPENDTHREAD pMyNtSuspendThread;
+static GETTHREADCONTEXT pMyNtGetThreadContext;
+static SETTHREADCONTEXT pMyNtSetThreadContext;
+static RESUMETHREAD pMyNtResumeThread;
 
-static NTSUSPENDTHREAD RuaNtSuspendThread;
-static NTGETCONTEXTTHREAD RuaNtGetThreadContext;
-static NTSETCONTEXTTHREAD RuaNtSetThreadContext;
-static RESUMETHREAD RuaNtResumeThread;
+// My CreateRemoteThread Hooking Function
+DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
+	HANDLE                 hProcess,
+	LPSECURITY_ATTRIBUTES  lpThreadAttributes,
+	SIZE_T                 dwStackSize,
+	LPTHREAD_START_ROUTINE lpStartAddress,
+	LPVOID                 lpParameter,
+	DWORD                  dwCreationFlags,
+	LPDWORD                lpThreadId)
+{
+	char buf[MSG_SIZE] = "";
+	HANDLE hMonThread = NULL;
 
+	memcpy(dllMMF, buf, strlen(buf));
+	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallCreateRemoteThread, monMMF, 0, NULL);
+	WaitForSingleObject(hMonThread, INFINITE);
+	printf("%s\n", dllMMF);
+
+	if (writtenBuffer != NULL) {
+		free(writtenBuffer);
+		writtenBuffer = NULL;
+		writtenBufferLen = 0;
+	}
+
+	return pCreateRemoteThread(
+		hProcess,
+		lpThreadAttributes,
+		dwStackSize,
+		lpStartAddress,
+		lpParameter,
+		dwCreationFlags,
+		lpThreadId
+	);
+}
 
 //CONTEXT old_ctx, new_ctx; last use
 RUNTIME_MEM_ENTRY* result;
-HMODULE hMod = NULL;
 DWORD64 old_result,new_result;
 CONTEXT old_ctx, new_ctx;
 
 //NtSuspendThread
-DLLBASIC_API NTSTATUS NTAPI NtSuspendThread(
+DLLBASIC_API NTSTATUS NTAPI MyNtSuspendThread(
 	HANDLE ThreadHandle,
 	PULONG PreviousSuspendCount
 ) {
-	return pNtSuspendThread(
+	return pMyNtSuspendThread(
 		ThreadHandle,
 		PreviousSuspendCount
 	);
 }
 
 //NtGetContextThread
-DLLBASIC_API NTSTATUS NTAPI NtGetThreadContext(
+
+DLLBASIC_API BOOL WINAPI MyNtGetThreadContext(
 	HANDLE ThreadHandle,
 	CONTEXT pContext
 ) {
-
+	printf("--------------------------------------------------------------\n");
 	pContext.ContextFlags = CONTEXT_ALL;
+	/*
 	pDbgPrint("N4_HOOK: PID=%d, NtGetThreadContext is hooked!\n", GetCurrentProcessId());
 	pDbgPrint("N4_HOOK: DETECTED GetThreadContext\n");
 	pDbgPrint("CONTEXT.Rip : %016I64X\n", pContext.Rip);
-
+	*/
+	printf("N4_HOOK: PID=%d, NtGetThreadContext is hooked!\n", GetCurrentProcessId());
+	printf("N4_HOOK: DETECTED GetThreadContext\n");
+	printf("CONTEXT.Rip : %016I64X\n", pContext.Rip);
 	//************************************
 	char buf[MSG_SIZE] = "";
 	HANDLE hThread = NULL;
@@ -96,37 +130,41 @@ DLLBASIC_API NTSTATUS NTAPI NtGetThreadContext(
 	sprintf_s(buf, "%d:CallNtGetThreadContext:IPC Successed!\n", GetCurrentProcessId());
 	memcpy(dllMMF, buf, strlen(buf));
 
-	hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtGetThreadContext, monMMF, 0, NULL);
+	hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallGetThreadContext, monMMF, 0, NULL);
 	WaitForSingleObject(hThread, INFINITE);
-	pDbgPrint("%s\n", dllMMF);
 	printf("%s\n", dllMMF);
 	//************************************
-	return (*pNtGetThreadContext)(
+	return pContext.Rip;/*(*pMyNtGetThreadContext)(
 		ThreadHandle,
 		pContext
-		);
+		);*/
 };
 
 //NtSetContextThread
-DLLBASIC_API NTSTATUS NTAPI NtSetThreadContext(
+DLLBASIC_API BOOL WINAPI MyNtSetThreadContext(
 	HANDLE ThreadHandle,
 	CONTEXT lpContext
 ) {
 	lpContext.ContextFlags = CONTEXT_ALL;
+	/*
 	pDbgPrint("N4_HOOK: PID=%d, NtSetThreadContext is hooked!\n", GetCurrentProcessId());
 	pDbgPrint("N4_HOOK: DETECTED SetThreadContext\n");
 	pDbgPrint("CONTEXT.Rip : %016I64X\n", lpContext.Rip);
-	return (*pNtSetThreadContext)(
+	*/
+	printf("N4_HOOK: PID=%d, NtSetThreadContext is hooked!\n", GetCurrentProcessId());
+	printf("N4_HOOK: DETECTED SetThreadContext\n");
+	printf("CONTEXT.Rip : %016I64X\n", lpContext.Rip);
+	return lpContext.Rip;/*(*pMyNtSetThreadContext)(
 		ThreadHandle,
 		lpContext
-	);
+	);*/
 }
 
 //NtResumeThread
-DLLBASIC_API NTSTATUS NTAPI NtResumeThread(
+DLLBASIC_API NTSTATUS NTAPI MyNtResumeThread(
 	HANDLE ThreadHandle
 ) {
-	return pNtResumeThread(
+	return pMyNtResumeThread(
 		ThreadHandle
 	);
 }
@@ -180,49 +218,26 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 			printf("N4Hook: Error - cannot get NtMapViewOfSection's address.\n");
 			return 1;
 		}
-		pNtCreateThreadEx = (NTCREATETHREADEX)GetProcAddress(hMod, "NtCreateThreadEx");
-		if (pNtCreateThreadEx == NULL) {
-			printf("N4Hook: Error - cannot get NtCreateThreadEx's address.\n");
+		pMyNtSuspendThread = (NTSUSPENDTHREAD)GetProcAddress(hMod, "NtSuspendThread");
+		if (pMyNtSuspendThread == NULL) {
+			printf("N4Hook: Error - cannot find MyNtSuspendThread's address.\n");
 			return 1;
 		}
-		pNtAllocateVirtualMemory = (NTALLOCATEVIRTUALMEMORY)GetProcAddress(hMod, "NtAllocateVirtualMemory");
-		if (pNtAllocateVirtualMemory == NULL) {
-			printf("N4Hook: Error - cannot get NtAllocateVirtualMemory's address.\n");
+		
+		pMyNtGetThreadContext = (GETTHREADCONTEXT)GetProcAddress(hMod, "NtGetContextThread");
+		if (pMyNtGetThreadContext == NULL) {
+			printf("N4Hook: Error - cannot find MyNtGetContextThread's address.\n");
 			return 1;
 		}
-		pNtWriteVirtualMemory = (NTWRITEVIRTUALMEMORY)GetProcAddress(hMod, "NtWriteVirtualMemory");
-		if (pNtWriteVirtualMemory == NULL) {
-			printf("N4Hook: Error - cannot get NtWriteVirtualMemory's address.\n");
+		pMyNtSetThreadContext = (SETTHREADCONTEXT)GetProcAddress(hMod, "NtSetContextThread");
+		if (pMyNtSetThreadContext == NULL) {
+			printf("N4Hook: Error - cannot find MyNtSetContextThread's address.\n");
 			return 1;
 		}
-		pNtQuerySystemInformation = (NTQUERYSYSTEMINFORMATION)GetProcAddress(hMod, "NtQuerySystemInformation");
-		if (pNtQuerySystemInformation == NULL) {
-			printf("N4Hook: Error - cannot get NtQuerySystemInformation's address.\n");
-			return 1;
-		}
-		pNtProtectVirtualMemory = (NTPROTECTVIRTUALMEMORY)GetProcAddress(hMod, "NtProtectVirtualMemory");
-		if (pNtProtectVirtualMemory == NULL) {
-			printf("N4Hook: Error - cannot get NtProtectVirtualMemory's address.\n");
-			return 1;
-		}
-		pNtSuspendThread = (NTSUSPENDTHREAD)GetProcAddress(hMod, "NtSuspendThread");
-		if (pNtSuspendThread == NULL) {
-			printf("N4Hook: Error - cannot find NtSuspendThread's address.\n");
-			return 1;
-		}
-		pNtGetThreadContext = (NTGETCONTEXTTHREAD)GetProcAddress(hMod, "NtGetContextThread");
-		if (pNtGetThreadContext == NULL) {
-			printf("N4Hook: Error - cannot find NtGetContextThread's address.\n");
-			return 1;
-		}
-		pNtSetThreadContext = (NTSETCONTEXTTHREAD)GetProcAddress(hMod, "NtSetContextThread");
-		if (pNtSetThreadContext == NULL) {
-			printf("N4Hook: Error - cannot find NtSetContextThread's address.\n");
-			return 1;
-		}
-		pNtResumeThread = (RESUMETHREAD)GetProcAddress(hMod, "NtResumeThread");
-		if (pNtResumeThread == NULL) {
-			printf("N4Hook: Error - cannot find NtResumeThread's address.\n");
+		
+		pMyNtResumeThread = (RESUMETHREAD)GetProcAddress(hMod, "NtResumeThread");
+		if (pMyNtResumeThread == NULL) {
+			printf("N4Hook: Error - cannot find MyNtResumeThread's address.\n");
 			return 1;
 		}
 		pDbgPrint = (DBGPRINT)GetProcAddress(hMod, "DbgPrint");
@@ -233,21 +248,21 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, MSG_SIZE, NULL);
 		map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
-		hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD, FALSE, *(DWORD*)((char*)pMemoryMap + sz));
+		hMonProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD, FALSE, *(DWORD*)((char*)pMemoryMap + sz));
 
-		(*pNtMapViewOfSection)(fm, hProcess, &lpMap, 0, MSG_SIZE, nullptr, (PULONG)(&viewsize), ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
+		(*pNtMapViewOfSection)(fm, hMonProcess, &lpMap, 0, MSG_SIZE, nullptr, (PULONG)(&viewsize), ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
 
 		monMMF = (LPVOID)lpMap;
 		dllMMF = (LPVOID)map_addr;
 		
-		CallNtAllocateVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
-		CallNtProtectVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + sizeof(DWORD64)));
-		CallNtWriteVirtualMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 2 * sizeof(DWORD64)));
-		CallNtCreateThreadEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 3 * sizeof(DWORD64)));
+		CallVirtualAllocEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
+		CallLoadLibraryA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + sizeof(DWORD64)));
+		CallWriteProcessMemory = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 2 * sizeof(DWORD64)));
+		CallCreateRemoteThread = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 3 * sizeof(DWORD64)));
 		CallNtMapViewOfSection = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 4 * sizeof(DWORD64)));
 		CallCreateFileMappingA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 5 * sizeof(DWORD64)));
-		CallNtGetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 6 * sizeof(DWORD64)));
-		CallNtSetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 7 * sizeof(DWORD64)));
+		CallGetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 6 * sizeof(DWORD64)));
+		CallSetThreadContext = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 7 * sizeof(DWORD64)));
 		CallNtQueueApcThread = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 8 * sizeof(DWORD64)));
 		CallSetWindowLongPtrA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 9 * sizeof(DWORD64)));
 		CallSleepEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 10 * sizeof(DWORD64)));
@@ -258,11 +273,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourRestoreAfterWith();
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
-
-		DetourAttach(&(PVOID&)pNtSuspendThread, NtSuspendThread);
-		DetourAttach(&(PVOID&)pNtGetThreadContext, NtGetThreadContext);
-		DetourAttach(&(PVOID&)pNtSetThreadContext, NtSetThreadContext);
-		DetourAttach(&(PVOID&)pNtResumeThread, NtResumeThread);
+		DetourAttach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
+		DetourAttach(&(PVOID&)pMyNtSuspendThread, MyNtSuspendThread);
+		DetourAttach(&(PVOID&)pMyNtGetThreadContext, MyNtGetThreadContext);
+		DetourAttach(&(PVOID&)pMyNtSetThreadContext, MyNtSetThreadContext);
+		DetourAttach(&(PVOID&)pMyNtResumeThread, MyNtResumeThread);
 		DetourTransactionCommit();
 		printf("N4Hook: DLL_PROCESS_ATTACH\n");
 		break;
@@ -275,11 +290,11 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 	case DLL_PROCESS_DETACH:
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
-
-		DetourDetach(&(PVOID&)pNtSuspendThread, NtSuspendThread);
-		DetourDetach(&(PVOID&)pNtGetThreadContext, NtGetThreadContext);
-		DetourDetach(&(PVOID&)pNtSetThreadContext, NtSetThreadContext);
-		DetourDetach(&(PVOID&)pNtResumeThread, NtResumeThread);
+		DetourDetach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
+		DetourDetach(&(PVOID&)pMyNtSuspendThread, MyNtSuspendThread);
+		DetourDetach(&(PVOID&)pMyNtGetThreadContext, MyNtGetThreadContext);
+		DetourDetach(&(PVOID&)pMyNtSetThreadContext, MyNtSetThreadContext);
+		DetourDetach(&(PVOID&)pMyNtResumeThread, MyNtResumeThread);
 		DetourTransactionCommit();
 		printf("N4Hook: DLL_PROCESS_DETACH\n");
 		break;

@@ -21,11 +21,19 @@ typedef NTSTATUS (NTAPI* NTGETCONTEXTTHREAD)(
 	HANDLE ThreadHandle,
 	CONTEXT pContext
 );
+typedef BOOL (WINAPI* GETTHREADCONTEXT)(
+	HANDLE hThread,
+	LPCONTEXT lpContext
+);
 
 //NtSetContextThread
 typedef NTSTATUS (NTAPI* NTSETCONTEXTTHREAD)(
 	HANDLE ThreadHandle,
 	CONTEXT lpContext
+);
+typedef BOOL (WINAPI* SETTHREADCONTEXT)(
+	HANDLE hThread,
+	CONTEXT* lpContext
 );
 //NtResumeThread
 typedef NTSTATUS (NTAPI* RESUMETHREAD)(
@@ -131,38 +139,33 @@ typedef struct _CREATE_THREAD_INFO {
 	THREAD_INFO TEB;
 } CREATE_THREAD_INFO;
 
-// NtCreateThreadEx Function Pointer Type
-typedef NTSTATUS(NTAPI* NTCREATETHREADEX)(
-	PHANDLE ThreadHandle,
-	ACCESS_MASK DesiredAccess,
-	POBJECT_ATTRIBUTES ObjectAttributes,
-	HANDLE ProcessHandle,
-	LPTHREAD_START_ROUTINE StartAddress,
-	LPVOID Parameter,
-	BOOL CreateSuspended,
-	DWORD StackZeroBits,
-	DWORD SizeOfStackCommit,
-	DWORD SizeOfStackReserve,
-	CREATE_THREAD_INFO* ThreadInfo
+// CreateRemoteThread Function Pointer Type
+typedef HANDLE(WINAPI* CREATEREMOTETHREAD)(
+	HANDLE                 hProcess,
+	LPSECURITY_ATTRIBUTES  lpThreadAttributes,
+	SIZE_T                 dwStackSize,
+	LPTHREAD_START_ROUTINE lpStartAddress,
+	LPVOID                 lpParameter,
+	DWORD                  dwCreationFlags,
+	LPDWORD                lpThreadId
 	);
 
-// NtAllocateVirtualMemory Function Pointer Type
-typedef NTSTATUS(NTAPI* NTALLOCATEVIRTUALMEMORY)(
-	HANDLE ProcessHandle,
-	PVOID* BaseAddress,
-	ULONG_PTR ZeroBits,
-	PSIZE_T RegionSize,
-	ULONG AllocationType,
-	ULONG Protect
+// VirtualAllocEx Function Pointer Type
+typedef LPVOID(WINAPI* VIRTUALALLOCEX)(
+	HANDLE hProcess,
+	LPVOID lpAddress,
+	SIZE_T dwSize,
+	DWORD  flAllocationType,
+	DWORD  flProtect
 	);
 
-// NtWriteVirtualMemory Function Pointer Type
-typedef NTSTATUS(NTAPI* NTWRITEVIRTUALMEMORY)(
-	HANDLE ProcessHandle,
-	PVOID BaseAddress,
-	PVOID Buffer,
-	ULONG NumberOfBytesToWrite,
-	PULONG NumberOfBytesWritten
+// WriteProcessMemory Function Pointer Type
+typedef BOOL(WINAPI* WRITEPROCESSMEMORY)(
+	HANDLE  hProcess,
+	LPVOID  lpBaseAddress,
+	LPCVOID lpBuffer,
+	SIZE_T  nSize,
+	SIZE_T* lpNumberOfBytesWritten
 	);
 
 // NtProtectVirtualMemory Function Pointer Type
