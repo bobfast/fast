@@ -118,15 +118,12 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
     PVOID ApcReserved OPTIONAL
 ) {
     HANDLE hThread = NULL;
-    if (ApcRoutine == GlobalGetAtomNameA)
-    {
     std::string buf(std::to_string(GetCurrentProcessId()));
     buf.append(":CallNtQueueApcThread:IPC Succeed!     ");
     memcpy(dllMMF, buf.c_str(), buf.size());
     hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtQueueApcThread, monMMF, 0, NULL);
     WaitForSingleObject(hThread, INFINITE);
     printf("%s\n", dllMMF);
-    }
     return NtQueueApcThread(ThreadHandle,
         ApcRoutine,
         ApcRoutineContext OPTIONAL,
