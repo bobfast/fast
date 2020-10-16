@@ -1,96 +1,11 @@
-#pragma once
-#include <windows.h>
-#include <winnt.h>
+﻿#pragma once
+#include <Windows.h>
 #include <stdio.h>
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
-// DbgPrint Function Pointer Type
-typedef NTSTATUS(NTAPI* DBGPRINT)(
-	LPCSTR Format,
-	...
-	);
+#define MSG_SIZE 256
 
-//NtSuspendThread
-typedef NTSTATUS (NTAPI* NTSUSPENDTHREAD)(
-	HANDLE ThreadHandle,
-	PULONG PreviousSuspendCount
-);
-
-//NtGetContextThread
-typedef NTSTATUS (NTAPI* NTGETCONTEXTTHREAD)(
-	HANDLE ThreadHandle,
-	CONTEXT pContext
-);
-typedef BOOL (WINAPI* GETTHREADCONTEXT)(
-	HANDLE hThread,
-	LPCONTEXT lpContext
-);
-
-//NtSetContextThread
-typedef NTSTATUS (NTAPI* NTSETCONTEXTTHREAD)(
-	HANDLE ThreadHandle,
-	CONTEXT lpContext
-);
-typedef BOOL (WINAPI* SETTHREADCONTEXT)(
-	HANDLE hThread,
-	CONTEXT* lpContext
-);
-//NtResumeThread
-typedef NTSTATUS (NTAPI* RESUMETHREAD)(
-	HANDLE ThreadHandle
-);
-
-// Data Types
-typedef struct {
-	HANDLE process;
-	HANDLE thread;
-	LPVOID addr;
-	LPVOID entry_point;
-	SIZE_T tot_write;
-	SIZE_T tot_alloc;
-} RUNTIME_MEM_ENTRY;
-#include <cstdint>
-
-/// @brief log level
-#define log_level_debug         3
-#define log_level_info          2
-#define log_level_warn          1
-#define log_level_critical      0
-#define log_level_error         log_level_critical
-
-/// @brief	ntdll::DbgPrintEx 
-///			(ref) dpfilter.h
-#define DPFLTR_ERROR_LEVEL 0
-#define DPFLTR_WARNING_LEVEL 1
-#define DPFLTR_TRACE_LEVEL 2
-#define DPFLTR_INFO_LEVEL 3
-#define DPFLTR_MASK 0x80000000
-
-#define DPFLTR_IHVDRIVER_ID 77
-
-typedef LONG_PTR(NTAPI* TrueNtUserSetWindowLongPtr)(
-	HWND hWnd,
-	DWORD Index,
-	LONG_PTR NewValue,
-	BOOL Ansi);
-
-typedef NTSTATUS(NTAPI* TrueNtAllocateVirtualMemory)(
-	HANDLE ProcessHandle,
-	PVOID* BaseAddress,
-	ULONG_PTR ZeroBits,
-	PSIZE_T RegionSize,
-	ULONG AllocationType,
-	ULONG Protect
-	);
-
-typedef NTSTATUS(NTAPI* TrueNtWriteVirtualMemory)(
-	HANDLE ProcessHandle,
-	PVOID BaseAddress,
-	PVOID Buffer,
-	ULONG NumberOfBytesToWrite,
-	PULONG NumberOfBytesWritten
-	);
-
+// Enumeration type for NtMapViewOfSection
 typedef enum _SECTION_INHERIT {
 	ViewShare = 1,
 	ViewUnmap = 2
@@ -101,13 +16,13 @@ typedef NTSTATUS(NTAPI* NTMAPVIEWOFSECTION)(
 	HANDLE SectionHandle,
 	HANDLE ProcessHandle,
 	PVOID* BaseAddress,
-	ULONG ZeroBits,
-	ULONG CommitSize,
+	ULONG_PTR ZeroBits,
+	SIZE_T CommitSize,
 	PLARGE_INTEGER SectionOffset,
-	PULONG ViewSize,
+	PSIZE_T ViewSize,
 	SECTION_INHERIT InheritDisposition,
 	ULONG AllocationType,
-	ULONG Protect
+	ULONG Win32Protect
 	);
 
 // Struct types for NtCreateThreadEx
@@ -140,7 +55,7 @@ typedef struct _CREATE_THREAD_INFO {
 } CREATE_THREAD_INFO;
 
 // CreateRemoteThread Function Pointer Type
-typedef HANDLE(WINAPI* CREATEREMOTETHREAD)(
+typedef HANDLE(WINAPI * CREATEREMOTETHREAD)(
 	HANDLE                 hProcess,
 	LPSECURITY_ATTRIBUTES  lpThreadAttributes,
 	SIZE_T                 dwStackSize,
@@ -151,7 +66,7 @@ typedef HANDLE(WINAPI* CREATEREMOTETHREAD)(
 	);
 
 // VirtualAllocEx Function Pointer Type
-typedef LPVOID(WINAPI* VIRTUALALLOCEX)(
+typedef LPVOID(WINAPI * VIRTUALALLOCEX)(
 	HANDLE hProcess,
 	LPVOID lpAddress,
 	SIZE_T dwSize,
@@ -160,21 +75,12 @@ typedef LPVOID(WINAPI* VIRTUALALLOCEX)(
 	);
 
 // WriteProcessMemory Function Pointer Type
-typedef BOOL(WINAPI* WRITEPROCESSMEMORY)(
+typedef BOOL(WINAPI * WRITEPROCESSMEMORY)(
 	HANDLE  hProcess,
 	LPVOID  lpBaseAddress,
 	LPCVOID lpBuffer,
 	SIZE_T  nSize,
 	SIZE_T* lpNumberOfBytesWritten
-	);
-
-// NtProtectVirtualMemory Function Pointer Type
-typedef NTSTATUS(NTAPI* NTPROTECTVIRTUALMEMORY)(
-	HANDLE ProcessHandle,
-	PVOID* BaseAddress,
-	PULONG NumberOfBytesToProtect,
-	ULONG NewAccessProtection,
-	PULONG OldAccessProtection
 	);
 
 // DbgPrint Function Pointer Type
