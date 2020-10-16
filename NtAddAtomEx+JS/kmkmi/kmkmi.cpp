@@ -534,7 +534,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         //DetourAttach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
         DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
         DetourAttach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
-        DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
+      //  DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
         //DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
      //   DetourAttach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
         //DetourAttach(&(PVOID&)pNtWriteVirtualMemory, MyNtWriteVirtualMemory);
@@ -558,7 +558,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         //DetourDetach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
         DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
         DetourDetach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
-        DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
+      //  DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
         //DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
      //   DetourDetach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
         //DetourDetach(&(PVOID&)pNtWriteVirtualMemory, MyNtWriteVirtualMemory);

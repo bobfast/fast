@@ -12,6 +12,9 @@
 #include <tlhelp32.h>
 #include <detours.h>
 #include <string>
+#include <vector>
+#include <tuple>
+#include <iostream>
 #pragma warning(push)
 #if _MSC_VER > 1400
 #pragma warning(disable : 6102 6103) // /analyze warnings
@@ -484,11 +487,14 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 
 
 void CallVirtualAllocEx(LPVOID monMMF) {
-
-   //pid // printf("%d\n", atoi((char*)monMMF));
+    std::tuple<int, int, PVOID> tp;
+    tp=std::make_tuple(atoi((char*)monMMF), atoi((char*)monMMF + sizeof(DWORD) * 3), (char*)monMMF + sizeof(DWORD) * 30);
+    std::cout << std::get<0>(tp) << ", " << std::get<1>(tp) << ", "
+        << std::get<2>(tp) << std::endl;
+    //pid // printf("%d\n", atoi((char*)monMMF));
    //size //printf("%s\n", (char*)monMMF+sizeof(DWORD)*3);
     printf("%s%s\n", (char*)monMMF,(char*)monMMF + sizeof(DWORD) * 6);
-   // address//printf("%lp\n",  (char*)monMMF + sizeof(DWORD) * 30);
+   printf("%lp\n",  (char*)monMMF + sizeof(DWORD) * 30);
     std::string buf(std::to_string(GetCurrentProcessId()));
     buf.append(":CallVirtualAllocEx:Response Sended!");
     memcpy(monMMF, buf.c_str(), buf.size());
