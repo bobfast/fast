@@ -21,18 +21,18 @@
 #include "kmkmi.h"
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
+#define HOOKDLL_PATH "C:\\kmkmi.dll"
 #define MSG_SIZE 256
 
 
 //#####################################
 
 static HANDLE hProcess = NULL;
+static HANDLE hMonProcess = NULL;
 
 static LPVOID monMMF = NULL;
 static LPVOID dllMMF = NULL;
-
-static LPCSTR dll_path = NULL;
-
+static VIRTUALALLOCEX pVirtualAllocEx = VirtualAllocEx;
 static LPTHREAD_START_ROUTINE  CallVirtualAllocEx = NULL;
 static LPTHREAD_START_ROUTINE  CallLoadLibraryA = NULL;
 static LPTHREAD_START_ROUTINE  CallWriteProcessMemory = NULL;
@@ -59,7 +59,7 @@ ULONG(__cdecl* fnDbgPrintEx) (
 static fnDbgPrintEx _dbg_print = nullptr;
 
 static TrueNtUserSetWindowLongPtr pNtUserSetWindowLongPtr;
-static TrueNtAllocateVirtualMemory pNtAllocateVirtualMemory;
+static pNtQueueApcThread NtQueueApcThread = NULL;
 static TrueNtWriteVirtualMemory pNtWriteVirtualMemory;
 static NTMAPVIEWOFSECTION TrueNtMapViewOfSection;
 
@@ -109,6 +109,29 @@ static DWORD(WINAPI* TrueSleepEx)(DWORD dwMilliseconds, BOOL bAlertable) = Sleep
 
 unsigned char* writtenBuffer = NULL;
 unsigned int writtenBufferLen = 0;
+DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
+    HANDLE ThreadHandle,
+    PVOID ApcRoutine,
+    PVOID ApcRoutineContext OPTIONAL,
+    PVOID ApcStatusBlock OPTIONAL,
+    PVOID ApcReserved OPTIONAL
+) {
+    HANDLE hThread = NULL;
+    if (ApcRoutine == GlobalGetAtomNameA)
+    {
+        std::string buf(std::to_string(GetProcessIdOfThread(ThreadHandle)));
+        buf.append(":CallNtQueueApcThread:IPC Succeed!     ");
+        memcpy(dllMMF, buf.c_str(), buf.size());
+        hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtQueueApcThread, monMMF, 0, NULL);
+        WaitForSingleObject(hThread, INFINITE);
+        printf("%s\n", dllMMF);
+    }
+    return NtQueueApcThread(ThreadHandle,
+        ApcRoutine,
+        ApcRoutineContext OPTIONAL,
+        ApcStatusBlock OPTIONAL,
+        ApcReserved OPTIONAL);
+}
 
 DLLBASIC_API NTSTATUS NTAPI MyNtWriteVirtualMemory(
     HANDLE ProcessHandle,
@@ -150,28 +173,40 @@ DLLBASIC_API NTSTATUS NTAPI MyNtWriteVirtualMemory(
         NumberOfBytesWritten
         );
 }
-
-DLLBASIC_API NTSTATUS NTAPI MyNtAllocateVirtualMemory(
-    HANDLE ProcessHandle,
-    PVOID* BaseAddress,
-    ULONG_PTR ZeroBits,
-    PSIZE_T RegionSize,
-    ULONG AllocationType,
-    ULONG Protect)
+DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
+    HANDLE thProcess, //thProcess  modified
+    LPVOID lpAddress,
+    SIZE_T dwSize,
+    DWORD  flAllocationType,
+    DWORD  flProtect)
 {
-    if (Protect == PAGE_EXECUTE_READWRITE) {
+    LPVOID ret = pVirtualAllocEx(
+        thProcess,
+        lpAddress,
+        dwSize,
+        flAllocationType,
+        flProtect
+    );
+    char buf4[MSG_SIZE] = "";
+    HANDLE hMonThread = NULL;
+    std::string buf(std::to_string(GetProcessId(thProcess)));
 
+    std::string buf2(std::to_string(dwSize));
+    std::string buf3(":CallVirtualAllocEx:IPC Successed!");
+    sprintf_s(buf4,"%lp", ret);
+  
+    if (flAllocationType == (MEM_RESERVE | MEM_COMMIT) && flProtect == PAGE_EXECUTE_READWRITE) {
+
+        memcpy(dllMMF, buf.c_str(), buf.size());
+        memcpy((char*)dllMMF + 3*sizeof(DWORD), buf2.c_str(), buf2.size());
+        memcpy((char*)dllMMF + 6 * sizeof(DWORD), buf3.c_str(), buf3.size());
+        memcpy((char*)dllMMF + 30 * sizeof(DWORD), buf4,strlen(buf4) );
+        hMonThread = CreateRemoteThread(hProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
+        WaitForSingleObject(hMonThread, INFINITE);
+        printf("%s\n", dllMMF);
     }
-    return (*pNtAllocateVirtualMemory)(
-        ProcessHandle,
-        BaseAddress,
-        ZeroBits,
-        RegionSize,
-        AllocationType,
-        Protect
-        );
+    return ret;
 }
-
 DLLBASIC_API LONG_PTR NTAPI MyNtUserSetWindowLongPtr(
     HWND hWnd,
     DWORD Index,
@@ -256,7 +291,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessA(
         lpCurrentDirectory,
         lpStartupInfo,
         lpProcessInformation,
-        dll_path,
+        HOOKDLL_PATH,
         TrueCreateProcessA);
 }
 
@@ -289,7 +324,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessW(
         lpCurrentDirectory,
         lpStartupInfo,
         lpProcessInformation,
-        dll_path,
+        HOOKDLL_PATH,
         TrueCreateProcessW);
 
 }
@@ -382,15 +417,15 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         printf("GetModuleHandleA ntdll.dll Failed.\n");
         return 1;
     }
+    NtQueueApcThread = (pNtQueueApcThread)GetProcAddress(nt, "NtQueueApcThread");
+    if (NtQueueApcThread == NULL) {
+        printf("GetProcAddress NtQueueApcThread  Failed.\n");
+        return 1;
+    }
     _dbg_print = (fnDbgPrintEx)GetProcAddress(nt, "DbgPrintEx");
     TrueNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(nt, "NtMapViewOfSection");
 
-    pNtAllocateVirtualMemory = (TrueNtAllocateVirtualMemory)GetProcAddress(nt, "NtAllocateVirtualMemory");
-    if (pNtAllocateVirtualMemory == NULL) {
-        printf("GetProcAddress NtAllocateVirtualMemory Failed.\n");
-        return 1;
-    }
-
+   
     pNtWriteVirtualMemory = (TrueNtWriteVirtualMemory)GetProcAddress(nt, "NtWriteVirtualMemory");
     if (pNtWriteVirtualMemory == NULL) {
         printf("GetProcAddress NtWriteVirtualMemory  Failed.\n");
@@ -447,7 +482,6 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         printf("%s\n", (char*)pMemoryMap);
         printf("%d\n", *(DWORD*)((char*)pMemoryMap + sz));
 
-        dll_path = (LPCSTR)pMemoryMap;
 
         HANDLE fm;
         char* map_addr;
@@ -501,8 +535,10 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         DetourAttach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
         //DetourAttach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
         DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
+        DetourAttach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
+        DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
         //DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
-        //DetourAttach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
+     //   DetourAttach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
         //DetourAttach(&(PVOID&)pNtWriteVirtualMemory, MyNtWriteVirtualMemory);
         error = DetourTransactionCommit();
 
@@ -523,8 +559,10 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
         DetourDetach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
         //DetourDetach(&(PVOID&)pNtUserSetWindowLongPtr, MyNtUserSetWindowLongPtr);
         DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
+        DetourDetach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
+        DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
         //DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
-        //DetourDetach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
+     //   DetourDetach(&(PVOID&)pNtAllocateVirtualMemory, MyNtAllocateVirtualMemory);
         //DetourDetach(&(PVOID&)pNtWriteVirtualMemory, MyNtWriteVirtualMemory);
         error = DetourTransactionCommit();
 
