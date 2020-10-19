@@ -1,4 +1,3 @@
-#include "pch.h"
 #include "Form1.h"
 
 #include <stdio.h>
@@ -509,14 +508,15 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	
 	fprintf(pFile, "%s\n", cp);
 
 
 	std::string pid(strtok(cp, ":"));
-	
+	form->logging(gcnew System::String(pid.c_str()));
+	form->logging( gcnew System::String(" : VirtualAlloc -> Protection : PAGE_EXECUTE_READWRITE\r\n"));
 
-	DWORD64 ret = (DWORD64)strtol(strtok(NULL, ":"), NULL, 16 );
+	DWORD64 ret = (DWORD64)strtoll(strtok(NULL, ":"), NULL, 16 );
 	DWORD dwSize = (DWORD)strtol(strtok(NULL, ":") , NULL, 16);
 
 	auto item = rwxList.find(pid);
@@ -534,19 +534,19 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 	memcpy(monMMF, buf, strlen(buf));
 }
 
-void CallLoadLibraryA(LPVOID monMMF) {
+void CallQueueUserAPC(LPVOID monMMF) {
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	//form->logging(gcnew System::String(cp));
 	fprintf(pFile, "%s\n", cp);
 
 
 	std::string pid(strtok(cp, ":"));
 
 	std::string buf(pid);
-	buf.append(":CallLoadLibraryA:Response Sended!");
+	buf.append(":CallQueueUserAPC:Response Sended!");
 	memcpy(monMMF, buf.c_str(), buf.size());
 }
 
@@ -555,7 +555,7 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	//form->logging(gcnew System::String(cp));
 	fprintf(pFile, "%s\n", cp);
 
 
@@ -572,25 +572,41 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	
 	fprintf(pFile, "%s\n", cp);
 
 
 	std::string pid(strtok(cp, ":"));
+	form->logging(gcnew System::String(pid.c_str()));
+	
+	std::string addr(strtok(NULL, ":"));
+	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	DWORD64 lpParameter = (DWORD64)strtoll(strtok(NULL, ":"), NULL, 16);
 
-
-	DWORD64 lpStartAddress = (DWORD64)strtol(strtok(NULL, ":"), NULL, 16);
-	DWORD64 lpParameter = (DWORD64)strtol(strtok(NULL, ":"), NULL, 16);
-
+	
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 	auto item = rwxList.find(pid);
-	if (item != rwxList.end()) {
+	if (strncmp(addr.c_str(), "LoadLibraryA", 12) == 0) {
+		sprintf_s(buf, "%s:Detected:LoadLibraryA:%016x:CallCreateRemoteThread", pid, lpParameter);
+		form->logging(gcnew System::String(" : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!"));
+		form->logging(gcnew System::String("\r\n"));
+		form->logging(gcnew System::String("\r\n"));
+		MessageBoxA(NULL, "CreateRemoteThread DLL Injection with LoadLibrary Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+		memcpy(monMMF, buf, strlen(buf));
+		return;
+	}
+	else if (item != rwxList.end()) {
 
 		for (auto i : item->second) {
 			if(i.first <= lpStartAddress && (i.first+(DWORD64)i.second  > lpStartAddress  ))
 			sprintf_s(buf, "%s:Detected:%016x:%016x:CallCreateRemoteThread", pid, lpStartAddress, lpParameter);
+			form->logging(gcnew System::String(" : CreateRemoteThread -> Code Injection Detected! Addr: "));
+			form->logging(gcnew System::String(addr.c_str()));
+			form->logging(gcnew System::String("\r\n"));
+			form->logging(gcnew System::String("\r\n"));
+			MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 			memcpy(monMMF, buf, strlen(buf));
 			return;
 		}
@@ -606,14 +622,17 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	//form->logging(gcnew System::String(cp));
 	fprintf(pFile, "%s\n", cp);
 
 
 	std::string pid(strtok(cp, ":"));
 
+	form->logging(gcnew System::String(pid.c_str()));
+	form->logging(gcnew System::String(" : NtMapViewOfSection -> Protection : PAGE_EXECUTE_READWRITE\r\n"));
 
-	DWORD64 BaseAddress = (DWORD64)strtol(strtok(NULL, ":"), NULL, 16);
+
+	DWORD64 BaseAddress = (DWORD64)strtoll(strtok(NULL, ":"), NULL, 16);
 	DWORD CommitSize = (DWORD)strtol(strtok(NULL, ":"), NULL, 16);
 	fprintf(pFile, "%lu\n", BaseAddress);
 
@@ -636,7 +655,7 @@ void CallCreateFileMappingA(LPVOID monMMF) {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	//form->logging(gcnew System::String(cp));
 	fprintf(pFile, "%s\n", cp);
 
 
@@ -652,7 +671,7 @@ void CallGetThreadContext(LPVOID monMMF) {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	//form->logging(gcnew System::String(cp));
 	fprintf(pFile, "%s\n", cp);
 
 
@@ -669,11 +688,14 @@ void CallSetThreadContext(LPVOID monMMF) {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	//form->logging(gcnew System::String(cp));
 	fprintf(pFile, "%s\n", cp);
 
 
 	std::string pid(strtok(cp, ":"));
+
+	form->logging(gcnew System::String(pid.c_str()));
+	form->logging(gcnew System::String(" :SetThreadContext Called!\r\n"));
 
 
 	std::string buf(pid);
@@ -686,16 +708,27 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	//form->logging(gcnew System::String(cp));
 	fprintf(pFile, "%s\n", cp);
 
 
 	std::string pid(strtok(cp, ":"));
 
+	DWORD64 target = (DWORD64)strtoll(strtok(NULL, ":"), NULL, 16);
+	char buf[MSG_SIZE] = "";
+	memset(monMMF, 0, MSG_SIZE);
+	auto item = rwxList.find(pid);
+	if (item != rwxList.end()) {
+		for (auto i : item->second) {
+			if (i.first <= target && (i.first + (DWORD64)i.second > target))
+				sprintf_s(buf, "%s:Detected:%016x:CallNtQueueApcThread", pid, target);
+			memcpy(monMMF, buf, strlen(buf));
+			return;
+		}
+	}
 
-	std::string buf(pid);
-	buf.append(":CallNtQueueApcThread:Response Sended!");
-	memcpy(monMMF, buf.c_str(), buf.size());
+	sprintf_s(buf, "%s:%016x:CallNtQueueApcThread:Clean", pid, target);
+	memcpy(monMMF, buf, strlen(buf));
 }
 
 void CallSetWindowLongPtrA(LPVOID monMMF) {
@@ -703,13 +736,16 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	//form->logging(gcnew System::String(cp));
 	fprintf(pFile, "%s\n", cp);
 
 
 	std::string pid(strtok(cp, ":"));
+	form->logging(gcnew System::String(pid.c_str()));
 
-	DWORD64 target = (DWORD64)strtol(strtok(NULL, ":"), NULL, 16);
+
+	std::string addr(strtok(NULL, ":"));
+	DWORD64 target = (DWORD64)strtoll(addr.c_str(), NULL, 16);
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 	auto item = rwxList.find(pid);
@@ -718,6 +754,11 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 		for (auto i : item->second) {
 			if (i.first <= target && (i.first + (DWORD64)i.second > target))
 				sprintf_s(buf, "%s:Detected:%016x:CallSetWindowLongPtrA", pid, target);
+				form->logging(gcnew System::String(" : SetWindowLongPtrA -> Code Injection Detected! Addr: "));
+				form->logging(gcnew System::String(addr.c_str()));
+				form->logging(gcnew System::String("\r\n"));
+				form->logging(gcnew System::String("\r\n"));
+				MessageBoxA(NULL,"SetWindowLongPtrA Code Injection Detected!" , "Detection Alert!", MB_OK | MB_ICONQUESTION);
 				memcpy(monMMF, buf, strlen(buf));
 				return;
 		}
@@ -734,7 +775,7 @@ void CallSleepEx(LPVOID monMMF) {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
-	form->logging(gcnew System::String(cp));
+	//form->logging(gcnew System::String(cp));
 	fprintf(pFile, "%s\n", cp);
 
 
@@ -764,7 +805,7 @@ int CDECL mon(int isFree_)
 	rpszDllsOut[0] = NULL;
 
 
-	char dlln[] = "CreationHook.dll";
+	char dlln[] = "FAST-DLL.dll";
 	rpszDllsRaw[0] = (LPCSTR)dlln;
 
 
@@ -912,7 +953,7 @@ int CDECL mon(int isFree_)
 
 		//printf("c %p\n", CallLoadLibraryA);
 		//printf("c %llu\n", CallLoadLibraryA);
-		fp = CallLoadLibraryA;
+		fp = CallQueueUserAPC;
 		memcpy(map_addr + dwBufSize + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
 		//printf("%d\t%d\t%llu\n", thispid, *(DWORD*)(map_addr + dwBufSize), *(DWORD64*)(map_addr + dwBufSize + sizeof(DWORD) + sizeof(DWORD64)));
 

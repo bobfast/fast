@@ -81,7 +81,7 @@ namespace CppCLRWinformsProjekt {
 			this->hookAndMonitoring->Name = L"hookAndMonitoring";
 			this->hookAndMonitoring->Size = System::Drawing::Size(242, 82);
 			this->hookAndMonitoring->TabIndex = 0;
-			this->hookAndMonitoring->Text = L"Hook and Monitoring";
+			this->hookAndMonitoring->Text = L"Start";
 			this->hookAndMonitoring->UseVisualStyleBackColor = true;
 			this->hookAndMonitoring->Click += gcnew System::EventHandler(this, &Form1::hookAndMonitoring_Click);
 			// 
@@ -91,7 +91,7 @@ namespace CppCLRWinformsProjekt {
 			this->unhook->Name = L"unhook";
 			this->unhook->Size = System::Drawing::Size(240, 82);
 			this->unhook->TabIndex = 1;
-			this->unhook->Text = L"Unhook";
+			this->unhook->Text = L"Stop";
 			this->unhook->UseVisualStyleBackColor = true;
 			this->unhook->Click += gcnew System::EventHandler(this, &Form1::unhook_Click);
 			// 
@@ -125,7 +125,7 @@ namespace CppCLRWinformsProjekt {
 			this->targetPID->Font = (gcnew System::Drawing::Font(L"±¼¸²", 12, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(129)));
 			this->targetPID->FormattingEnabled = true;
-			this->targetPID->Location = System::Drawing::Point(520, 12);
+			this->targetPID->Location = System::Drawing::Point(803, 292);
 			this->targetPID->Name = L"targetPID";
 			this->targetPID->Size = System::Drawing::Size(253, 40);
 			this->targetPID->TabIndex = 4;
@@ -150,27 +150,27 @@ namespace CppCLRWinformsProjekt {
 #pragma endregion
 
 	private: System::Void hookAndMonitoring_Click(System::Object^ sender, System::EventArgs^ e) {
-		this->logBox->AppendText("Hook DLLs!\r\n");
+		this->logBox->AppendText("Hook DLLs!\r\n\r\n");
 		mon(0);
 
 	}
 
 	private: System::Void unhook_Click(System::Object^ sender, System::EventArgs^ e) {
-		this->logBox->AppendText("Unhook DLLs!\r\n");
+		this->logBox->AppendText("Unhook DLLs!\r\n\r\n");
 		mon(1);
 
 	}
 
 	public: System::Void logging(String^ text) {
-		String^ pid = (String^)(text->Split(':'))[0];
+		String^ pid = (String^)(text->Split(' '))[0];
 		if(this->targetPID->Items->Contains(pid) != true)
 			this->targetPID->Items->Add(pid);
-		this->logBox->AppendText(text + "\r\n");
+		this->logBox->AppendText(text);
 	}
 
 
 	private: System::Void AttackOpt_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
-
+		
 	}
 	private: System::Void targetPID_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
 

@@ -150,7 +150,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 
 	//printf("NtMapViewOfSection is HOOKED!\n");
 	//printf("protect : %p\n", Win32Protect);
-	if ( (Win32Protect == PAGE_EXECUTE_READWRITE)) {
+	if ((Win32Protect == PAGE_EXECUTE_READWRITE)) {
 		memset(dllMMF, 0, MSG_SIZE);
 
 		NTSTATUS res = (*TrueNtMapViewOfSection)(
@@ -183,16 +183,16 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	}
 	else
 		return (*TrueNtMapViewOfSection)(
-		SectionHandle,
-		ProcessHandle,
-		BaseAddress,
-		ZeroBits,
-		CommitSize,
-		SectionOffset,
-		ViewSize,
-		InheritDisposition,
-		AllocationType,
-		Win32Protect);
+			SectionHandle,
+			ProcessHandle,
+			BaseAddress,
+			ZeroBits,
+			CommitSize,
+			SectionOffset,
+			ViewSize,
+			InheritDisposition,
+			AllocationType,
+			Win32Protect);
 }
 
 
@@ -215,14 +215,14 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 	//pDbgPrint("FAST-DLL: PID=%d, CreateRemoteThread is hooked!\n", GetCurrentProcessId());
 	//pDbgPrint("              lpStartAddress=%p\n", lpStartAddress);
-	
-	
+
+
 
 	if (lpStartAddress == (LPTHREAD_START_ROUTINE)LoadLibraryA) {
 		unsigned char* writtenBuffer = NULL;
 		unsigned int writtenBufferLen = 0;
 		writtenBufferLen = 256;
-		writtenBuffer = (unsigned char*)malloc((size_t)writtenBufferLen );
+		writtenBuffer = (unsigned char*)malloc((size_t)writtenBufferLen);
 
 		if (writtenBuffer != NULL) {
 			memcpy(writtenBuffer, lpParameter, writtenBufferLen);
@@ -256,7 +256,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 		lpParameter,
 		dwCreationFlags,
 		lpThreadId
-		);
+	);
 }
 
 
@@ -277,24 +277,24 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	//pDbgPrint("              flAllocationType = %x, flProtect = %x\n", flAllocationType, flProtect);
 
 
-	if(flProtect == PAGE_EXECUTE_READWRITE){
-	/*if (flAllocationType == (MEM_RESERVE | MEM_COMMIT) && flProtect == PAGE_EXECUTE_READWRITE) {
-		if (isDetectedRWXPageWhenInitializing) {
-			char pid_msg[20];
-			LPCSTR msgs[] = {
-					"Non-initial RWX Page Detected.",
-					(LPCSTR)pid_msg
-			};
-			sprintf_s(pid_msg, "PID=%d", GetCurrentProcessId());
+	if (flProtect == PAGE_EXECUTE_READWRITE) {
+		/*if (flAllocationType == (MEM_RESERVE | MEM_COMMIT) && flProtect == PAGE_EXECUTE_READWRITE) {
+			if (isDetectedRWXPageWhenInitializing) {
+				char pid_msg[20];
+				LPCSTR msgs[] = {
+						"Non-initial RWX Page Detected.",
+						(LPCSTR)pid_msg
+				};
+				sprintf_s(pid_msg, "PID=%d", GetCurrentProcessId());
 
-			pDbgPrint("************* NON-INITIAL PAGE_EXECUTE_READWRITE DETECTED! *************\n");
-			
-			ReportEventA(eventLog, EVENTLOG_SUCCESS, 0, 5678, NULL, 2, 0, msgs, NULL);
-			strcat_s(buf, "\n     FAST-DLL:IPC:Non-initial RWX Page Detected.     ");
-		}
-		else {
-			isDetectedRWXPageWhenInitializing = true;
-		}*/
+				pDbgPrint("************* NON-INITIAL PAGE_EXECUTE_READWRITE DETECTED! *************\n");
+
+				ReportEventA(eventLog, EVENTLOG_SUCCESS, 0, 5678, NULL, 2, 0, msgs, NULL);
+				strcat_s(buf, "\n     FAST-DLL:IPC:Non-initial RWX Page Detected.     ");
+			}
+			else {
+				isDetectedRWXPageWhenInitializing = true;
+			}*/
 
 		LPVOID ret = pVirtualAllocEx(
 			hProcess,
@@ -318,7 +318,7 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 			flAllocationType,
 			flProtect
 		);
-	}
+}
 
 //#####################################
 // My WriteProcessMemory Hooking Function
@@ -333,7 +333,7 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
-	
+
 
 	pDbgPrint("FAST-DLL: PID=%d, WriteProcessMemory is hooked!\n", GetCurrentProcessId());
 	pDbgPrint("              nSize=%u\n", nSize);
@@ -363,12 +363,12 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 
 	//pDbgPrint("\n");
 
-	
+
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallWriteProcessMemory, monMMF, 0, NULL);
 	WaitForSingleObject(hMonThread, INFINITE);
 	printf("%s\n", dllMMF);
-	
+
 
 	return pWriteProcessMemory(
 		hProcess,
@@ -376,7 +376,7 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 		lpBuffer,
 		nSize,
 		lpNumberOfBytesWritten
-		);
+	);
 }
 
 
@@ -402,7 +402,7 @@ DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
 )
 {
 	//printf("CreateFileMappingA is HOOKED!!\n");
-	if ((hFile == INVALID_HANDLE_VALUE)       
+	if ((hFile == INVALID_HANDLE_VALUE)
 		) {//&& (flProtect == PAGE_EXECUTE_READWRITE)) {
 		memset(dllMMF, 0, MSG_SIZE);
 
