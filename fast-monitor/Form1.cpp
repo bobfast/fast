@@ -1,20 +1,6 @@
 #include "Form1.h"
 #include "call_api.h"
 
-#include <stdio.h>
-#include <windows.h>
-#include "tchar.h"
-#include <tlhelp32.h>
-#include <detours.h>
-#include <time.h>
-#include <utility>
-#pragma warning(push)
-#if _MSC_VER > 1400
-#pragma warning(disable : 6102 6103) // /analyze warnings
-#endif
-#include <strsafe.h>
-#pragma warning(pop)
-
 //////////////////////////////////////////////////////////////////////////////
 //
 //  Test DetourCreateProcessfast function (fast.cpp).
@@ -25,7 +11,6 @@
 //
 #define MSG_SIZE 256
 using namespace CppCLRWinformsProjekt;
-
 
 void init() {
 	time_t t = time(NULL);
@@ -51,6 +36,7 @@ void exiting() {
 
 	fclose(pFile);
 }
+
 //////////////////////////////////////////////////////////////////////////////
 //
 
@@ -753,7 +739,9 @@ int CDECL mon(int isFree_)
 
 		//WaitForSingleObject(hThread, INFINITE);
 		CloseHandle(hThread);
+		hThread = NULL;
 		CloseHandle(hProcess);
+		hProcess = NULL;
 
 	} while (Process32Next(hSnap, &entry));
 

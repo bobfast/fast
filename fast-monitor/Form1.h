@@ -1,8 +1,27 @@
 #pragma once
+#include <stdio.h>
+#include <windows.h>
+#include "tchar.h"
+#include <tlhelp32.h>
+#include <detours.h>
+#include <time.h>
+#include <utility>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#pragma warning(push)
+#if _MSC_VER > 1400
+#pragma warning(disable : 6102 6103) // /analyze warnings
+#endif
+#include <strsafe.h>
+#pragma warning(pop)
 
 void init();
 int mon(int isFree_);
 void exiting();
+
+static FILE* pFile = NULL;
+static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList;
 
 namespace CppCLRWinformsProjekt {
 
