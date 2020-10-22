@@ -26,6 +26,9 @@
     <ClInclude Include="Form1.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="call_api.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CppCLR_WinformsProjekt.cpp">
@@ -35,6 +38,9 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="Form1.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="call_api.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>
