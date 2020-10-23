@@ -1,4 +1,5 @@
 ﻿// dllmain.cpp : DLL 애플리케이션의 진입점을 정의합니다.
+
 #include "framework.h"
 #include "detours.h"
 #include <string>
@@ -131,11 +132,11 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessW(
 }
 
 //#####################################
-static DWORD (WINAPI* TrueQueueUserAPC)(
+static DWORD(WINAPI* TrueQueueUserAPC)(
 	PAPCFUNC  pfnAPC,
 	HANDLE    hThread,
 	ULONG_PTR dwData
-) = QueueUserAPC;
+	) = QueueUserAPC;
 
 DLLBASIC_API BOOL WINAPI MyQueueUserAPC(
 	PAPCFUNC  pfnAPC,
@@ -292,7 +293,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 	char* cp = (char*)dllMMF;
 	char* context = NULL;
-	std::string pid(strtok_s(cp, ":" ,&context));
+	std::string pid(strtok_s(cp, ":", &context));
 	std::string res(strtok_s(NULL, ":", &context));
 	if (strncmp(res.c_str(), "Detected", 12) == 0) {
 		printf("CreateRemoteThread : Process Injection Attack Detected and Prevented!\n");
@@ -492,16 +493,16 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	PVOID ApcStatusBlock OPTIONAL,
 	PVOID ApcReserved OPTIONAL
 ) {
-	
+
 	memset(dllMMF, 0, MSG_SIZE);
 
 
-	
+
 	HANDLE hThread = NULL;
 	char buf[MSG_SIZE] = "";
 	//sprintf_s(buf, "%d:CallNtQueueApcThread:IPC Successful!", GetProcessIdOfThread(ThreadHandle));
-	
-	if(ApcRoutine == GlobalGetAtomNameA)
+
+	if (ApcRoutine == GlobalGetAtomNameA)
 		sprintf_s(buf, "%d:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId());
 	else
 		sprintf_s(buf, "%d:%016x:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), ApcRoutine);
@@ -521,10 +522,10 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 
 //#####################################
 
-static BOOL (WINAPI* TrueSetThreadContext)(
+static BOOL(WINAPI* TrueSetThreadContext)(
 	HANDLE        hThread,
 	const CONTEXT* lpContext
-) = SetThreadContext;
+	) = SetThreadContext;
 
 DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	HANDLE        hThread,
@@ -577,9 +578,9 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 		printf("OpenProcess(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
 	}
 
-	DWORD64 p1 = NULL, p2 =NULL;
+	DWORD64 p1 = NULL, p2 = NULL;
 
-	if (!ReadProcessMemory(hProcess, (LPCVOID)dwNewLong, (LPVOID)&p1, sizeof(LPVOID) , NULL))
+	if (!ReadProcessMemory(hProcess, (LPCVOID)dwNewLong, (LPVOID)&p1, sizeof(LPVOID), NULL))
 	{
 		printf("ReadProcessMemory(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
 	}
@@ -726,7 +727,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 		hMonProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD, FALSE, *(DWORD*)((char*)pMemoryMap + sz));
 
-		(*pNtMapViewOfSection)(fm, hMonProcess, &lpMap, 0, MSG_SIZE, nullptr, &viewsize, ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
+		(*pNtMapViewOfSection)(fm, hMonProcess, &lpMap, 0, MSG_SIZE, nullptr, &viewsize, SECTION_INHERIT::ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
 
 		monMMF = (LPVOID)lpMap;
 		dllMMF = (LPVOID)map_addr;

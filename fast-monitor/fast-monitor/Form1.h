@@ -1,6 +1,6 @@
 #pragma once
 #include <stdio.h>
-#include <windows.h>
+#include <Windows.h>
 #include "tchar.h"
 #include <tlhelp32.h>
 #include <detours.h>
@@ -180,7 +180,7 @@ namespace CppCLRWinformsProjekt {
 
 	}
 
-	public: System::Void logging(String^ text) {
+	public: Void logging(String^ text) {
 		String^ pid = (String^)(text->Split(' '))[0];
 		if(this->targetPID->Items->Contains(pid) != true)
 			this->targetPID->Items->Add(pid);

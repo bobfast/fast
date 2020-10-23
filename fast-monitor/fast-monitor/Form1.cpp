@@ -14,14 +14,15 @@ using namespace CppCLRWinformsProjekt;
 
 void init() {
 	time_t t = time(NULL);
-	struct tm pLocal = *localtime(&t);
+	struct tm pLocal;
+	localtime_s(&pLocal, &t);
 
 	char buf[256];
-	sprintf(buf, "log-%04d-%02d-%02d-%02d-%02d-%02d.txt",
+	sprintf_s(buf, "log-%04d-%02d-%02d-%02d-%02d-%02d.txt",
 		pLocal.tm_year + 1900, pLocal.tm_mon + 1, pLocal.tm_mday,
 		pLocal.tm_hour, pLocal.tm_min, pLocal.tm_sec);
 
-	pFile = fopen(buf, "w");
+	fopen_s(&pFile, buf, "w");
 	if (pFile == NULL)
 	{
 		exit(1);
@@ -550,7 +551,7 @@ int CDECL mon(int isFree_)
 		}
 	}
 
-	CHAR szCommand[2048];
+	// CHAR szCommand[2048];
 
 
 	TOKEN_PRIVILEGES tp;
