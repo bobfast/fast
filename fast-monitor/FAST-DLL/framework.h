@@ -6,7 +6,7 @@
 #define MSG_SIZE 256
 
 // Enumeration type for NtMapViewOfSection
-typedef enum _SECTION_INHERIT {
+typedef enum class _SECTION_INHERIT {
 	ViewShare = 1,
 	ViewUnmap = 2
 } SECTION_INHERIT, * PSECTION_INHERIT;
