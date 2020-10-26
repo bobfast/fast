@@ -31,8 +31,22 @@ C++ CLR로 Winform 사용을 위해 아래 링크와 같은 방법으로 VS Exte
 
 # 사용법
 
+## fast-monitor
+
 1. fast-monitor 디렉토리 안의 솔루션 빌드하여 fast-monitor.exe 와 FAST-DLL.dll을 생성.
 2. fast-monitor.exe 실행
     - fast-monitor.exe와 FAST-DLL.dll이 같은 경로 안에 있어야 함
     - Start : 글로벌 후킹(아직 모든 프로세스 후킹 안됨.)
     - Stop : 글로벌 후킹 언훅.
+3. Start 버튼을 눌러 글로벌 후킹하여 모니터링 시작.
+
+## fast-attack_tool
+
+1. fast-attack_tool 디렉토리 안의 솔루션 빌드하여 fast-attack_tool.exe 와 InjecteeDLL.dll을 생성.
+2. fast-attack_tool.exe를 실행
+    - fast-attack_tool.exe와 InjecteeDLL.dll이 같은 경로 안에 있어야 함
+    - Target PID : 타겟 프로세스 PID 입력
+    - Target TID : 타겟 스레드 TID 입력(공격에 따라 사용하지 않는 입력)
+    - Option : 공격 방식 선택
+    - Attack : 공격 실행
+3. Attack 버튼을 눌러 공격을 실행하여 성공하면 타겟 프로세스에서 `Reflective Dll Injection Success!` 라는 내용의 메시지 박스가 띄워진다.
