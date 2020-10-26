@@ -19,7 +19,14 @@ C++ CLR로 Winform 사용을 위해 아래 링크와 같은 방법으로 VS Exte
 - lib.X64 : detours static library
 - fast-monitor
     - FAST-DLL : 후킹용 인젝션 dll 프로젝트
+        - `CppCLR_WinformsProjekt.cpp` : Winform을 Run하는 기능
+        - `call_api.h` : 모니터 헤더 파일
+        - `Form1.h` : Winform 구현부
+        - `call_api.cpp` : 통신을 통해 실행되는 후킹 핸들러
+        - `Form1.cpp` : 글로벌 후킹/언훅 함수 구현부
     - fast-monitor : 솔루션 모니터 프로젝트
+        - `dllmain.cpp` : 후킹 함수 및 detours library로 후킹하는 dllMain 구현부
+        - `framework.h` : dll 헤더 파일
 
 # 사용법
 
