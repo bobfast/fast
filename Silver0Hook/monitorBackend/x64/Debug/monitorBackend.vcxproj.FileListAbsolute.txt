@@ -1,2 +1,0 @@
-D:\Users\real1\source\repos\fast\monitorBackend\x64\Debug\fast.exe
-D:\Users\real1\source\repos\fast\monitorBackend\x64\Debug\fast.pdb
