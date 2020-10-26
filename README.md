@@ -20,6 +20,7 @@ C++ CLR로 Winform 사용을 위해 아래 링크와 같은 방법으로 VS Exte
 - fast-monitor
     - FAST-DLL : 후킹용 인젝션 dll 프로젝트
         - `CppCLR_WinformsProjekt.cpp` : Winform을 Run하는 기능
+        - `dumpProcess.cpp` : detours에 구현된 dumpProcess 함수
         - `call_api.h` : 모니터 헤더 파일
         - `Form1.h` : Winform 구현부
         - `call_api.cpp` : 통신을 통해 실행되는 후킹 핸들러
