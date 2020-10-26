@@ -1,4 +1,4 @@
-# FAST (Fileless Attack Solution Team) Hooking Project
+# FAST (Fileless Attack Solution Team) Project
 
 FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단하는 BoB 프로젝트입니다.
 
@@ -15,7 +15,7 @@ C++ CLR로 Winform 사용을 위해 아래 링크와 같은 방법으로 VS Exte
 
 # 디렉토리 구성
 
-- include : detour library 소스
+- include : detours library 소스
 - lib.X64 : detours static library
 - fast-monitor
     - FAST-DLL : 후킹용 인젝션 dll 프로젝트
