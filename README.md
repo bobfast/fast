@@ -32,6 +32,7 @@ C++ CLR로 Winform 사용을 위해 아래 링크와 같은 방법으로 VS Exte
 # 사용법
 
 1. fast-monitor 디렉토리 안의 솔루션 빌드하여 fast-monitor.exe 와 FAST-DLL.dll을 생성.
-2. fast-monitor 실행
+2. fast-monitor.exe 실행
+    - fast-monitor.exe와 FAST-DLL.dll이 같은 경로 안에 있어야 함
     - Start : 글로벌 후킹(아직 모든 프로세스 후킹 안됨.)
     - Stop : 글로벌 후킹 언훅.
