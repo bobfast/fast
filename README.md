@@ -6,17 +6,24 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
 
 [MS Detours 라이브러리](https://github.com/microsoft/Detours)를 사용해 API 후킹을 합니다.
 
-## 파일 및 디렉터리 구성
+# 환경 구성
 
-+ FAST-Reflective-DLL-Injection: 별도의 함수(LoadLibraryR)를 직접 구현하여 공격하는 Reflective DLL 공격 프로그램 (참고 프로젝트: [stephenfewer / ReflectiveDLLInjection](https://github.com/stephenfewer/ReflectiveDLLInjection))
-+ CreationHook: Pinjectra #2 (OpenProcess_VirtualAllocEx_WriteProcessMemory(\"MsgBoxOnProcessAttach.dll\") \[Entry: LoadLibraryA\]) 기법에 대응하는 API Hooking 솔루션
-+ NtAddAtomEx+JS
-+ Rua-A: Pinjectra #4
-+ Silver0Hook: Pinjectra #3 (CreateFileMappingA_MapViewOfFile_OpenProcess_PNtMapViewOfSection)
-+ kmkmi #6 #10
-+ Microsoft Detours 프로젝트
-  + include
-  + samples
-  + src
-  + vc
-  + Makefile
+C++ CLR로 Winform 사용을 위해 아래 링크와 같은 방법으로 VS Extension을 설치해주어야 합니다.
+
+- [https://www.google.com/search?q=winform+c%2B%2B+visual+studio+2019&oq=winform+c%2B%2B+&aqs=chrome.2.69i57j69i59j0i19j0i19i30j0i10i19i30j0i19i30l2j69i61.4334j0j7&sourceid=chrome&ie=UTF-8#kpvalbx=_jk-QX-LCKtDR-QaVpoaICg21](https://www.google.com/search?q=winform+c%2B%2B+visual+studio+2019&oq=winform+c%2B%2B+&aqs=chrome.2.69i57j69i59j0i19j0i19i30j0i10i19i30j0i19i30l2j69i61.4334j0j7&sourceid=chrome&ie=UTF-8#kpvalbx=_jk-QX-LCKtDR-QaVpoaICg21)
+- VS Installer에서 C++ 개발 환경, .NET 개발 환경 구성 요소를 포함시켜야 합니다.
+
+# 디렉토리 구성
+
+- include : detour library 소스
+- lib.X64 : detours static library
+- fast-monitor
+    - FAST-DLL : 후킹용 인젝션 dll 프로젝트
+    - fast-monitor : 솔루션 모니터 프로젝트
+
+# 사용법
+
+1. fast-monitor 디렉토리 안의 솔루션 빌드하여 fast-monitor.exe 와 FAST-DLL.dll을 생성.
+2. fast-monitor 실행
+    - Start : 글로벌 후킹(아직 모든 프로세스 후킹 안됨.)
+    - Stop : 글로벌 후킹 언훅.

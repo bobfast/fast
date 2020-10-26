@@ -160,6 +160,7 @@
     <ClCompile Include="call_api.cpp" />
     <ClCompile Include="AssemblyInfo.cpp" />
     <ClCompile Include="CppCLR_WinformsProjekt.cpp" />
+    <ClCompile Include="dumpProcess.cpp" />
     <ClCompile Include="Form1.cpp" />
   </ItemGroup>
   <ItemGroup>
