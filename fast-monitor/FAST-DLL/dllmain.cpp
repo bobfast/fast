@@ -15,6 +15,11 @@ HMODULE hMod = NULL;
 HANDLE eventLog = RegisterEventSourceA(NULL, "FAST-DLLLog");
 bool isDetectedRWXPageWhenInitializing = false;
 
+// For detection in WriteProcessMemory
+static LPVOID recentWrittenBaseAddress = NULL;
+static SIZE_T recentWrittenBufferSize = 0;
+static DWORD recentWrittenTargetProcessId = 0;
+
 //#####################################
 
 static HANDLE hMonProcess = NULL;
@@ -38,7 +43,37 @@ static LPTHREAD_START_ROUTINE  CallSleepEx = NULL;
 
 //#####################################
 
+void bufferdump(const char *filename)
+{
+	FILE* f;
+	char *buf = new char[recentWrittenBufferSize];
+	SIZE_T buflen;
+	fopen_s(&f, filename, "wb");
 
+	if (f == NULL) {
+		printf("Error: cannot create file.\n");
+		return;
+	}
+
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, recentWrittenTargetProcessId);
+	if (!hProcess) {
+		printf("Error: failed to open target process.\n");
+		return;
+	}
+
+	if (!ReadProcessMemory(hProcess, recentWrittenBaseAddress, buf, recentWrittenBufferSize, &buflen))
+	{
+		printf("Error: cannot read target process memory for dump.\n");
+		return;
+	}
+
+	fwrite(buf, 1, buflen, f);
+
+	delete[] buf;
+	fclose(f);
+}
+
+//#####################################
 
 static BOOL(WINAPI* TrueCreateProcessA)(
 	LPCSTR                lpApplicationName,
@@ -217,7 +252,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		memcpy(dllMMF, buf, strlen(buf));
 		hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtMapViewOfSection, monMMF, 0, NULL);
 		WaitForSingleObject(hThread, INFINITE);
-		printf("%s\n", (char*)dllMMF); //####
+		printf("%s\n", (char*)dllMMF);
 		//check_remote = TRUE;
 
 		//if (strncmp((char*)dllMMF, "DROP", 4) == 0) {
@@ -297,6 +332,14 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	std::string res(strtok_s(NULL, ":", &context));
 	if (strncmp(res.c_str(), "Detected", 12) == 0) {
 		printf("CreateRemoteThread : Process Injection Attack Detected and Prevented!\n");
+
+		// Buffer dump (by recent WriteProcessMemory call)
+		if (recentWrittenBaseAddress != NULL && recentWrittenBufferSize != 0) {
+			printf("Dump generating...\n");
+			bufferdump("CreateRemoteThread.dmp");
+			printf("Saved file to CreateRemoteThread.dmp.\n");
+		}
+
 		return NULL;
 	}
 
@@ -415,6 +458,14 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 
 	//pDbgPrint("\n");
 	//sprintf_s(buf, "%lu:MyWriteProcessMemory:IPC Successful!", GetProcessId(hProcess));
+
+
+	// Important recent WriteProcessMemory call information
+	recentWrittenBaseAddress = lpBaseAddress;
+	recentWrittenBufferSize = nSize;
+	recentWrittenTargetProcessId = GetProcessId(hProcess);
+
+
 	sprintf_s(buf, "%lu:MyWriteProcessMemory:IPC Successful!", GetCurrentProcessId());
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallWriteProcessMemory, monMMF, 0, NULL);
@@ -464,7 +515,7 @@ DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
 		memcpy(dllMMF, buf, strlen(buf));
 		hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallCreateFileMappingA, monMMF, 0, NULL);
 		WaitForSingleObject(hThread, INFINITE);
-		printf("%s\n", (char*)dllMMF);  //#####
+		printf("%s\n", (char*)dllMMF);
 	}
 	HANDLE check_map = NULL;
 	check_map = TrueCreateFileMappingA(hFile, lpFileMappingAttributes, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
@@ -767,7 +818,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourAttach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
 		DetourAttach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
 		//DetourAttach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
-		//DetourAttach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
+		DetourAttach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
 		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
@@ -798,7 +849,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourDetach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
 		DetourDetach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
 		//DetourDetach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
-		//DetourDetach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
+		DetourDetach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
 		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
