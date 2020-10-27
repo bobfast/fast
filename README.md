@@ -26,8 +26,20 @@ C++ CLR로 Winform 사용을 위해 아래 링크와 같은 방법으로 VS Exte
         - `call_api.cpp` : 통신을 통해 실행되는 후킹 핸들러
         - `Form1.cpp` : 글로벌 후킹/언훅 함수 구현부
     - fast-monitor : 솔루션 모니터 프로젝트
-        - `dllmain.cpp` : 후킹 함수 및 detours library로 후킹하는 dllMain 구현부
+        - `dllmain.cpp` : 후킹 함수 및 detours library로 후킹하는 DllMain 구현부
         - `framework.h` : dll 헤더 파일
+
+- fast-attack_tool
+    - InjecteeDLL
+        - `ReflectiveLoader.h` : Reflective Loader 헤더 파일
+        - `InjecteeDLL.cpp` : 메시지 박스를 띄우는 기능의 DllMain 구현부
+        - `ReflectiveLoader.cpp` : Reflective Loader 함수부
+    - fast-attack_tool
+        - `CppCLR_WinformsProjekt.cpp` : Winform을 Run하는 기능
+        - `LoadLibraryR.h` : 공격 방식별 함수 헤더 파일
+        - `Form1.h` : Winform 구현부
+        - `LoadLibraryR.cpp` : 공격 방식별 함수 구현부
+        - `Form1.cpp` : init(), attack() 함수 구현부
 
 # 사용법
 

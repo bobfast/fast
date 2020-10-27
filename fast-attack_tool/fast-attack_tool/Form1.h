@@ -3,7 +3,8 @@
 
 
 void attack(unsigned int pid, unsigned int tid, int method);
-
+void init();
+void exiting();
 
 namespace CppCLRWinformsProjekt {
 
@@ -23,6 +24,7 @@ namespace CppCLRWinformsProjekt {
 		Form1(void)
 		{
 			InitializeComponent();
+			init();
 			//
 			//TODO: Konstruktorcode hier hinzuf?en.
 			//
@@ -38,6 +40,7 @@ namespace CppCLRWinformsProjekt {
 			{
 				delete components;
 			}
+			exiting();
 		}
 	private: System::Windows::Forms::Button^ attack_button;
 	private: System::Windows::Forms::TextBox^ pid_input;
@@ -72,7 +75,7 @@ namespace CppCLRWinformsProjekt {
 			// 
 			// attack_button
 			// 
-			this->attack_button->Location = System::Drawing::Point(707, 39);
+			this->attack_button->Location = System::Drawing::Point(918, 39);
 			this->attack_button->Name = L"attack_button";
 			this->attack_button->Size = System::Drawing::Size(194, 102);
 			this->attack_button->TabIndex = 0;
@@ -86,8 +89,6 @@ namespace CppCLRWinformsProjekt {
 			this->pid_input->Name = L"pid_input";
 			this->pid_input->Size = System::Drawing::Size(153, 35);
 			this->pid_input->TabIndex = 1;
-			this->pid_input->Text = L"0";
-			this->pid_input->TextChanged += gcnew System::EventHandler(this, &Form1::pid_input_TextChanged);
 			// 
 			// tid_input
 			// 
@@ -95,8 +96,6 @@ namespace CppCLRWinformsProjekt {
 			this->tid_input->Name = L"tid_input";
 			this->tid_input->Size = System::Drawing::Size(157, 35);
 			this->tid_input->TabIndex = 2;
-			this->tid_input->Text = L"0";
-			this->tid_input->TextChanged += gcnew System::EventHandler(this, &Form1::tid_input_TextChanged);
 			// 
 			// pid_label
 			// 
@@ -119,16 +118,17 @@ namespace CppCLRWinformsProjekt {
 			// options
 			// 
 			this->options->FormattingEnabled = true;
-			this->options->Items->AddRange(gcnew cli::array< System::Object^  >(2) {
-				L"#1 : it uses CreateRemoteThread, VirtualAllocEx and WriteProcessMemory.",
-					L"#2 : it uses CreateRemoteThread, CreateFileMappingA, MapViewOfFile and PNtMapView"
-					L"OfSection."
+			this->options->Items->AddRange(gcnew cli::array< System::Object^  >(5) {
+				L"#1 : CreateRemoteThread(VirtualAllocEx, WriteProcessMemory)",
+					L"#2 : CreateRemoteThread(CreateFileMappingA, MapViewOfFile, NtMapViewOfSection)", L"#3 : AtomBombing(QueueUserAPC, GlobalAddAtomA, GlobalGetAtomNameA, NtQueueApcThre"
+					L"ad)",
+					L"#4 : ThreadHijacking(SuspendThread, SetThreadContext, ResumeThread, VirtualAllocE"
+					L"x)", L"#5 : SetWindowLongPtrA(VirtualAllocEx, WriteProcessMemory)"
 			});
 			this->options->Location = System::Drawing::Point(32, 234);
 			this->options->Name = L"options";
-			this->options->Size = System::Drawing::Size(869, 32);
+			this->options->Size = System::Drawing::Size(1080, 32);
 			this->options->TabIndex = 5;
-			this->options->SelectedIndexChanged += gcnew System::EventHandler(this, &Form1::options_SelectedIndexChanged);
 			// 
 			// option_label
 			// 
@@ -143,7 +143,7 @@ namespace CppCLRWinformsProjekt {
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(13, 24);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->ClientSize = System::Drawing::Size(942, 315);
+			this->ClientSize = System::Drawing::Size(1137, 315);
 			this->Controls->Add(this->option_label);
 			this->Controls->Add(this->options);
 			this->Controls->Add(this->tid_label);
@@ -159,17 +159,10 @@ namespace CppCLRWinformsProjekt {
 		}
 #pragma endregion
 	private: System::Void attack_button_Click(System::Object^ sender, System::EventArgs^ e) {
-		attack(UInt32::Parse(this->pid_input->Text), UInt32::Parse(this->tid_input->Text), this->options->SelectedIndex + 1);
+		attack(this->pid_input->Text->Length ? UInt32::Parse(this->pid_input->Text) : 0,
+			this->tid_input->Text->Length ? UInt32::Parse(this->tid_input->Text)  : 0,
+			this->options->SelectedIndex + 1);
 	}
-	private: System::Void pid_input_TextChanged(System::Object^ sender, System::EventArgs^ e) {
 
-	}
-	private: System::Void tid_input_TextChanged(System::Object^ sender, System::EventArgs^ e) {
-
-	}
-	private: System::Void options_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
-
-
-	}
 };
 }

