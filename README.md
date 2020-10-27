@@ -8,10 +8,13 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
 
 # 환경 구성
 
-C++ CLR로 Winform 사용을 위해 아래 링크와 같은 방법으로 VS Extension을 설치해주어야 합니다.
+1. C++/CLR Winform 사용을 위해 다음 영상과 같이 VS Extension을 설치해주어야 합니다.
+    - [https://www.youtube.com/watch?v=gB51Tla5pPI](https://www.youtube.com/watch?v=gB51Tla5pPI)
+        - **C++/ Windows Forms for Visual Studio 2019**
+        - [https://www.google.com/search?q=winform+c%2B%2B+visual+studio+2019&oq=winform+c%2B%2B+&aqs=chrome.2.69i57j69i59j0i19j0i19i30j0i10i19i30j0i19i30l2j69i61.4334j0j7&sourceid=chrome&ie=UTF-8#kpvalbx=_jk-QX-LCKtDR-QaVpoaICg21](https://www.google.com/search?q=winform+c%2B%2B+visual+studio+2019&oq=winform+c%2B%2B+&aqs=chrome.2.69i57j69i59j0i19j0i19i30j0i10i19i30j0i19i30l2j69i61.4334j0j7&sourceid=chrome&ie=UTF-8#kpvalbx=_jk-QX-LCKtDR-QaVpoaICg21)
+        - Visual Studio 2019 기반
 
-- [https://www.google.com/search?q=winform+c%2B%2B+visual+studio+2019&oq=winform+c%2B%2B+&aqs=chrome.2.69i57j69i59j0i19j0i19i30j0i10i19i30j0i19i30l2j69i61.4334j0j7&sourceid=chrome&ie=UTF-8#kpvalbx=_jk-QX-LCKtDR-QaVpoaICg21](https://www.google.com/search?q=winform+c%2B%2B+visual+studio+2019&oq=winform+c%2B%2B+&aqs=chrome.2.69i57j69i59j0i19j0i19i30j0i10i19i30j0i19i30l2j69i61.4334j0j7&sourceid=chrome&ie=UTF-8#kpvalbx=_jk-QX-LCKtDR-QaVpoaICg21)
-- VS Installer에서 C++ 개발 환경, .NET 개발 환경 구성 요소를 포함시켜야 합니다.
+2. **Visual Studio Installer**에서 `C++를 사용한 데스크톱 개발`, `.NET 데스크톱 개발` 개별 구성 요소를 포함시켜야 합니다.
 
 # 디렉토리 구성
 

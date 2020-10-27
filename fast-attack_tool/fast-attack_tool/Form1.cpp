@@ -81,7 +81,7 @@ void attack(unsigned int pid, unsigned int tid, int method)
 	//}
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
-	if (pid == 0) {
+	if (method != 5 && pid == 0) {
 		form->set_status("Requiring Target PID.");
 		return;
 	}
