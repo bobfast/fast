@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "LoadLibraryR.h"
 
+using namespace CppCLRWinformsProjekt;
 
 static DWORD dwLength = 0;
 static LPVOID lpBuffer = NULL;
@@ -49,7 +50,6 @@ void init() {
 		CloseHandle(hToken);
 	}
 
-	MessageBoxA(NULL, "#3 and #5 are not Working!", "fast-attack_tool", MB_OK);
 }
 
 void exiting() {
@@ -80,9 +80,18 @@ void attack(unsigned int pid, unsigned int tid, int method)
 	//	exit(0);
 	//}
 
-
-
-
+	Form1^ form = (Form1^)Application::OpenForms[0];
+	if (pid == 0) {
+		form->set_status("Requiring Target PID.");
+		return;
+	}
+	else if (method == 0) {
+		form->set_status("Choose the Attack Option.");
+		return;
+	}
+	else {
+		form->set_status("");
+	}
 
 	hProcess = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION 
 		| PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, pid);
@@ -101,14 +110,14 @@ void attack(unsigned int pid, unsigned int tid, int method)
 		break;
 	case 3:
 		if (tid == 0) {
-			MessageBoxA(NULL, "#3 requires Target TID!", "fast-attack_tool", MB_OK);
+			form->set_status("#3 requires Target TID.");
 			break;
 		}
 		LoadRemoteLibraryR3(hProcess, tid , lpBuffer, dwLength, NULL, exportedFuncName);
 		break;
 	case 4:
 		if (tid == 0) {
-			MessageBoxA(NULL, "#4 requires Target TID!", "fast-attack_tool", MB_OK);
+			form->set_status("#4 requires Target TID.");
 			break;
 		}
 		LoadRemoteLibraryR4(hProcess, tid, lpBuffer, dwLength, NULL, exportedFuncName);

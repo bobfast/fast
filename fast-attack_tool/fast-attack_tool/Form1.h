@@ -49,6 +49,7 @@ namespace CppCLRWinformsProjekt {
 	private: System::Windows::Forms::Label^ tid_label;
 	private: System::Windows::Forms::ComboBox^ options;
 	private: System::Windows::Forms::Label^ option_label;
+	private: System::Windows::Forms::Label^ status;
 	protected:
 
 	private:
@@ -71,6 +72,7 @@ namespace CppCLRWinformsProjekt {
 			this->tid_label = (gcnew System::Windows::Forms::Label());
 			this->options = (gcnew System::Windows::Forms::ComboBox());
 			this->option_label = (gcnew System::Windows::Forms::Label());
+			this->status = (gcnew System::Windows::Forms::Label());
 			this->SuspendLayout();
 			// 
 			// attack_button
@@ -135,15 +137,25 @@ namespace CppCLRWinformsProjekt {
 			this->option_label->AutoSize = true;
 			this->option_label->Location = System::Drawing::Point(28, 170);
 			this->option_label->Name = L"option_label";
-			this->option_label->Size = System::Drawing::Size(78, 24);
+			this->option_label->Size = System::Drawing::Size(387, 24);
 			this->option_label->TabIndex = 6;
-			this->option_label->Text = L"Option";
+			this->option_label->Text = L"Option : #3 and #5 are not Working.";
+			// 
+			// status
+			// 
+			this->status->AutoSize = true;
+			this->status->ForeColor = System::Drawing::Color::Red;
+			this->status->Location = System::Drawing::Point(529, 39);
+			this->status->Name = L"status";
+			this->status->Size = System::Drawing::Size(0, 24);
+			this->status->TabIndex = 7;
 			// 
 			// Form1
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(13, 24);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->ClientSize = System::Drawing::Size(1137, 315);
+			this->Controls->Add(this->status);
 			this->Controls->Add(this->option_label);
 			this->Controls->Add(this->options);
 			this->Controls->Add(this->tid_label);
@@ -162,6 +174,10 @@ namespace CppCLRWinformsProjekt {
 		attack(this->pid_input->Text->Length ? UInt32::Parse(this->pid_input->Text) : 0,
 			this->tid_input->Text->Length ? UInt32::Parse(this->tid_input->Text)  : 0,
 			this->options->SelectedIndex + 1);
+	}
+
+	public: System::Void set_status(System::String^ str) {
+		this->status->Text = str;
 	}
 
 };
