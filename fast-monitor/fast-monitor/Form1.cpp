@@ -1,17 +1,9 @@
 #include "call_api.h"
 
-//////////////////////////////////////////////////////////////////////////////
-//
-//  Test DetourCreateProcessfast function (fast.cpp).
-//
-//  Microsoft Research Detours Package
-//
-//  Copyright (c) Microsoft Corporation.  All rights reserved.
-//
-#define MSG_SIZE 256
-using namespace CppCLRWinformsProjekt;
 
 void init() {
+	//Initialize the log file.
+
 	time_t t = time(NULL);
 	struct tm pLocal;
 	localtime_s(&pLocal, &t);
@@ -29,138 +21,9 @@ void init() {
 
 	fprintf(pFile, buf);
 	fprintf(pFile, "\n#####Monitor Turned on.\n");
-}
-
-void exiting() {
 
 
-	fclose(pFile);
-}
-
-
-
-
-DWORD findPidByName(const char* pname)
-{
-	HANDLE h;
-	PROCESSENTRY32 procSnapshot;
-	h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	procSnapshot.dwSize = sizeof(PROCESSENTRY32);
-
-	do
-	{
-		if (!strcmp((const char*)procSnapshot.szExeFile, pname))
-		{
-			DWORD pid = procSnapshot.th32ProcessID;
-			CloseHandle(h);
-			return pid;
-		}
-	} while (Process32Next(h, &procSnapshot));
-
-	CloseHandle(h);
-	return 0;
-}
-
-HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
-{
-	MODULEENTRY32 me = { sizeof(me) };
-	BOOL bMore = FALSE;
-	HANDLE hSnapshot;
-
-
-	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
-	if (hSnapshot == (HANDLE)-1) {
-		//printf("CreateToolhelp32Snapshot Failed.\n");
-	}
-	bMore = Module32First(hSnapshot, &me);
-	for (; bMore; bMore = Module32Next(hSnapshot, &me))
-	{
-		//printf("%s\n", (LPCSTR)me.szModule);
-		//wprintf(L"%s\n", (LPCWSTR)me.szExePath);
-		//printf("%s\n", szdllout);
-		if (
-			//!_stricmp((LPCSTR)me.szModule, szdllout) ||
-			!_tcsicmp((LPCTSTR)me.szExePath, szdllout))
-		{
-			//printf("find!\n");
-			//wprintf(L"%s\n", (LPCWSTR)me.szExePath);
-			return (HMODULE)me.modBaseAddr;
-		}
-	}
-	return NULL;
-}
-
-
-
-
-//////////////////////////////////////////////////////////////////////// main.
-//
-int CDECL mon(int isFree_)
-{
-	BOOLEAN isFree = (BOOLEAN)isFree_;
-	BOOLEAN fVerbose = FALSE;
-
-	LPCSTR rpszDllsRaw[1];
-	LPCSTR rpszDllsOut[1];
-	DWORD nDlls = 1;
-
-
-	rpszDllsRaw[0] = NULL;
-	rpszDllsOut[0] = NULL;
-
-
-	char dlln[] = "FAST-DLL.dll";
-	rpszDllsRaw[0] = (LPCSTR)dlln;
-
-
-
-
-
-	///////////////////////////////////////////////////////// Validate DLLs.
-
-	for (DWORD n = 0; n < nDlls; n++)
-	{
-		CHAR szDllPath[1024];
-		PCHAR pszFilePart = NULL;
-
-		if (!GetFullPathNameA(rpszDllsRaw[n], ARRAYSIZE(szDllPath), szDllPath, &pszFilePart))
-		{
-			//printf("fast.exe: Error: %s is not a valid path name..\n",
-				//rpszDllsRaw[n]);
-			return 9002;
-		}
-
-		DWORD c = (DWORD)strlen(szDllPath) + 1;
-		PCHAR psz = new CHAR[c];
-		StringCchCopyA(psz, c, szDllPath);
-		rpszDllsOut[n] = psz;
-
-		HMODULE hDll = LoadLibraryExA(rpszDllsOut[n], NULL, DONT_RESOLVE_DLL_REFERENCES);
-		if (hDll == NULL)
-		{
-			//printf("fast.exe: Error: %s failed to load (error %ld).\n",
-				//rpszDllsOut[n],
-				//GetLastError());
-			return 9003;
-		}
-
-		ExportContext ec;
-		ec.fHasOrdinal1 = FALSE;
-		ec.nExports = 0;
-		DetourEnumerateExports(hDll, &ec, ExportCallback);
-		FreeLibrary(hDll);
-
-		if (!ec.fHasOrdinal1)
-		{
-			//printf("fast.exe: Error: %s does not export ordinal #1.\n",
-				//rpszDllsOut[n]);
-			//printf("             See help entry DetourCreateProcessfastEx in Detours.chm.\n");
-			return 9004;
-		}
-	}
-
-	// CHAR szCommand[2048];
-
+	// Turn on the SeDebugPrivilege.
 
 	TOKEN_PRIVILEGES tp;
 	BOOL bResult = FALSE;
@@ -178,6 +41,94 @@ int CDECL mon(int isFree_)
 	}
 	CloseHandle(hToken);
 
+}
+
+void exiting() {
+	//Close the log file descriptor.
+
+	fclose(pFile);
+}
+
+
+
+// Find injected 'FAST-DLL.dll' handle from monitored process.
+HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
+{
+	MODULEENTRY32 me = { sizeof(me) };
+	BOOL bMore = FALSE;
+	HANDLE hSnapshot;
+
+
+	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
+	if (hSnapshot == (HANDLE)-1) {
+		;
+	}
+	bMore = Module32First(hSnapshot, &me);
+	for (; bMore; bMore = Module32Next(hSnapshot, &me))
+	{
+		if (!_tcsicmp((LPCTSTR)me.szExePath, szdllout))
+		{
+			return (HMODULE)me.modBaseAddr;
+		}
+	}
+	return NULL;
+}
+
+
+
+
+// main.
+//
+int CDECL mon(int isFree_)
+{
+	BOOLEAN isFree = (BOOLEAN)isFree_;
+	// Hook/Unhook flag 
+
+	LPCSTR rpszDllsOut = NULL;
+	LPCSTR rpszDllsRaw = (LPCSTR)"FAST-DLL.dll";;
+
+
+
+
+
+	///////////////////////////////////////////////////////// Validate DLLs. (get the full path name.)
+
+	CHAR szDllPath[1024];
+	PCHAR pszFilePart = NULL;
+
+	if (!GetFullPathNameA(rpszDllsRaw, ARRAYSIZE(szDllPath), szDllPath, &pszFilePart))
+	{
+		return 9002;
+	}
+
+	DWORD c = (DWORD)strlen(szDllPath) + 1;
+	PCHAR psz = new CHAR[c];
+	StringCchCopyA(psz, c, szDllPath);
+	rpszDllsOut = psz;
+
+	HMODULE hDll = LoadLibraryExA(rpszDllsOut, NULL, DONT_RESOLVE_DLL_REFERENCES);
+	if (hDll == NULL)
+	{
+		return 9003;
+	}
+
+	ExportContext ec;
+	ec.fHasOrdinal1 = FALSE;
+	ec.nExports = 0;
+	DetourEnumerateExports(hDll, &ec, ExportCallback);
+	FreeLibrary(hDll);
+
+	if (!ec.fHasOrdinal1)
+	{
+		return 9004;
+	}
+
+
+	/////////////////////////////////////////////////////////
+
+
+
+
 	HANDLE hProcess = NULL, hThread = NULL;
 	HMODULE hMod = NULL;
 
@@ -188,15 +139,15 @@ int CDECL mon(int isFree_)
 	char* map_addr;
 	LPVOID lpMap = 0;
 	SIZE_T viewsize = 0;
+
 	PNtMapViewOfSection = (NTSTATUS(*)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID * BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect)) GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtMapViewOfSection");
+
 
 	hMod = GetModuleHandleA("kernel32.dll");
 	if (!hMod)
 	{
 		return FALSE;
 	}
-
-
 
 	LPCSTR sz = NULL;
 	DWORD dwBufSize = 0;
@@ -205,7 +156,6 @@ int CDECL mon(int isFree_)
 
 	if (!isFree)
 	{
-		//printf("Injection...\n");
 		fprintf(pFile, "Hook DLLs!\n");
 		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
 
@@ -213,7 +163,6 @@ int CDECL mon(int isFree_)
 	}
 	else
 	{
-		//printf("Freeing...\n");
 		fprintf(pFile, "UnHook DLLs!\n");
 		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "FreeLibrary");
 
@@ -224,18 +173,12 @@ int CDECL mon(int isFree_)
 		return FALSE;
 	}
 
-	// if (fVerbose)
-	// {
-	//     DumpProcess(hProcess);
-	// }
 
-	// //WaitForSingleObject(hThread, INFINITE);
-	// CloseHandle(hThread);
-	// CloseHandle(hProcess);
-
+	/////////////////////////////////////////////////////////
+	// If it is injection process, it makes shared memory.
 	if (!isFree)
 	{
-		sz = rpszDllsOut[0];
+		sz = rpszDllsOut;
 		dwBufSize = (DWORD)(strlen(sz) + 1) * sizeof(char);
 
 		fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
@@ -249,17 +192,12 @@ int CDECL mon(int isFree_)
 		memcpy(map_addr + dwBufSize, &thispid, sizeof(DWORD));
 
 
-		//printf("c %p\n", CallVirtualAllocEx);
-		//printf("c %llu\n", CallVirtualAllocEx);
+
 		LPVOID fp = CallVirtualAllocEx;
 		memcpy(map_addr + dwBufSize + sizeof(DWORD), &fp, sizeof(DWORD64));
-		//printf("%d\t%d\t%llu\n", thispid, *(DWORD*)(map_addr + dwBufSize), *(DWORD64*)(map_addr + dwBufSize + sizeof(DWORD)));
 
-		//printf("c %p\n", CallLoadLibraryA);
-		//printf("c %llu\n", CallLoadLibraryA);
 		fp = CallQueueUserAPC;
 		memcpy(map_addr + dwBufSize + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
-		//printf("%d\t%d\t%llu\n", thispid, *(DWORD*)(map_addr + dwBufSize), *(DWORD64*)(map_addr + dwBufSize + sizeof(DWORD) + sizeof(DWORD64)));
 
 		fp = CallWriteProcessMemory;
 		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 2 * sizeof(DWORD64), &fp, sizeof(DWORD64));
@@ -291,6 +229,9 @@ int CDECL mon(int isFree_)
 
 	}
 
+
+	/////////////////////////////////////////////////////////
+	// Traversing the process list, inject the dll to processes. 
 	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	PROCESSENTRY32 entry = { sizeof(PROCESSENTRY32) };
 	Process32First(hSnap, &entry);
@@ -302,27 +243,20 @@ int CDECL mon(int isFree_)
 		hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, entry.th32ProcessID);
 		if (!(hProcess))
 		{
-
-			//printf("OpenProcess(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
 			continue;
 		}
-		//printf("OpenProcess(%ld) Succeed!!! \n", entry.th32ProcessID);
+
 		(*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, dwBufSize,
 			nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
 
 
-		if (fVerbose)
-		{
-			DumpProcess(hProcess);
-		}
+
 
 		if (!isFree)
 		{
 			hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
 			if (!hThread)
 			{
-				//return FALSE;
-				//printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
 				continue;
 			}
 		}
@@ -334,19 +268,11 @@ int CDECL mon(int isFree_)
 				hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
 				if (!hThread)
 				{
-					//return FALSE;
-					//printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
 					continue;
 				}
 			}
 		}
 
-		if (fVerbose)
-		{
-			DumpProcess(hProcess);
-		}
-
-		//WaitForSingleObject(hThread, INFINITE);
 		CloseHandle(hThread);
 		hThread = NULL;
 		CloseHandle(hProcess);
@@ -357,13 +283,5 @@ int CDECL mon(int isFree_)
 	CloseHandle(hSnap);
 
 
-	//printf("fast.exe: Finished.\n");
-
-	//if (!isFree)
-	//    while (TRUE)
-	//        Sleep(0);
-
-	return 0; //dwResult;
+	return 0;
 }
-//
-///////////////////////////////////////////////////////////////// End of File.

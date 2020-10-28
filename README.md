@@ -10,7 +10,7 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
 
 1. C++/CLR Winform 사용을 위해 다음 영상과 같이 VS Extension을 설치해주어야 합니다.
     - [https://www.youtube.com/watch?v=gB51Tla5pPI](https://www.youtube.com/watch?v=gB51Tla5pPI)
-        - **C++/ Windows Forms for Visual Studio 2019**
+        - **C++/CLR Windows Forms for Visual Studio 2019**
         - [https://www.google.com/search?q=winform+c%2B%2B+visual+studio+2019&oq=winform+c%2B%2B+&aqs=chrome.2.69i57j69i59j0i19j0i19i30j0i10i19i30j0i19i30l2j69i61.4334j0j7&sourceid=chrome&ie=UTF-8#kpvalbx=_jk-QX-LCKtDR-QaVpoaICg21](https://www.google.com/search?q=winform+c%2B%2B+visual+studio+2019&oq=winform+c%2B%2B+&aqs=chrome.2.69i57j69i59j0i19j0i19i30j0i10i19i30j0i19i30l2j69i61.4334j0j7&sourceid=chrome&ie=UTF-8#kpvalbx=_jk-QX-LCKtDR-QaVpoaICg21)
         - Visual Studio 2019 기반
 
@@ -62,6 +62,7 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
 2. fast-attack_tool.exe를 실행
     - fast-attack_tool.exe와 InjecteeDLL.dll이 같은 경로 안에 있어야 함
     - Target PID : 타겟 프로세스 PID 입력
+        - Target PID를 입력하지 않거나 0을 입력 시 TestProcess를 생성해서 공격을 수행
     - Target TID : 타겟 스레드 TID 입력(공격에 따라 사용하지 않는 입력)
     - Option : 공격 방식 선택
     - Attack : 공격 실행

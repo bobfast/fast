@@ -10,6 +10,8 @@ static DWORD dwLength = 0;
 static LPVOID lpBuffer = NULL;
 static const char* exportedFuncName = "ReflectiveLoader";
 
+//////////////////////////////////////////////////////////////////////////////
+//Initialize DLL payload.
 void init() {
 	FILE* fp = NULL;
 	TOKEN_PRIVILEGES priv = { 0 };
@@ -20,8 +22,7 @@ void init() {
 
 	fopen_s(&fp, cpDllFile, "rb");
 	if (fp == NULL) {
-		//printf("Error: file not found.\n");
-		//exit(1);
+
 	}
 
 	fseek(fp, 0L, SEEK_END);
@@ -30,8 +31,7 @@ void init() {
 
 	lpBuffer = malloc(dwLength);
 	if (lpBuffer == NULL) {
-		//printf("Error: cannot allocate heap.\n");
-		//exit(1);
+
 	}
 
 	fread(lpBuffer, 1, dwLength, fp);
@@ -52,12 +52,16 @@ void init() {
 
 }
 
+//////////////////////////////////////////////////////////////////////////////
+//Free DLL payload.
 void exiting() {
 
 	if (lpBuffer)
 		free(lpBuffer);
 
 }
+
+
 
 void attack(unsigned int pid, unsigned int tid, int method)
 {
@@ -66,28 +70,27 @@ void attack(unsigned int pid, unsigned int tid, int method)
 	HANDLE hProcess = NULL;
 
 
-
-
-
-
-
-	//if (argc != 5) {
-	//	printf("usage: %s <injection_method> <dll> <exported_function_name> <pid>\n", argv[0]);
-	//	printf("<exported_function_name>: Exported function name in DLL (function using __declspec(dllexport))\n");
-	//	printf("\ninjection_method list (kind of LoadRemoteLibraryR):\n");
-	//	printf("1. it uses CreateRemoteThread, VirtualAllocEx and WriteProcessMemory.\n");
-	//	printf("2. it uses CreateRemoteThread, CreateFileMappingA, MapViewOfFile and PNtMapViewOfSection.\n");
-	//	exit(0);
-	//}
+	//////////////////////////////////////////////////////////////////////////////
+	// Checking inputs.
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
-	if (method != 5 && pid == 0) {
-		form->set_status("Requiring Target PID.");
-		return;
-	}
-	else if (method == 0) {
+
+	if (method == 0) {
 		form->set_status("Choose the Attack Option.");
 		return;
+	}
+	else if (pid == 0) {
+
+		STARTUPINFO suinfo = { 0 };
+		suinfo.cb = sizeof(STARTUPINFO);
+		PROCESS_INFORMATION procinfo;
+
+		CreateProcess(NULL, "TestProcess.exe", NULL, NULL, FALSE, 0, NULL, NULL, &suinfo, &procinfo);
+
+		pid = procinfo.dwProcessId;
+		tid = procinfo.dwThreadId;
+
+		form->set_status("Executing TestProcess.exe.");
 	}
 	else {
 		form->set_status("");
@@ -96,10 +99,11 @@ void attack(unsigned int pid, unsigned int tid, int method)
 	hProcess = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION 
 		| PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, pid);
 	if (hProcess == NULL) {
-		//printf("Error: cannot open the target process.\n");
-		//exit(1);
+	
 	}
 
+
+	//////////////////////////////////////////////////////////////////////////////
 	// using various method for alternative LoadLibrary API
 	switch (method) {
 	case 1:
@@ -129,12 +133,6 @@ void attack(unsigned int pid, unsigned int tid, int method)
 		break;
 	}
 
-	//if (hModule == NULL) {
-	//	printf("Error: cannot inject %s DLL file.\n", cpDllFile);
-	//	//exit(1);
-	//}
-
-	//printf("Injected the %s DLL into process %d.\n", cpDllFile, pid);
 	WaitForSingleObject(hModule, -1);
 
 	if (hProcess)

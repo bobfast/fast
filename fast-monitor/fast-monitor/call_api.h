@@ -1,7 +1,6 @@
 #pragma once
 #include "Form1.h"
 using namespace CppCLRWinformsProjekt;
-
 #define MSG_SIZE 256
 
 void CallVirtualAllocEx(LPVOID monMMF);

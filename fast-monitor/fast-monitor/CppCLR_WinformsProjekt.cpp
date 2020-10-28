@@ -3,16 +3,13 @@
 using namespace System::Windows::Forms;
 
 
-
+//////////////////////////////////////////////////////////////////////////////
+//Running Winform's Form1 instance.
 [System::STAThread]
 int main() {
 	Application::EnableVisualStyles();
 	Application::SetCompatibleTextRenderingDefault(false);
-	//CppCLRWinformsProjekt::Form1^ f1;
-	//Application::Run(f1 = gcnew CppCLRWinformsProjekt::Form1()); 
-	CppCLRWinformsProjekt::Form1^ f1 = gcnew CppCLRWinformsProjekt::Form1();
-
-	Application::Run(f1);
+	Application::Run(gcnew CppCLRWinformsProjekt::Form1());
 
 	return 0;
 }
