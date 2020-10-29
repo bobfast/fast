@@ -84,7 +84,7 @@ namespace CppCLRWinformsProjekt {
 			// 
 			// attack_button
 			// 
-			this->attack_button->Location = System::Drawing::Point(918, 39);
+			this->attack_button->Location = System::Drawing::Point(955, 39);
 			this->attack_button->Name = L"attack_button";
 			this->attack_button->Size = System::Drawing::Size(194, 102);
 			this->attack_button->TabIndex = 0;
@@ -126,18 +126,24 @@ namespace CppCLRWinformsProjekt {
 			// 
 			// options
 			// 
+			this->options->DropDownHeight = 200;
+			this->options->Font = (gcnew System::Drawing::Font(L"±¼¸²", 9));
 			this->options->FormattingEnabled = true;
-			this->options->Items->AddRange(gcnew cli::array< System::Object^  >(6) {
+			this->options->ImeMode = System::Windows::Forms::ImeMode::Off;
+			this->options->IntegralHeight = false;
+			this->options->ItemHeight = 24;
+			this->options->Items->AddRange(gcnew cli::array< System::Object^  >(7) {
 				L"#1 : CreateRemoteThread(VirtualAllocEx, WriteProcessMemory)",
 					L"#2 : CreateRemoteThread(CreateFileMappingA, MapViewOfFile, NtMapViewOfSection)", L"#3 : AtomBombing(QueueUserAPC, GlobalAddAtomA, GlobalGetAtomNameA, NtQueueApcThre"
 					L"ad)",
 					L"#4 : ThreadHijacking(SuspendThread, SetThreadContext, ResumeThread, VirtualAllocE"
 					L"x)", L"#5 : SetWindowLongPtrA(SetWindowLongPtrA, VirtualAllocEx, WriteProcessMemory)",
-					L"#6 : CtrlInject(SendInput, PostMessageA, VirtualAllocEx, WriteProcessMemory)"
+					L"#6 : CtrlInject(SendInput, PostMessageA, RtlEncodeRemotePointer, VirtualAllocEx, "
+					L"WriteProcessMemory)", L"#7 : PROPagate(SetPropA, VirtualAllocEx, WriteProcessMemory)"
 			});
 			this->options->Location = System::Drawing::Point(32, 234);
 			this->options->Name = L"options";
-			this->options->Size = System::Drawing::Size(1080, 32);
+			this->options->Size = System::Drawing::Size(1117, 32);
 			this->options->TabIndex = 5;
 			// 
 			// option_label
@@ -186,7 +192,7 @@ namespace CppCLRWinformsProjekt {
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(13, 24);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->ClientSize = System::Drawing::Size(1137, 315);
+			this->ClientSize = System::Drawing::Size(1185, 315);
 			this->Controls->Add(this->shellcode_opt);
 			this->Controls->Add(this->dll_opt);
 			this->Controls->Add(this->status);

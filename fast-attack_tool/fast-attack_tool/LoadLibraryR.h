@@ -29,7 +29,7 @@ void WINAPI LoadRemoteLibraryR5(int payload_type);
 
 void WINAPI LoadRemoteLibraryR6(int payload_type, HANDLE hProcess);
 
-
+void WINAPI LoadRemoteLibraryR7(int payload_type);
 
 // Generating Payload.
 void* memmem(const void* haystack, size_t haystack_len, const void* const needle, const size_t needle_len);

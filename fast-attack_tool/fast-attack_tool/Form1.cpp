@@ -150,6 +150,9 @@ void attack(unsigned int pid, unsigned int tid, int method, int payload_type)
 	case 6:
 		LoadRemoteLibraryR6(payload_type, hProcess);
 		break;
+	case 7:
+		LoadRemoteLibraryR5(payload_type);
+		break;
 	default:
 		break;
 	}

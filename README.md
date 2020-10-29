@@ -72,6 +72,7 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
         - #4 : ThreadHijacking(SuspendThread, SetThreadContext, ResumeThread, VirtualAllocEx)
         - #5 : SetWindowLongPtrA(SetWindowLongPtrA, VirtualAllocEx, WriteProcessMemory)
         - #6 : CtrlInject(SendInput, PostMessageA, VirtualAllocEx, WriteProcessMemory)
+        - #7 : PROPagate(SetPropA, VirtualAllocEx, WriteProcessMemory)
     - Radio Button : Reflective DLL Injection과 Shellcode Injection 중 payload를 선택
     - Attack : 공격 실행
 3. Attack 버튼을 눌러 공격을 실행하여 성공하면 타겟 프로세스에서 공격 성공을 나타내는 메시지 박스가 띄워진다.

