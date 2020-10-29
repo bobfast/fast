@@ -66,14 +66,12 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
         - Target PID를 입력하지 않거나 0을 입력 시 TestProcess를 생성해서 공격을 수행
     - Target TID : 타겟 스레드 TID 입력(공격에 따라 사용하지 않는 입력)
     - Option : 공격 방식 선택
-
-        #1 : CreateRemoteThread(VirtualAllocEx, WriteProcessMemory)
-        #2 : CreateRemoteThread(CreateFileMappingA, MapViewOfFile, NtMapViewOfSection)
-        #3 : AtomBombing(QueueUserAPC, GlobalAddAtomA, GlobalGetAtomNameA, NtQueueApcThread)
-        #4 : ThreadHijacking(SuspendThread, SetThreadContext, ResumeThread, VirtualAllocEx)
-        #5 : SetWindowLongPtrA(SetWindowLongPtrA, VirtualAllocEx, WriteProcessMemory)
-        #6 : CtrlInject(SendInput, PostMessageA, VirtualAllocEx, WriteProcessMemory)
-
+        - #1 : CreateRemoteThread(VirtualAllocEx, WriteProcessMemory)
+        - #2 : CreateRemoteThread(CreateFileMappingA, MapViewOfFile, NtMapViewOfSection)
+        - #3 : AtomBombing(QueueUserAPC, GlobalAddAtomA, GlobalGetAtomNameA, NtQueueApcThread)
+        - #4 : ThreadHijacking(SuspendThread, SetThreadContext, ResumeThread, VirtualAllocEx)
+        - #5 : SetWindowLongPtrA(SetWindowLongPtrA, VirtualAllocEx, WriteProcessMemory)
+        - #6 : CtrlInject(SendInput, PostMessageA, VirtualAllocEx, WriteProcessMemory)
     - Radio Button : Reflective DLL Injection과 Shellcode Injection 중 payload를 선택
     - Attack : 공격 실행
 3. Attack 버튼을 눌러 공격을 실행하여 성공하면 타겟 프로세스에서 공격 성공을 나타내는 메시지 박스가 띄워진다.
