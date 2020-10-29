@@ -2,7 +2,7 @@
 
 
 
-void attack(unsigned int pid, unsigned int tid, int method);
+void attack(unsigned int pid, unsigned int tid, int method, int payload_type);
 void init();
 void exiting();
 
@@ -50,6 +50,11 @@ namespace CppCLRWinformsProjekt {
 	private: System::Windows::Forms::ComboBox^ options;
 	private: System::Windows::Forms::Label^ option_label;
 	private: System::Windows::Forms::Label^ status;
+	private: System::Windows::Forms::RadioButton^ dll_opt;
+	private: System::Windows::Forms::RadioButton^ shellcode_opt;
+
+	private: int payload_type = 0;
+
 	protected:
 
 	private:
@@ -73,6 +78,8 @@ namespace CppCLRWinformsProjekt {
 			this->options = (gcnew System::Windows::Forms::ComboBox());
 			this->option_label = (gcnew System::Windows::Forms::Label());
 			this->status = (gcnew System::Windows::Forms::Label());
+			this->dll_opt = (gcnew System::Windows::Forms::RadioButton());
+			this->shellcode_opt = (gcnew System::Windows::Forms::RadioButton());
 			this->SuspendLayout();
 			// 
 			// attack_button
@@ -137,9 +144,9 @@ namespace CppCLRWinformsProjekt {
 			this->option_label->AutoSize = true;
 			this->option_label->Location = System::Drawing::Point(28, 170);
 			this->option_label->Name = L"option_label";
-			this->option_label->Size = System::Drawing::Size(387, 24);
+			this->option_label->Size = System::Drawing::Size(290, 24);
 			this->option_label->TabIndex = 6;
-			this->option_label->Text = L"Option : #3 and #5 are not Working.";
+			this->option_label->Text = L"Option : #3 is not Working.";
 			// 
 			// status
 			// 
@@ -150,11 +157,37 @@ namespace CppCLRWinformsProjekt {
 			this->status->Size = System::Drawing::Size(0, 24);
 			this->status->TabIndex = 7;
 			// 
+			// dll_opt
+			// 
+			this->dll_opt->AutoSize = true;
+			this->dll_opt->Checked = true;
+			this->dll_opt->Location = System::Drawing::Point(533, 113);
+			this->dll_opt->Name = L"dll_opt";
+			this->dll_opt->Size = System::Drawing::Size(286, 28);
+			this->dll_opt->TabIndex = 8;
+			this->dll_opt->TabStop = true;
+			this->dll_opt->Text = L"Reflective DLL Injection";
+			this->dll_opt->UseVisualStyleBackColor = true;
+			this->dll_opt->CheckedChanged += gcnew System::EventHandler(this, &Form1::dll_opt_CheckedChanged);
+			// 
+			// shellcode_opt
+			// 
+			this->shellcode_opt->AutoSize = true;
+			this->shellcode_opt->Location = System::Drawing::Point(535, 168);
+			this->shellcode_opt->Name = L"shellcode_opt";
+			this->shellcode_opt->Size = System::Drawing::Size(235, 28);
+			this->shellcode_opt->TabIndex = 9;
+			this->shellcode_opt->Text = L"Shellcode Injection";
+			this->shellcode_opt->UseVisualStyleBackColor = true;
+			this->shellcode_opt->CheckedChanged += gcnew System::EventHandler(this, &Form1::shellcode_opt_CheckedChanged);
+			// 
 			// Form1
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(13, 24);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->ClientSize = System::Drawing::Size(1137, 315);
+			this->Controls->Add(this->shellcode_opt);
+			this->Controls->Add(this->dll_opt);
 			this->Controls->Add(this->status);
 			this->Controls->Add(this->option_label);
 			this->Controls->Add(this->options);
@@ -172,13 +205,19 @@ namespace CppCLRWinformsProjekt {
 #pragma endregion
 	private: System::Void attack_button_Click(System::Object^ sender, System::EventArgs^ e) {
 		attack(this->pid_input->Text->Length ? UInt32::Parse(this->pid_input->Text) : 0,
-			this->tid_input->Text->Length ? UInt32::Parse(this->tid_input->Text)  : 0,
-			this->options->SelectedIndex + 1);
+			this->tid_input->Text->Length ? UInt32::Parse(this->tid_input->Text) : 0,
+			this->options->SelectedIndex + 1, this->payload_type);
 	}
 
 	public: System::Void set_status(System::String^ str) {
 		this->status->Text = str;
 	}
 
-};
+	private: System::Void dll_opt_CheckedChanged(System::Object^ sender, System::EventArgs^ e) {
+		this->payload_type = 0;
+	}
+	private: System::Void shellcode_opt_CheckedChanged(System::Object^ sender, System::EventArgs^ e) {
+		this->payload_type = 1;
+	}
+	};
 }

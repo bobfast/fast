@@ -153,6 +153,7 @@
     <ClCompile Include="AssemblyInfo.cpp" />
     <ClCompile Include="CppCLR_WinformsProjekt.cpp" />
     <ClCompile Include="Form1.cpp" />
+    <ClCompile Include="gen_payload.cpp" />
     <ClCompile Include="LoadLibraryR.cpp" />
   </ItemGroup>
   <ItemGroup>
