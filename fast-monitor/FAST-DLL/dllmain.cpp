@@ -16,9 +16,6 @@ HANDLE eventLog = RegisterEventSourceA(NULL, "FAST-DLLLog");
 bool isDetectedRWXPageWhenInitializing = false;
 
 // For detection in WriteProcessMemory
-static LPVOID recentWrittenBaseAddress = NULL;
-static SIZE_T recentWrittenBufferSize = 0;
-static DWORD recentWrittenTargetProcessId = 0;
 
 //#####################################
 
@@ -40,38 +37,6 @@ static LPTHREAD_START_ROUTINE  CallSetThreadContext = NULL;
 static LPTHREAD_START_ROUTINE  CallNtQueueApcThread = NULL;
 static LPTHREAD_START_ROUTINE  CallSetWindowLongPtrA = NULL;
 static LPTHREAD_START_ROUTINE  CallSleepEx = NULL;
-
-//#####################################
-
-void bufferdump(const char *filename)
-{
-	FILE* f;
-	char *buf = new char[recentWrittenBufferSize];
-	SIZE_T buflen;
-	fopen_s(&f, filename, "wb");
-
-	if (f == NULL) {
-		printf("Error: cannot create file.\n");
-		return;
-	}
-
-	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, recentWrittenTargetProcessId);
-	if (!hProcess) {
-		printf("Error: failed to open target process.\n");
-		return;
-	}
-
-	if (!ReadProcessMemory(hProcess, recentWrittenBaseAddress, buf, recentWrittenBufferSize, &buflen))
-	{
-		printf("Error: cannot read target process memory for dump.\n");
-		return;
-	}
-
-	fwrite(buf, 1, buflen, f);
-
-	delete[] buf;
-	fclose(f);
-}
 
 //#####################################
 
@@ -304,7 +269,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 
-		sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId());
+		sprintf_s(buf, "%lu:%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess));
 		//sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess));
 	}
 	else {
@@ -318,7 +283,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 		//sprintf_s(buf, "%lu:%016x:%016x:CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess), lpStartAddress, lpParameter);
-		sprintf_s(buf, "%lu:%p:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), lpStartAddress, lpParameter);
+		sprintf_s(buf, "%lu:%lu:%p:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess), lpStartAddress, lpParameter);
 	}
 
 	memcpy(dllMMF, buf, strlen(buf));
@@ -332,13 +297,6 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	std::string res(strtok_s(NULL, ":", &context));
 	if (strncmp(res.c_str(), "Detected", 12) == 0) {
 		printf("CreateRemoteThread : Process Injection Attack Detected and Prevented!\n");
-
-		// Buffer dump (by recent WriteProcessMemory call)
-		if (recentWrittenBaseAddress != NULL && recentWrittenBufferSize != 0) {
-			printf("Dump generating...\n");
-			bufferdump("CreateRemoteThread.dmp");
-			printf("Saved file to CreateRemoteThread.dmp.\n");
-		}
 
 		return NULL;
 	}
@@ -397,7 +355,7 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 			flProtect
 		);
 
-		sprintf_s(buf, "%lu:%016llx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), (DWORD64)ret, (DWORD)dwSize);
+		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize);
 		//sprintf_s(buf, "%lu:%016x:%08x:CallVirtualAllocEx:IPC Successful!", GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
@@ -458,13 +416,6 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 
 	//pDbgPrint("\n");
 	//sprintf_s(buf, "%lu:MyWriteProcessMemory:IPC Successful!", GetProcessId(hProcess));
-
-
-	// Important recent WriteProcessMemory call information
-	recentWrittenBaseAddress = lpBaseAddress;
-	recentWrittenBufferSize = nSize;
-	recentWrittenTargetProcessId = GetProcessId(hProcess);
-
 
 	sprintf_s(buf, "%lu:MyWriteProcessMemory:IPC Successful!", GetCurrentProcessId());
 	memcpy(dllMMF, buf, strlen(buf));
@@ -657,6 +608,7 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	std::string res(strtok_s(NULL, ":", &context));
 	if (strncmp(res.c_str(), "Detected", 12) == 0) {
 		printf("SetWindowLongPtrA : Window Attribute Injection Attack Detected and Prevented!\n");
+
 		return NULL;
 	}
 	return TrueSetWindowLongPtrA(hWnd, nIndex, dwNewLong);

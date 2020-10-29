@@ -21,7 +21,6 @@ int mon(int isFree_);
 void exiting();
 
 static FILE* pFile = NULL;
-static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList;
 
 namespace CppCLRWinformsProjekt {
 
