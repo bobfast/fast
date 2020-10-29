@@ -1,8 +1,30 @@
 #pragma once
 #include "Form1.h"
 using namespace CppCLRWinformsProjekt;
-
 #define MSG_SIZE 256
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//######################################################
 
 void CallVirtualAllocEx(LPVOID monMMF);
 void CallQueueUserAPC(LPVOID monMMF);
@@ -16,10 +38,27 @@ void CallNtQueueApcThread(LPVOID monMMF);
 void CallSetWindowLongPtrA(LPVOID monMMF);
 void CallSleepEx(LPVOID monMMF);
 
-
-
 //######################################################
 
+typedef enum _SECTION_INHERIT
+{
+	ViewShare = 1,
+	ViewUnmap = 2
+} SECTION_INHERIT;
+
+static NTSTATUS(*PNtMapViewOfSection)(
+	HANDLE SectionHandle,
+	HANDLE ProcessHandle,
+	PVOID* BaseAddress,
+	ULONG_PTR ZeroBits,
+	SIZE_T CommitSize,
+	PLARGE_INTEGER SectionOffset,
+	PSIZE_T ViewSize,
+	SECTION_INHERIT InheritDisposition,
+	ULONG AllocationType,
+	ULONG Win32Protect);
+
+//######################################################
 
 struct ExportContext
 {
@@ -66,29 +105,4 @@ PCHAR FindSectionName(PBYTE pbBase, PBYTE& pbEnd);
 ULONG PadToPage(ULONG Size);
 BOOL GetSections(HANDLE hp, PBYTE pbBase);
 BOOL DumpProcess(HANDLE hp);
-
-
-
 //######################################################
-
-typedef enum _SECTION_INHERIT
-{
-	ViewShare = 1,
-	ViewUnmap = 2
-} SECTION_INHERIT;
-
-static NTSTATUS(*PNtMapViewOfSection)(
-	HANDLE SectionHandle,
-	HANDLE ProcessHandle,
-	PVOID* BaseAddress,
-	ULONG_PTR ZeroBits,
-	SIZE_T CommitSize,
-	PLARGE_INTEGER SectionOffset,
-	PSIZE_T ViewSize,
-	SECTION_INHERIT InheritDisposition,
-	ULONG AllocationType,
-	ULONG Win32Protect);
-
-//######################################################
-
-
