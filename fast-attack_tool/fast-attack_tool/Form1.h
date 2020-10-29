@@ -127,12 +127,13 @@ namespace CppCLRWinformsProjekt {
 			// options
 			// 
 			this->options->FormattingEnabled = true;
-			this->options->Items->AddRange(gcnew cli::array< System::Object^  >(5) {
+			this->options->Items->AddRange(gcnew cli::array< System::Object^  >(6) {
 				L"#1 : CreateRemoteThread(VirtualAllocEx, WriteProcessMemory)",
 					L"#2 : CreateRemoteThread(CreateFileMappingA, MapViewOfFile, NtMapViewOfSection)", L"#3 : AtomBombing(QueueUserAPC, GlobalAddAtomA, GlobalGetAtomNameA, NtQueueApcThre"
 					L"ad)",
 					L"#4 : ThreadHijacking(SuspendThread, SetThreadContext, ResumeThread, VirtualAllocE"
-					L"x)", L"#5 : SetWindowLongPtrA(VirtualAllocEx, WriteProcessMemory)"
+					L"x)", L"#5 : SetWindowLongPtrA(SetWindowLongPtrA, VirtualAllocEx, WriteProcessMemory)",
+					L"#6 : CtrlInject(SendInput, PostMessageA, VirtualAllocEx, WriteProcessMemory)"
 			});
 			this->options->Location = System::Drawing::Point(32, 234);
 			this->options->Name = L"options";

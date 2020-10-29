@@ -27,7 +27,7 @@ void WINAPI LoadRemoteLibraryR4(int payload_type, HANDLE hProcess, DWORD tid);
 
 void WINAPI LoadRemoteLibraryR5(int payload_type);
 
-
+void WINAPI LoadRemoteLibraryR6(int payload_type, HANDLE hProcess);
 
 
 

