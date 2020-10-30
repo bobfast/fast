@@ -328,7 +328,9 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	HANDLE hMonThread = NULL;
 
 
-	if (flProtect == PAGE_EXECUTE_READWRITE) {
+	if (flProtect == PAGE_EXECUTE_READWRITE
+	 || flProtect == PAGE_EXECUTE_WRITECOPY
+	 || flProtect == PAGE_READWRITE) {
 		/*if (flAllocationType == (MEM_RESERVE | MEM_COMMIT) && flProtect == PAGE_EXECUTE_READWRITE) {
 			if (isDetectedRWXPageWhenInitializing) {
 				char pid_msg[20];
@@ -355,7 +357,7 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 			flProtect
 		);
 
-		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize);
+		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize, flProtect);
 		//sprintf_s(buf, "%lu:%016x:%08x:CallVirtualAllocEx:IPC Successful!", GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
@@ -770,7 +772,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourAttach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
 		DetourAttach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
 		//DetourAttach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
-		DetourAttach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
+		//DetourAttach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
 		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
@@ -801,7 +803,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourDetach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
 		DetourDetach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
 		//DetourDetach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
-		DetourDetach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
+		//DetourDetach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
 		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);

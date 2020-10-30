@@ -3,9 +3,10 @@
 using namespace CppCLRWinformsProjekt;
 #define MSG_SIZE 256
 
-static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList;
+static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList, rwList;
+extern FILE* pFile;
 
-void memory_region_dump(DWORD pid, const char* filename);
+void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>>& list);
 
 
 
