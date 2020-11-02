@@ -46,6 +46,9 @@ HANDLE WINAPI LoadRemoteLibraryR(int payload_type, HANDLE hProcess)
 		if (!lpRemoteLibraryBuffer)
 			return NULL;
 
+
+		char* tp = (char*)buf;
+
 		// write the image into the host process
 		if (!WriteProcessMemory(hProcess, lpRemoteLibraryBuffer, buf, buflen, NULL))
 		{
