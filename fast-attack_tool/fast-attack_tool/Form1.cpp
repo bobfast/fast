@@ -43,6 +43,7 @@ void init() {
 	//Generating Shellcode.
 	shellcode = (LPVOID)_gen_payload_2();
 
+
 	//Get the SE_DEBUG_PRIVILEGE.
 	if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
 	{
@@ -74,6 +75,9 @@ void exiting() {
 	if (lpBuffer)
 		free(lpBuffer);
 
+	if (shellcode)
+		free(shellcode);
+
 }
 
 
@@ -94,7 +98,7 @@ void attack(unsigned int pid, unsigned int tid, int method, int payload_type)
 		form->set_status("Choose the Attack Option.");
 		return;
 	}
-	else if (method != 5 && pid == 0) {
+	else if (method != 5 && method != 7 && pid == 0) {
 
 		STARTUPINFO suinfo = { 0 };
 		suinfo.cb = sizeof(STARTUPINFO);
