@@ -262,7 +262,7 @@ int CDECL mon(int isFree_)
 		}
 		else
 		{
-			HMODULE fdllpath = findRemoteHModule(entry.th32ProcessID, (const char*)rpszDllsOut[0]);
+			HMODULE fdllpath = findRemoteHModule(entry.th32ProcessID, (const char*)rpszDllsOut);
 			if (fdllpath != NULL)
 			{
 				hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
