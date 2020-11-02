@@ -2,41 +2,55 @@
 
 void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>>& list)
 {
-	if (rwxList.find(std::to_string(pid)) == list.end()) {
+	if (list.find(std::to_string(pid)) == list.end()) {
 		MessageBoxA(NULL, "Cannot dump memory region...", "Error", MB_OK | MB_ICONERROR);
 		return;
 	}
 
-	auto recentRWX = list[std::to_string(pid)].back();
-	DWORD recentWrittenBufferSize = recentRWX.second;
-	LPVOID recentWrittenBaseAddress = (LPVOID)(recentRWX.first);
-	FILE* f;
-	char* buf = new char[recentWrittenBufferSize];
+	auto recentAlloc = list[std::to_string(pid)].back();
+	DWORD recentWrittenBufferSize = recentAlloc.second;
+	LPVOID recentWrittenBaseAddress = (LPVOID)(recentAlloc.first);
+	FILE *f;
+	char *buf, filenameWithBaseAddr[261];
 	SIZE_T buflen;
+	HANDLE hProcess;
 
-	fopen_s(&f, filename, "wb");
+	do {
+		buf = new char[recentWrittenBufferSize];
 
-	if (f == NULL) {
-		printf("Error: cannot create file.\n");
-		return;
-	}
+		if (buf == NULL) {
+			printf("Error: cannot allocate buffer for memory region dump.\n");
+			break;
+		}
 
-	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-	if (!hProcess) {
-		printf("Error: failed to open target process.\n");
-		return;
-	}
+		sprintf_s(filenameWithBaseAddr, "%s_%p.bin", filename, recentWrittenBaseAddress);
 
-	if (!ReadProcessMemory(hProcess, recentWrittenBaseAddress, buf, recentWrittenBufferSize, &buflen))
-	{
-		printf("Error: cannot read target process memory for dump.\n");
-		return;
-	}
+		fopen_s(&f, filenameWithBaseAddr, "wb");
 
-	fwrite(buf, 1, buflen, f);
+		if (f == NULL) {
+			printf("Error: cannot create file.\n");
+			break;
+		}
 
-	delete[] buf;
-	fclose(f);
+		hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+		if (!hProcess) {
+			printf("Error: failed to open target process.\n");
+			break;
+		}
+
+		if (!ReadProcessMemory(hProcess, recentWrittenBaseAddress, buf, recentWrittenBufferSize, &buflen)) {
+			printf("Error: cannot read target process memory for dump.\n");
+			break;
+		}
+
+		fwrite(buf, 1, buflen, f);
+
+		break;
+	} while (1);
+
+	if (buf != NULL) delete[] buf;
+	if (hProcess != NULL) CloseHandle(hProcess);
+	if (f != NULL) fclose(f);
 }
 
 
@@ -72,7 +86,7 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 	case PAGE_EXECUTE_WRITECOPY:
 		form->logging(gcnew System::String(" + WRITECOPY"));
 
-		{
+		{ // code block - RWX list
 			auto rwxItem = rwxList.find(callee_pid);
 			if (rwxItem != rwxList.end()) {
 				rwxItem->second.push_back(std::make_pair(ret, dwSize));
@@ -89,7 +103,7 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 	case PAGE_READWRITE:
 		form->logging(gcnew System::String(" -> Protection : PAGE_READWRITE"));
 
-		{
+		{ // code block - RW list
 			auto rwItem = rwList.find(callee_pid);
 			if (rwItem != rwList.end()) {
 				rwItem->second.push_back(std::make_pair(ret, dwSize));
@@ -180,23 +194,24 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 		form->logging(gcnew System::String("\r\n"));
 		form->logging(gcnew System::String("\r\n"));
 		MessageBoxA(NULL, "CreateRemoteThread DLL Injection with LoadLibrary Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_LoadLibrary.bin", rwList);
+		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_LoadLibrary", rwList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
 	else if (rwxItem != rwxList.end()) {
 
 		for (auto i : rwxItem->second) {
-			if (i.first <= lpStartAddress && (i.first + (DWORD64)i.second > lpStartAddress))
+			if (i.first <= lpStartAddress && (i.first + (DWORD64)i.second > lpStartAddress)) {
 				sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
-			form->logging(gcnew System::String(" : CreateRemoteThread -> Code Injection Detected! Addr: "));
-			form->logging(gcnew System::String(addr.c_str()));
-			form->logging(gcnew System::String("\r\n"));
-			form->logging(gcnew System::String("\r\n"));
-			MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-			memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection.bin", rwxList);
-			memcpy(monMMF, buf, strlen(buf));
-			return;
+				form->logging(gcnew System::String(" : CreateRemoteThread -> Code Injection Detected! Addr: "));
+				form->logging(gcnew System::String(addr.c_str()));
+				form->logging(gcnew System::String("\r\n"));
+				form->logging(gcnew System::String("\r\n"));
+				MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+				memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection", rwxList);
+				memcpy(monMMF, buf, strlen(buf));
+				return;
+			}
 		}
 	}
 
@@ -313,8 +328,10 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 	auto item = rwxList.find(pid);
 	if (item != rwxList.end()) {
 		for (auto i : item->second) {
-			if (i.first <= target && (i.first + (DWORD64)i.second > target))
+			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
 				sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", pid.c_str(), target);
+				memory_region_dump(std::stoi(pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
+			}
 			memcpy(monMMF, buf, strlen(buf));
 			return;
 		}
@@ -346,15 +363,19 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 	if (item != rwxList.end()) {
 
 		for (auto i : item->second) {
-			if (i.first <= target && (i.first + (DWORD64)i.second > target))
+			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
 				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", pid.c_str(), target);
-			form->logging(gcnew System::String(" : SetWindowLongPtrA -> Code Injection Detected! Addr: "));
-			form->logging(gcnew System::String(addr.c_str()));
-			form->logging(gcnew System::String("\r\n"));
-			form->logging(gcnew System::String("\r\n"));
-			MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-			memcpy(monMMF, buf, strlen(buf));
-			return;
+
+				form->logging(gcnew System::String(" : SetWindowLongPtrA -> Code Injection Detected! Addr: "));
+				form->logging(gcnew System::String(addr.c_str()));
+				form->logging(gcnew System::String("\r\n"));
+				form->logging(gcnew System::String("\r\n"));
+
+				MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+				memory_region_dump(std::stoi(pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
+				memcpy(monMMF, buf, strlen(buf));
+				return;
+			}
 		}
 	}
 
