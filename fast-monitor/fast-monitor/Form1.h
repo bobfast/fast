@@ -20,7 +20,6 @@ void init();
 int mon(int isFree_);
 void exiting();
 
-static FILE* pFile = NULL;
 static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList;
 
 namespace CppCLRWinformsProjekt {
@@ -46,6 +45,7 @@ namespace CppCLRWinformsProjekt {
 		{
 			InitializeComponent();
 			init();
+			this->logBox->AppendText("Hook DLLs!\r\n\r\n");
 			//
 			//TODO: Konstruktorcode hier hinzuf?en.
 			//
@@ -165,9 +165,9 @@ namespace CppCLRWinformsProjekt {
 
 	public: Void logging(String^ text) {
 		String^ pid = (String^)(text->Split(' '))[0];
-		//if(this->targetPID->Items->Contains(pid) != true)
-			//this->targetPID->Items->Add(pid);
-		//this->logBox->AppendText(text);
+		if(this->targetPID->Items->Contains(pid) != true)
+			this->targetPID->Items->Add(pid);
+		this->logBox->AppendText(text);
 	}
 
 

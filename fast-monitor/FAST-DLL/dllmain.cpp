@@ -21,8 +21,8 @@ static HANDLE hMonProcess = NULL;
 
 static LPCSTR dll_path = NULL;
 
-LPVOID monMMF = NULL;
-LPVOID dllMMF = NULL;
+static LPVOID monMMF = NULL;
+static LPVOID dllMMF = NULL;
 
 static LPTHREAD_START_ROUTINE  CallVirtualAllocEx = NULL;
 static LPTHREAD_START_ROUTINE  CallQueueUserAPC = NULL;
@@ -543,16 +543,23 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 
 
 	char buf[MSG_SIZE] = "";
-	HANDLE hT = NULL;
+	HANDLE hT= NULL;
 
-
-	sprintf_s(buf, "%lu:CallSetThreadContext:IPC Successful!", GetCurrentProcessId());
+	sprintf_s(buf, "%lu:%016llx:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), lpContext->Rip);
 	memcpy(dllMMF, buf, strlen(buf));
-	//hT = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetThreadContext, monMMF, 0, NULL);
-	//WaitForSingleObject(hThread, INFINITE);
-	//CloseHandle(hT);
+	hT = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetThreadContext, monMMF, 0, NULL);
+	WaitForSingleObject(hT, INFINITE);
+	CloseHandle(hT);
 	printf("%s\n", (char*)dllMMF);
 
+	char* cp = (char*)dllMMF;
+	char* context = NULL;
+	std::string pid(strtok_s(cp, ":", &context));
+	std::string res(strtok_s(NULL, ":", &context));
+	if (strncmp(res.c_str(), "Detected", 8) == 0) {
+		printf("CallSetThreadContext : Thread Hijacking Attack Detected and Prevented!\n");
+		return NULL;
+	}
 	return (*TrueSetThreadContext)(
 		hThread,
 		lpContext
@@ -585,17 +592,20 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	if (!hProcess)
 	{
 		printf("OpenProcess(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
+		return NULL;
 	}
 
 	DWORD64 p1 = NULL, p2 = NULL;
 
-	if (hProcess && !ReadProcessMemory(hProcess, (LPCVOID)dwNewLong, (LPVOID)&p1, sizeof(LPVOID), NULL))
+	if (!ReadProcessMemory(hProcess, (LPCVOID)dwNewLong, (LPVOID)&p1, sizeof(LPVOID), NULL))
 	{
 		printf("ReadProcessMemory(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
+		return NULL;
 	}
-	if (hProcess && !ReadProcessMemory(hProcess, (LPCVOID)p1, (LPVOID)&p2, sizeof(LPVOID), NULL))
+	if (!ReadProcessMemory(hProcess, (LPCVOID)p1, (LPVOID)&p2, sizeof(LPVOID), NULL))
 	{
 		printf("ReadProcessMemory(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
+		return NULL;
 	}
 
 	CloseHandle(hProcess);
@@ -616,7 +626,7 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	std::string pid(strtok_s(cp, ":", &context));
 	std::string res(strtok_s(NULL, ":", &context));
 	if (strncmp(res.c_str(), "Detected", 8) == 0) {
-		printf("SetWindowLongPtrA : Window Attribute Injection Attack Detected and Prevented!\n");
+		printf("SetWindowLongPtrA : Windows Attribute Injection Attack Detected and Prevented!\n");
 		return NULL;
 	}
 	return TrueSetWindowLongPtrA(hWnd, nIndex, dwNewLong);
@@ -642,16 +652,40 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 
 
 	char buf[MSG_SIZE] = "";
-	HANDLE hT = NULL;
+	HANDLE hThread = NULL;
+	DWORD dwpid = NULL;
+	GetWindowThreadProcessId(hWnd, &dwpid);
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwpid);
+	if (!hProcess)
+	{
+		printf("OpenProcess(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
+		return NULL;
+	}
+	
+	DWORD64 ptr = NULL;
+
+	if (!ReadProcessMemory(hProcess, (LPCVOID)((DWORD64)hData+0x18), (LPVOID)&ptr, sizeof(LPVOID), NULL))
+	{
+		printf("ReadProcessMemory(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
+		return NULL;
+	}
 
 
-	sprintf_s(buf, "%lu:CallSetPropA:IPC Successful!", GetCurrentProcessId());
+	sprintf_s(buf, "%lu:%016llx:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), ptr);
 	memcpy(dllMMF, buf, strlen(buf));
-	hT = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetPropA, monMMF, 0, NULL);
-	WaitForSingleObject(hT, INFINITE);
-	CloseHandle(hT);
+	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetPropA, monMMF, 0, NULL);
+	WaitForSingleObject(hThread, INFINITE);
+	CloseHandle(hThread);
 	printf("%s\n", (char*)dllMMF);
 
+	char* cp = (char*)dllMMF;
+	char* context = NULL;
+	std::string pid(strtok_s(cp, ":", &context));
+	std::string res(strtok_s(NULL, ":", &context));
+	if (strncmp(res.c_str(), "Detected", 8) == 0) {
+		printf("SetPropA : Windows Property Injection Attack Detected and Prevented!\n");
+		return NULL;
+	}
 	return TrueSetPropA(
 		hWnd,
 		lpString,
@@ -705,8 +739,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 	HANDLE hMemoryMap = NULL;
 	LPBYTE pMemoryMap = NULL;
 
-	HANDLE fm;
-	char* map_addr;
+	HANDLE fm = NULL;
+	char* map_addr = nullptr;
 
 	LPVOID lpMap = 0;
 	SIZE_T viewsize = 0;
@@ -842,8 +876,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 	case DLL_PROCESS_DETACH:
 
-		CloseHandle(hMonProcess);
-		CloseHandle(pMemoryMap);
+
 
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
@@ -863,6 +896,12 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourDetach(&(PVOID&)TrueSetPropA, MySetPropA);
 		//DetourDetach(&(PVOID&)TrueSleepEx, TimedSleepEx);
 		DetourTransactionCommit();
+
+		CloseHandle(hMonProcess);
+		UnmapViewOfFile(pMemoryMap);
+		UnmapViewOfFile(map_addr);
+		CloseHandle(fm);
+
 		printf("FAST-DLL: Process detached.\n");
 		break;
 	}
