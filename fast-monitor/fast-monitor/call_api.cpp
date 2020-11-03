@@ -106,15 +106,16 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 	else if (item != rwxList.end()) {
 
 		for (auto i : item->second) {
-			if (i.first <= lpStartAddress && (i.first + (DWORD64)i.second > lpStartAddress))
+			if (i.first <= lpStartAddress && (i.first + (DWORD64)i.second > lpStartAddress)) {
 				sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", pid.c_str(), lpStartAddress, lpParameter);
-			form->logging(gcnew System::String(" : CreateRemoteThread -> Code Injection Detected! Addr: "));
-			form->logging(gcnew System::String(addr.c_str()));
-			form->logging(gcnew System::String("\r\n"));
-			form->logging(gcnew System::String("\r\n"));
-			MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-			memcpy(monMMF, buf, strlen(buf));
-			return;
+				form->logging(gcnew System::String(" : CreateRemoteThread -> Code Injection Detected! Addr: "));
+				form->logging(gcnew System::String(addr.c_str()));
+				form->logging(gcnew System::String("\r\n"));
+				form->logging(gcnew System::String("\r\n"));
+				MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+				memcpy(monMMF, buf, strlen(buf));
+				return;
+			}
 		}
 	}
 
@@ -166,7 +167,7 @@ void CallCreateFileMappingA(LPVOID monMMF) {
 	//form->logging(gcnew System::String(cp));
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	
+
 	std::string pid(strtok_s(cp, ":", &cp_context));
 
 
@@ -264,15 +265,17 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 	if (item != rwxList.end()) {
 
 		for (auto i : item->second) {
-			if (i.first <= target && (i.first + (DWORD64)i.second > target))
+			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
 				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", pid.c_str(), target);
-			form->logging(gcnew System::String(" : SetWindowLongPtrA -> Code Injection Detected! Addr: "));
-			form->logging(gcnew System::String(addr.c_str()));
-			form->logging(gcnew System::String("\r\n"));
-			form->logging(gcnew System::String("\r\n"));
-			MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-			memcpy(monMMF, buf, strlen(buf));
-			return;
+				form->logging(gcnew System::String(" : SetWindowLongPtrA -> Code Injection Detected! Addr: "));
+				form->logging(gcnew System::String(addr.c_str()));
+				form->logging(gcnew System::String("\r\n"));
+				form->logging(gcnew System::String("\r\n"));
+				MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+				memcpy(monMMF, buf, strlen(buf));
+				return;
+			}
+
 		}
 	}
 
@@ -281,6 +284,27 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 }
 
+
+void CallSetPropA(LPVOID monMMF) {
+
+	Form1^ form = (Form1^)Application::OpenForms[0];
+
+	char* cp = (char*)monMMF;
+	char* cp_context = NULL;
+	//form->logging(gcnew System::String(cp));
+	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
+
+
+	std::string pid(strtok_s(cp, ":", &cp_context));
+
+	form->logging(gcnew System::String(pid.c_str()));
+	form->logging(gcnew System::String(" :SetPropA Called!\r\n"));
+
+
+	std::string buf(pid);
+	buf.append(":CallSetPropA:Response Sended!");
+	memcpy(monMMF, buf.c_str(), buf.size());
+}
 
 void CallSleepEx(LPVOID monMMF) {
 
@@ -299,3 +323,4 @@ void CallSleepEx(LPVOID monMMF) {
 	buf.append(":CallSleepEx:Response Sended!");
 	memcpy(monMMF, buf.c_str(), buf.size());
 }
+

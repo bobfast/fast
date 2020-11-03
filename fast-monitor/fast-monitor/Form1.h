@@ -165,9 +165,9 @@ namespace CppCLRWinformsProjekt {
 
 	public: Void logging(String^ text) {
 		String^ pid = (String^)(text->Split(' '))[0];
-		if(this->targetPID->Items->Contains(pid) != true)
-			this->targetPID->Items->Add(pid);
-		this->logBox->AppendText(text);
+		//if(this->targetPID->Items->Contains(pid) != true)
+			//this->targetPID->Items->Add(pid);
+		//this->logBox->AppendText(text);
 	}
 
 

@@ -36,6 +36,7 @@ void CallGetThreadContext(LPVOID monMMF);
 void CallSetThreadContext(LPVOID monMMF);
 void CallNtQueueApcThread(LPVOID monMMF);
 void CallSetWindowLongPtrA(LPVOID monMMF);
+void CallSetPropA(LPVOID monMMF);
 void CallSleepEx(LPVOID monMMF);
 
 //######################################################
