@@ -59,6 +59,8 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 //////////////////////////////////////////////////////////////////////////////
 //Hooking Handlers
 
+extern FILE* pFile;
+
 void CallVirtualAllocEx(LPVOID monMMF) {
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
@@ -198,6 +200,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
+
 	else if (rwxItem != rwxList.end()) {
 
 		for (auto i : rwxItem->second) {
@@ -263,7 +266,7 @@ void CallCreateFileMappingA(LPVOID monMMF) {
 	//form->logging(gcnew System::String(cp));
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	
+
 	std::string pid(strtok_s(cp, ":", &cp_context));
 
 
@@ -301,13 +304,33 @@ void CallSetThreadContext(LPVOID monMMF) {
 
 	std::string pid(strtok_s(cp, ":", &cp_context));
 
-	form->logging(gcnew System::String(pid.c_str()));
-	form->logging(gcnew System::String(" :SetThreadContext Called!\r\n"));
 
 
-	std::string buf(pid);
-	buf.append(":CallSetThreadContext:Response Sended!");
-	memcpy(monMMF, buf.c_str(), buf.size());
+	std::string addr(strtok_s(NULL, ":", &cp_context));
+	DWORD64 target = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	char buf[MSG_SIZE] = "";
+	memset(monMMF, 0, MSG_SIZE);
+	auto item = rwxList.find(pid);
+	if (item != rwxList.end()) {
+
+		for (auto i : item->second) {
+			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
+				sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", pid.c_str(), target);
+				form->logging(gcnew System::String(pid.c_str()));
+				form->logging(gcnew System::String(" : SetThreadContext -> Thread Hijacking Detected! Addr: "));
+				form->logging(gcnew System::String(addr.c_str()));
+				form->logging(gcnew System::String("\r\n"));
+				form->logging(gcnew System::String("\r\n"));
+				MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+				memcpy(monMMF, buf, strlen(buf));
+				return;
+			}
+
+		}
+	}
+
+	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", pid.c_str(), target);
+	memcpy(monMMF, buf, strlen(buf));
 }
 
 void CallNtQueueApcThread(LPVOID monMMF) {
@@ -352,7 +375,7 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 
 	std::string pid(strtok_s(cp, ":", &cp_context));
-	form->logging(gcnew System::String(pid.c_str()));
+
 
 
 	std::string addr(strtok_s(NULL, ":", &cp_context));
@@ -365,12 +388,11 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 		for (auto i : item->second) {
 			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
 				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", pid.c_str(), target);
-
+				form->logging(gcnew System::String(pid.c_str()));
 				form->logging(gcnew System::String(" : SetWindowLongPtrA -> Code Injection Detected! Addr: "));
 				form->logging(gcnew System::String(addr.c_str()));
 				form->logging(gcnew System::String("\r\n"));
 				form->logging(gcnew System::String("\r\n"));
-
 				MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 				memory_region_dump(std::stoi(pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
 				memcpy(monMMF, buf, strlen(buf));
@@ -384,6 +406,47 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 }
 
+
+void CallSetPropA(LPVOID monMMF) {
+
+	Form1^ form = (Form1^)Application::OpenForms[0];
+
+	char* cp = (char*)monMMF;
+	char* cp_context = NULL;
+	//form->logging(gcnew System::String(cp));
+	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
+
+
+	std::string pid(strtok_s(cp, ":", &cp_context));
+
+
+
+	std::string addr(strtok_s(NULL, ":", &cp_context));
+	DWORD64 target = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	char buf[MSG_SIZE] = "";
+	memset(monMMF, 0, MSG_SIZE);
+	auto item = rwxList.find(pid);
+	if (item != rwxList.end()) {
+
+		for (auto i : item->second) {
+			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
+				sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", pid.c_str(), target);
+				form->logging(gcnew System::String(pid.c_str()));
+				form->logging(gcnew System::String(" : SetPropA -> Code Injection Detected! Addr: "));
+				form->logging(gcnew System::String(addr.c_str()));
+				form->logging(gcnew System::String("\r\n"));
+				form->logging(gcnew System::String("\r\n"));
+				MessageBoxA(NULL, "CallSetPropA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+				memcpy(monMMF, buf, strlen(buf));
+				return;
+			}
+
+		}
+	}
+
+	sprintf_s(buf, "%s:%016llx:CallSetPropA:Clean", pid.c_str(), target);
+	memcpy(monMMF, buf, strlen(buf));
+}
 
 void CallSleepEx(LPVOID monMMF) {
 
@@ -402,3 +465,4 @@ void CallSleepEx(LPVOID monMMF) {
 	buf.append(":CallSleepEx:Response Sended!");
 	memcpy(monMMF, buf.c_str(), buf.size());
 }
+

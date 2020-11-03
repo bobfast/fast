@@ -20,8 +20,6 @@ void init();
 int mon(int isFree_);
 void exiting();
 
-static FILE* pFile = NULL;
-
 namespace CppCLRWinformsProjekt {
 
 	using namespace System;
@@ -45,6 +43,7 @@ namespace CppCLRWinformsProjekt {
 		{
 			InitializeComponent();
 			init();
+			this->logBox->AppendText("Hook DLLs!\r\n\r\n");
 			//
 			//TODO: Konstruktorcode hier hinzuf?en.
 			//

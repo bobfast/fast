@@ -1,5 +1,12 @@
 #include "call_api.h"
 
+FILE* pFile;
+static UINT32 hook_cnt = 0;
+static 	HANDLE fm = NULL;
+static char* map_addr;
+static DWORD dwBufSize = 0;
+static DWORD thispid = GetCurrentProcessId();
+static LPCSTR rpszDllsOut = NULL;
 
 void init() {
 	//Initialize the log file.
@@ -41,11 +48,96 @@ void init() {
 	}
 	CloseHandle(hToken);
 
+
+	/////////////////////////////////////////////////////////
+	// Getting the DLL's full path.
+
+	LPCSTR rpszDllsRaw = (LPCSTR)"FAST-DLL.dll";;
+
+	CHAR szDllPath[1024];
+	PCHAR pszFilePart = NULL;
+
+	if (!GetFullPathNameA(rpszDllsRaw, ARRAYSIZE(szDllPath), szDllPath, &pszFilePart))
+	{
+		return;
+	}
+
+	DWORD c = (DWORD)strlen(szDllPath) + 1;
+	PCHAR psz = new CHAR[c];
+	StringCchCopyA(psz, c, szDllPath);
+	rpszDllsOut = psz;
+
+
+
+	/////////////////////////////////////////////////////////
+	// Making shared memory.
+
+	dwBufSize = (DWORD)(strlen(rpszDllsOut) + 1) * sizeof(char);
+
+	fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
+		0,
+		(DWORD)((dwBufSize + sizeof(DWORD) + 12 * sizeof(DWORD64))), (LPCSTR)"shared");
+
+
+	map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+
+	memcpy(map_addr, rpszDllsOut, dwBufSize);
+	memcpy(map_addr + dwBufSize, &thispid, sizeof(DWORD));
+
+
+
+	LPVOID fp = CallVirtualAllocEx;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD), &fp, sizeof(DWORD64));
+
+	fp = CallQueueUserAPC;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallWriteProcessMemory;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 2 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallCreateRemoteThread;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 3 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallNtMapViewOfSection;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 4 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallCreateFileMappingA;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 5 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallGetThreadContext;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 6 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallSetThreadContext;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 7 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallNtQueueApcThread;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 8 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallSetWindowLongPtrA;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 9 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallSetPropA;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallSleepEx;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 11 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+
+
+	//Initial Hooking.
+	mon(0);
 }
 
 void exiting() {
-	//Close the log file descriptor.
+	
+	//UnHooking All.
+	for (int i = 0; i < hook_cnt; i++)
+		mon(1);
 
+
+	//Close Everything.
+	UnmapViewOfFile(map_addr);
+	CloseHandle(fm);
 	fclose(pFile);
 }
 
@@ -81,35 +173,17 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 //
 int CDECL mon(int isFree_)
 {
-	BOOLEAN isFree = (BOOLEAN)isFree_;
 	// Hook/Unhook flag 
-
-	LPCSTR rpszDllsOut = NULL;
-	LPCSTR rpszDllsRaw = (LPCSTR)"FAST-DLL.dll";;
-
-
+	BOOLEAN isFree = (BOOLEAN)isFree_;
 
 
 
 	///////////////////////////////////////////////////////// Validate DLLs. (get the full path name.)
 
-	CHAR szDllPath[1024];
-	PCHAR pszFilePart = NULL;
-
-	if (!GetFullPathNameA(rpszDllsRaw, ARRAYSIZE(szDllPath), szDllPath, &pszFilePart))
-	{
-		return 9002;
-	}
-
-	DWORD c = (DWORD)strlen(szDllPath) + 1;
-	PCHAR psz = new CHAR[c];
-	StringCchCopyA(psz, c, szDllPath);
-	rpszDllsOut = psz;
-
 	HMODULE hDll = LoadLibraryExA(rpszDllsOut, NULL, DONT_RESOLVE_DLL_REFERENCES);
 	if (hDll == NULL)
 	{
-		return 9003;
+		return 1;
 	}
 
 	ExportContext ec;
@@ -120,7 +194,7 @@ int CDECL mon(int isFree_)
 
 	if (!ec.fHasOrdinal1)
 	{
-		return 9004;
+		return 1;
 	}
 
 
@@ -135,8 +209,7 @@ int CDECL mon(int isFree_)
 
 	LPTHREAD_START_ROUTINE pThreadProc = NULL;
 
-	HANDLE fm = NULL;
-	char* map_addr;
+
 	LPVOID lpMap = 0;
 	SIZE_T viewsize = 0;
 
@@ -146,16 +219,15 @@ int CDECL mon(int isFree_)
 	hMod = GetModuleHandleA("kernel32.dll");
 	if (!hMod)
 	{
-		return FALSE;
+		return 1;
 	}
 
-	LPCSTR sz = NULL;
-	DWORD dwBufSize = 0;
-	DWORD thispid = GetCurrentProcessId();
+
 
 
 	if (!isFree)
 	{
+		hook_cnt++;
 		fprintf(pFile, "Hook DLLs!\n");
 		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
 
@@ -163,6 +235,8 @@ int CDECL mon(int isFree_)
 	}
 	else
 	{
+		if (hook_cnt > 0)
+			hook_cnt--;
 		fprintf(pFile, "UnHook DLLs!\n");
 		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "FreeLibrary");
 
@@ -170,64 +244,10 @@ int CDECL mon(int isFree_)
 
 	if (!pThreadProc)
 	{
-		return FALSE;
+		return 1;
 	}
 
 
-	/////////////////////////////////////////////////////////
-	// If it is injection process, it makes shared memory.
-	if (!isFree)
-	{
-		sz = rpszDllsOut;
-		dwBufSize = (DWORD)(strlen(sz) + 1) * sizeof(char);
-
-		fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
-			0,
-			(DWORD)((dwBufSize + sizeof(DWORD) + 11 * sizeof(DWORD64))), (LPCSTR)"shared");
-
-
-		map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-
-		memcpy(map_addr, sz, dwBufSize);
-		memcpy(map_addr + dwBufSize, &thispid, sizeof(DWORD));
-
-
-
-		LPVOID fp = CallVirtualAllocEx;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD), &fp, sizeof(DWORD64));
-
-		fp = CallQueueUserAPC;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-		fp = CallWriteProcessMemory;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 2 * sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-		fp = CallCreateRemoteThread;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 3 * sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-		fp = CallNtMapViewOfSection;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 4 * sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-		fp = CallCreateFileMappingA;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 5 * sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-		fp = CallGetThreadContext;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 6 * sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-		fp = CallSetThreadContext;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 7 * sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-		fp = CallNtQueueApcThread;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 8 * sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-		fp = CallSetWindowLongPtrA;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 9 * sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-		fp = CallSleepEx;
-		memcpy(map_addr + dwBufSize + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-
-	}
 
 
 	/////////////////////////////////////////////////////////
