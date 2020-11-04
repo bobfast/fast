@@ -329,7 +329,7 @@ void CallSetThreadContext(LPVOID monMMF) {
 		}
 	}
 
-	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", pid.c_str(), target);
+	sprintf_s(buf, "%s:%016llx:CallSetThreadContext:Clean", pid.c_str(), target);
 	memcpy(monMMF, buf, strlen(buf));
 }
 
@@ -342,25 +342,26 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 	//form->logging(gcnew System::String(cp));
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-
-	std::string pid(strtok_s(cp, ":", &cp_context));
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
 	DWORD64 target = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
-	auto item = rwxList.find(pid);
+	auto item = rwxList.find(callee_pid);
 	if (item != rwxList.end()) {
 		for (auto i : item->second) {
 			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", pid.c_str(), target);
-				memory_region_dump(std::stoi(pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
+				sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", caller_pid.c_str(), target);
+				MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+				memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
 			}
 			memcpy(monMMF, buf, strlen(buf));
 			return;
 		}
 	}
 
-	sprintf_s(buf, "%s:%016llx:CallNtQueueApcThread:Clean", pid.c_str(), target);
+	sprintf_s(buf, "%s:%016llx:CallNtQueueApcThread:Clean", caller_pid.c_str(), target);
 	memcpy(monMMF, buf, strlen(buf));
 }
 
@@ -373,35 +374,35 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 	//form->logging(gcnew System::String(cp));
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-
-	std::string pid(strtok_s(cp, ":", &cp_context));
-
-
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
 	std::string addr(strtok_s(NULL, ":", &cp_context));
 	DWORD64 target = (DWORD64)strtoll(addr.c_str(), NULL, 16);
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
-	auto item = rwxList.find(pid);
+	auto item = rwxList.find(callee_pid);
 	if (item != rwxList.end()) {
 
 		for (auto i : item->second) {
 			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", pid.c_str(), target);
-				form->logging(gcnew System::String(pid.c_str()));
+				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", caller_pid.c_str(), target);
+				form->logging(gcnew System::String(caller_pid.c_str()));
+				form->logging(gcnew System::String(" : "));
+				form->logging(gcnew System::String(callee_pid.c_str()));
 				form->logging(gcnew System::String(" : SetWindowLongPtrA -> Code Injection Detected! Addr: "));
 				form->logging(gcnew System::String(addr.c_str()));
 				form->logging(gcnew System::String("\r\n"));
 				form->logging(gcnew System::String("\r\n"));
 				MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-				memory_region_dump(std::stoi(pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
+				memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
 				memcpy(monMMF, buf, strlen(buf));
 				return;
 			}
 		}
 	}
 
-	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", pid.c_str(), target);
+	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", caller_pid.c_str(), target);
 	memcpy(monMMF, buf, strlen(buf));
 
 }

@@ -504,19 +504,20 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	PVOID ApcStatusBlock OPTIONAL,
 	PVOID ApcReserved OPTIONAL
 ) {
+	MessageBoxA(NULL, "MyNtQueueApcThread called!", "FAST-DLL", MB_OK | MB_ICONINFORMATION);
 
 	memset(dllMMF, 0, MSG_SIZE);
 
 
-
+	DWORD pid = GetProcessIdOfThread(ThreadHandle);
 	HANDLE hThread = NULL;
 	char buf[MSG_SIZE] = "";
-	//sprintf_s(buf, "%d:CallNtQueueApcThread:IPC Successful!", GetProcessIdOfThread(ThreadHandle));
+	//sprintf_s(buf, "%d:CallNtQueueApcThread:IPC Successful!", pid);
 
-	if (ApcRoutine == GlobalGetAtomNameA)
-		sprintf_s(buf, "%d:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId());
-	else
-		sprintf_s(buf, "%d:%p:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), ApcRoutine);
+	//if (ApcRoutine == GlobalGetAtomNameA)
+	//	sprintf_s(buf, "%lu:%lu:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), pid);
+	//else
+		sprintf_s(buf, "%lu:%lu:%p:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), pid, ApcRoutine);
 
 
 	memcpy(dllMMF, buf, strlen(buf));
@@ -618,7 +619,7 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	printf("%016llx\n", dwNewLong);
 
 	//sprintf_s(buf, "%lu:%016x:CallSetWindowLongPtrA:IPC Successful!     ", GetWindowThreadProcessId(hWnd, NULL), dwNewLong);
-	sprintf_s(buf, "%lu:%016llx:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), p2);
+	sprintf_s(buf, "%lu:%lu:%016llx:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), dwpid, p2);
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetWindowLongPtrA, monMMF, 0, NULL);
 	WaitForSingleObject(hThread, INFINITE);
