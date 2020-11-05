@@ -1,5 +1,19 @@
 #include "call_api.h"
 
+// Reference: https://stackoverflow.com/questions/3828835/how-can-we-check-if-a-file-exists-or-not-using-win32-program
+int fileExists(TCHAR* file)
+{
+	WIN32_FIND_DATA FindFileData;
+	HANDLE handle = FindFirstFile(file, &FindFileData);
+	int found = handle != INVALID_HANDLE_VALUE;
+	if (found)
+	{
+		//FindClose(&handle); this will crash
+		FindClose(handle);
+	}
+	return found;
+}
+
 void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>>& list)
 {
 	if (list.find(std::to_string(pid)) == list.end()) {
@@ -23,7 +37,18 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 			break;
 		}
 
-		sprintf_s(filenameWithBaseAddr, "%s_%p.bin", filename, recentWrittenBaseAddress);
+		int i = 0;
+
+		while (1) {
+			if (i == 0) sprintf_s(filenameWithBaseAddr, "%s_%p.bin", filename, recentWrittenBaseAddress);
+			else sprintf_s(filenameWithBaseAddr, "%s_%p_%d.bin", filename, recentWrittenBaseAddress, i);
+			
+			if (!fileExists(filenameWithBaseAddr)) {
+				break;
+			}
+
+			i++;
+		}
 
 		fopen_s(&f, filenameWithBaseAddr, "wb");
 
@@ -344,24 +369,46 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	std::string apc_routine(strtok_s(NULL, ":", &cp_context));
 
-	DWORD64 target = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
-	auto item = rwxList.find(callee_pid);
-	if (item != rwxList.end()) {
-		for (auto i : item->second) {
-			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", caller_pid.c_str(), target);
-				MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-				memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
+
+	if (apc_routine.compare("GlobalGetAtomNameA") == 0) {
+		sprintf_s(buf, "%s:Detected:GlobalGetAtomNameA:CallNtQueueApcThread", caller_pid.c_str());
+		form->logging(gcnew System::String(caller_pid.c_str()));
+		form->logging(gcnew System::String(" : "));
+		form->logging(gcnew System::String(callee_pid.c_str()));
+		form->logging(gcnew System::String(" : NtQueueApcThread -> GlobalGetAtomNameA Detected!"));
+		form->logging(gcnew System::String(""));
+		form->logging(gcnew System::String("\r\n"));
+		//MessageBoxA(NULL, "NtQueueApcThread - GlobalGetAtomNameA Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+		//memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread_GlobalGetAtomNameA", rwxList);
+		memcpy(monMMF, buf, strlen(buf));
+		return;
+	} else {
+		DWORD64 target = (DWORD64)strtoll(apc_routine.c_str(), NULL, 16);
+		auto item = rwxList.find(callee_pid);
+		if (item != rwxList.end()) {
+			for (auto i : item->second) {
+				if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
+					sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", caller_pid.c_str(), target);
+					form->logging(gcnew System::String(caller_pid.c_str()));
+					form->logging(gcnew System::String(" : "));
+					form->logging(gcnew System::String(callee_pid.c_str()));
+					form->logging(gcnew System::String(" : NtQueueApcThread -> Code Injection Detected!"));
+					form->logging(gcnew System::String("\r\n"));
+					form->logging(gcnew System::String("\r\n"));
+					MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+					memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
+					memcpy(monMMF, buf, strlen(buf));
+					return;
+				}
 			}
-			memcpy(monMMF, buf, strlen(buf));
-			return;
 		}
 	}
 
-	sprintf_s(buf, "%s:%016llx:CallNtQueueApcThread:Clean", caller_pid.c_str(), target);
+	sprintf_s(buf, "%s:%s:CallNtQueueApcThread:Clean", caller_pid.c_str(), apc_routine.c_str());
 	memcpy(monMMF, buf, strlen(buf));
 }
 

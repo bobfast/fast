@@ -504,20 +504,18 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	PVOID ApcStatusBlock OPTIONAL,
 	PVOID ApcReserved OPTIONAL
 ) {
-	MessageBoxA(NULL, "MyNtQueueApcThread called!", "FAST-DLL", MB_OK | MB_ICONINFORMATION);
-
 	memset(dllMMF, 0, MSG_SIZE);
 
 
-	DWORD pid = GetProcessIdOfThread(ThreadHandle);
+	DWORD target_pid = GetProcessIdOfThread(ThreadHandle);
 	HANDLE hThread = NULL;
 	char buf[MSG_SIZE] = "";
 	//sprintf_s(buf, "%d:CallNtQueueApcThread:IPC Successful!", pid);
 
-	//if (ApcRoutine == GlobalGetAtomNameA)
-	//	sprintf_s(buf, "%lu:%lu:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), pid);
-	//else
-		sprintf_s(buf, "%lu:%lu:%p:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), pid, ApcRoutine);
+	if (ApcRoutine == GlobalGetAtomNameA)
+		sprintf_s(buf, "%lu:%lu:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid);
+	else
+		sprintf_s(buf, "%lu:%lu:%p:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, ApcRoutine);
 
 
 	memcpy(dllMMF, buf, strlen(buf));
@@ -525,6 +523,17 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	WaitForSingleObject(hThread, INFINITE);
 	CloseHandle(hThread);
 	printf("%s\n", (char*)dllMMF);
+
+	char* cp = (char*)dllMMF;
+	char* context = NULL;
+	std::string pid(strtok_s(cp, ":", &context));
+	std::string res(strtok_s(NULL, ":", &context));
+	if (strncmp(res.c_str(), "Detected", 8) == 0) {
+		printf("NtQueueApcThread : Process Injection Attack Detected and Prevented!\n");
+
+		return NULL;
+	}
+
 	return NtQueueApcThread(ThreadHandle,
 		ApcRoutine,
 		ApcRoutineContext OPTIONAL,
