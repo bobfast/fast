@@ -20,8 +20,6 @@ void init();
 int mon(int isFree_);
 void exiting();
 
-static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList;
-
 namespace CppCLRWinformsProjekt {
 
 	using namespace System;

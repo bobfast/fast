@@ -266,7 +266,7 @@ int CDECL mon(int isFree_)
 			continue;
 		}
 
-		(*PNtMapViewOfSection)(fm, hProcess, &lpMap, 0, dwBufSize,
+		PNtMapViewOfSection(fm, hProcess, &lpMap, 0, dwBufSize,
 			nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
 
 

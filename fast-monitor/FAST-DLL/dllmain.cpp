@@ -15,6 +15,8 @@ HMODULE hMod = NULL;
 HANDLE eventLog = RegisterEventSourceA(NULL, "FAST-DLLLog");
 bool isDetectedRWXPageWhenInitializing = false;
 
+// For detection in WriteProcessMemory
+
 //#####################################
 
 static HANDLE hMonProcess = NULL;
@@ -38,8 +40,6 @@ static LPTHREAD_START_ROUTINE  CallSetPropA = NULL;
 static LPTHREAD_START_ROUTINE  CallSleepEx = NULL;
 
 //#####################################
-
-
 
 static BOOL(WINAPI* TrueCreateProcessA)(
 	LPCSTR                lpApplicationName,
@@ -272,7 +272,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 
-		sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId());
+		sprintf_s(buf, "%lu:%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess));
 		//sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess));
 	}
 	else {
@@ -286,7 +286,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 		//sprintf_s(buf, "%lu:%016x:%016x:CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess), lpStartAddress, lpParameter);
-		sprintf_s(buf, "%lu:%p:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), lpStartAddress, lpParameter);
+		sprintf_s(buf, "%lu:%lu:%p:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess), lpStartAddress, lpParameter);
 	}
 
 	memcpy(dllMMF, buf, strlen(buf));
@@ -301,6 +301,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	std::string res(strtok_s(NULL, ":", &context));
 	if (strncmp(res.c_str(), "Detected", 8) == 0) {
 		printf("CreateRemoteThread : Process Injection Attack Detected and Prevented!\n");
+
 		return NULL;
 	}
 
@@ -331,7 +332,9 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	HANDLE hMonThread = NULL;
 
 
-	if (flProtect == PAGE_EXECUTE_READWRITE) {
+	if (flProtect == PAGE_EXECUTE_READWRITE
+	 || flProtect == PAGE_EXECUTE_WRITECOPY
+	 || flProtect == PAGE_READWRITE) {
 		/*if (flAllocationType == (MEM_RESERVE | MEM_COMMIT) && flProtect == PAGE_EXECUTE_READWRITE) {
 			if (isDetectedRWXPageWhenInitializing) {
 				char pid_msg[20];
@@ -358,7 +361,7 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 			flProtect
 		);
 
-		sprintf_s(buf, "%lu:%016llx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), (DWORD64)ret, (DWORD)dwSize);
+		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize, flProtect);
 		//sprintf_s(buf, "%lu:%016x:%08x:CallVirtualAllocEx:IPC Successful!", GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
@@ -420,6 +423,7 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 
 	//pDbgPrint("\n");
 	//sprintf_s(buf, "%lu:MyWriteProcessMemory:IPC Successful!", GetProcessId(hProcess));
+
 	sprintf_s(buf, "%lu:MyWriteProcessMemory:IPC Successful!", GetCurrentProcessId());
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallWriteProcessMemory, monMMF, 0, NULL);
@@ -500,19 +504,18 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	PVOID ApcStatusBlock OPTIONAL,
 	PVOID ApcReserved OPTIONAL
 ) {
-
 	memset(dllMMF, 0, MSG_SIZE);
 
 
-
+	DWORD target_pid = GetProcessIdOfThread(ThreadHandle);
 	HANDLE hThread = NULL;
 	char buf[MSG_SIZE] = "";
-	//sprintf_s(buf, "%d:CallNtQueueApcThread:IPC Successful!", GetProcessIdOfThread(ThreadHandle));
+	//sprintf_s(buf, "%d:CallNtQueueApcThread:IPC Successful!", pid);
 
 	if (ApcRoutine == GlobalGetAtomNameA)
-		sprintf_s(buf, "%d:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId());
+		sprintf_s(buf, "%lu:%lu:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid);
 	else
-		sprintf_s(buf, "%d:%p:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), ApcRoutine);
+		sprintf_s(buf, "%lu:%lu:%p:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, ApcRoutine);
 
 
 	memcpy(dllMMF, buf, strlen(buf));
@@ -520,6 +523,17 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	WaitForSingleObject(hThread, INFINITE);
 	CloseHandle(hThread);
 	printf("%s\n", (char*)dllMMF);
+
+	char* cp = (char*)dllMMF;
+	char* context = NULL;
+	std::string pid(strtok_s(cp, ":", &context));
+	std::string res(strtok_s(NULL, ":", &context));
+	if (strncmp(res.c_str(), "Detected", 8) == 0) {
+		printf("NtQueueApcThread : Process Injection Attack Detected and Prevented!\n");
+
+		return NULL;
+	}
+
 	return NtQueueApcThread(ThreadHandle,
 		ApcRoutine,
 		ApcRoutineContext OPTIONAL,
@@ -614,7 +628,7 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	printf("%016llx\n", dwNewLong);
 
 	//sprintf_s(buf, "%lu:%016x:CallSetWindowLongPtrA:IPC Successful!     ", GetWindowThreadProcessId(hWnd, NULL), dwNewLong);
-	sprintf_s(buf, "%lu:%016llx:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), p2);
+	sprintf_s(buf, "%lu:%lu:%016llx:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), dwpid, p2);
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetWindowLongPtrA, monMMF, 0, NULL);
 	WaitForSingleObject(hThread, INFINITE);
