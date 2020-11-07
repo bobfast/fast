@@ -20,9 +20,6 @@ void init();
 int mon(int isFree_);
 void exiting();
 
-static FILE* pFile = NULL;
-static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList;
-
 namespace CppCLRWinformsProjekt {
 
 	using namespace System;
@@ -46,6 +43,7 @@ namespace CppCLRWinformsProjekt {
 		{
 			InitializeComponent();
 			init();
+			this->logBox->AppendText("Hook DLLs!\r\n\r\n");
 			//
 			//TODO: Konstruktorcode hier hinzuf?en.
 			//
@@ -66,7 +64,7 @@ namespace CppCLRWinformsProjekt {
 	private: System::Windows::Forms::Button^ hookAndMonitoring;
 	private: System::Windows::Forms::Button^ unhook;
 	private: System::Windows::Forms::TextBox^ logBox;
-	private: System::Windows::Forms::CheckedListBox^ AttackOpt;
+
 	private: System::Windows::Forms::ComboBox^ targetPID;
 	protected:
 
@@ -90,7 +88,6 @@ namespace CppCLRWinformsProjekt {
 			this->hookAndMonitoring = (gcnew System::Windows::Forms::Button());
 			this->unhook = (gcnew System::Windows::Forms::Button());
 			this->logBox = (gcnew System::Windows::Forms::TextBox());
-			this->AttackOpt = (gcnew System::Windows::Forms::CheckedListBox());
 			this->targetPID = (gcnew System::Windows::Forms::ComboBox());
 			this->SuspendLayout();
 			// 
@@ -124,27 +121,12 @@ namespace CppCLRWinformsProjekt {
 			this->logBox->Size = System::Drawing::Size(1044, 529);
 			this->logBox->TabIndex = 2;
 			// 
-			// AttackOpt
-			// 
-			this->AttackOpt->Font = (gcnew System::Drawing::Font(L"±¼¸²", 10.875F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(129)));
-			this->AttackOpt->FormattingEnabled = true;
-			this->AttackOpt->Items->AddRange(gcnew cli::array< System::Object^  >(6) {
-				L"#2 CodeViaCreateRemoteThread(LoadLibrayA)", L"#3 CodeViaCreateRemoteThread",
-					L"#4 Suspendthread/Resumethread", L"#5 CodeViaQueueUserAPC(+AtomBombing)", L"#6 CtrlInject", L"#10 SetWindowLongPtrA"
-			});
-			this->AttackOpt->Location = System::Drawing::Point(12, 100);
-			this->AttackOpt->Name = L"AttackOpt";
-			this->AttackOpt->Size = System::Drawing::Size(751, 232);
-			this->AttackOpt->TabIndex = 3;
-			this->AttackOpt->SelectedIndexChanged += gcnew System::EventHandler(this, &Form1::AttackOpt_SelectedIndexChanged);
-			// 
 			// targetPID
 			// 
 			this->targetPID->Font = (gcnew System::Drawing::Font(L"±¼¸²", 12, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(129)));
 			this->targetPID->FormattingEnabled = true;
-			this->targetPID->Location = System::Drawing::Point(803, 292);
+			this->targetPID->Location = System::Drawing::Point(803, 54);
 			this->targetPID->Name = L"targetPID";
 			this->targetPID->Size = System::Drawing::Size(253, 40);
 			this->targetPID->TabIndex = 4;
@@ -156,7 +138,6 @@ namespace CppCLRWinformsProjekt {
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->ClientSize = System::Drawing::Size(1085, 904);
 			this->Controls->Add(this->targetPID);
-			this->Controls->Add(this->AttackOpt);
 			this->Controls->Add(this->logBox);
 			this->Controls->Add(this->unhook);
 			this->Controls->Add(this->hookAndMonitoring);

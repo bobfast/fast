@@ -1,8 +1,20 @@
 #pragma once
 #include "Form1.h"
 using namespace CppCLRWinformsProjekt;
-
 #define MSG_SIZE 256
+
+static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList, rwList;
+extern FILE* pFile;
+
+int fileExists(TCHAR* file);
+void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>>& list);
+
+
+
+
+
+
+//######################################################
 
 void CallVirtualAllocEx(LPVOID monMMF);
 void CallQueueUserAPC(LPVOID monMMF);
@@ -14,12 +26,30 @@ void CallGetThreadContext(LPVOID monMMF);
 void CallSetThreadContext(LPVOID monMMF);
 void CallNtQueueApcThread(LPVOID monMMF);
 void CallSetWindowLongPtrA(LPVOID monMMF);
+void CallSetPropA(LPVOID monMMF);
 void CallSleepEx(LPVOID monMMF);
-
-
 
 //######################################################
 
+typedef enum _SECTION_INHERIT
+{
+	ViewShare = 1,
+	ViewUnmap = 2
+} SECTION_INHERIT;
+
+static NTSTATUS(*PNtMapViewOfSection)(
+	HANDLE SectionHandle,
+	HANDLE ProcessHandle,
+	PVOID* BaseAddress,
+	ULONG_PTR ZeroBits,
+	SIZE_T CommitSize,
+	PLARGE_INTEGER SectionOffset,
+	PSIZE_T ViewSize,
+	SECTION_INHERIT InheritDisposition,
+	ULONG AllocationType,
+	ULONG Win32Protect);
+
+//######################################################
 
 struct ExportContext
 {
@@ -66,29 +96,4 @@ PCHAR FindSectionName(PBYTE pbBase, PBYTE& pbEnd);
 ULONG PadToPage(ULONG Size);
 BOOL GetSections(HANDLE hp, PBYTE pbBase);
 BOOL DumpProcess(HANDLE hp);
-
-
-
 //######################################################
-
-typedef enum _SECTION_INHERIT
-{
-	ViewShare = 1,
-	ViewUnmap = 2
-} SECTION_INHERIT;
-
-static NTSTATUS(*PNtMapViewOfSection)(
-	HANDLE SectionHandle,
-	HANDLE ProcessHandle,
-	PVOID* BaseAddress,
-	ULONG_PTR ZeroBits,
-	SIZE_T CommitSize,
-	PLARGE_INTEGER SectionOffset,
-	PSIZE_T ViewSize,
-	SECTION_INHERIT InheritDisposition,
-	ULONG AllocationType,
-	ULONG Win32Protect);
-
-//######################################################
-
-

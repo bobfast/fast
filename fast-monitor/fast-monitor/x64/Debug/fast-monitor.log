@@ -1,0 +1,13 @@
+﻿  call_api.cpp
+  AssemblyInfo.cpp
+  CppCLR_WinformsProjekt.cpp
+  dumpProcess.cpp
+  Form1.cpp
+C:\Users\User\Desktop\fast\fast-monitor\fast-monitor\Form1.cpp(134,20): warning C4018: '<': signed/unsigned mismatch
+  .NETFramework,Version=v4.7.2.AssemblyAttributes.cpp
+  Generating Code...
+  call_api.obj : MSIL module encountered; incremental linking is disabled for MSIL; performing full link
+detours.lib(detours.obj) : warning LNK4099: PDB 'detours.pdb' was not found with 'detours.lib(detours.obj)' or at 'C:\Users\User\Desktop\fast\fast-monitor\x64\Debug\detours.pdb'; linking object as if no debug info
+detours.lib(modules.obj) : warning LNK4099: PDB 'detours.pdb' was not found with 'detours.lib(modules.obj)' or at 'C:\Users\User\Desktop\fast\fast-monitor\x64\Debug\detours.pdb'; linking object as if no debug info
+detours.lib(disasm.obj) : warning LNK4099: PDB 'detours.pdb' was not found with 'detours.lib(disasm.obj)' or at 'C:\Users\User\Desktop\fast\fast-monitor\x64\Debug\detours.pdb'; linking object as if no debug info
+  fast-monitor.vcxproj -> C:\Users\User\Desktop\fast\fast-monitor\x64\Debug\fast-monitor.exe
