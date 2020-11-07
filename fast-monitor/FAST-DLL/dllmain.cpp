@@ -272,7 +272,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 
-		sprintf_s(buf, "%lu:%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess));
+		sprintf_s(buf, "%lu:%lu:LoadLibraryA:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess), lpParameter);
 		//sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess));
 	}
 	else {
@@ -555,15 +555,15 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 ) {
 	memset(dllMMF, 0, MSG_SIZE);
 
-
+	DWORD target_pid = GetProcessIdOfThread(hThread);
 	char buf[MSG_SIZE] = "";
-	HANDLE hT= NULL;
+	HANDLE hMonThread= NULL;
 
-	sprintf_s(buf, "%lu:%016llx:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), lpContext->Rip);
+	sprintf_s(buf, "%lu:%lu:%016llx:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rip);
 	memcpy(dllMMF, buf, strlen(buf));
-	hT = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetThreadContext, monMMF, 0, NULL);
-	WaitForSingleObject(hT, INFINITE);
-	CloseHandle(hT);
+	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetThreadContext, monMMF, 0, NULL);
+	WaitForSingleObject(hMonThread, INFINITE);
+	CloseHandle(hMonThread);
 	printf("%s\n", (char*)dllMMF);
 
 	char* cp = (char*)dllMMF;

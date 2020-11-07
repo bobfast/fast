@@ -3,7 +3,7 @@
 using namespace CppCLRWinformsProjekt;
 #define MSG_SIZE 256
 
-static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList, rwList;
+static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList;
 extern FILE* pFile;
 
 int fileExists(TCHAR* file);
