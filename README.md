@@ -65,7 +65,7 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
 2. fast-attack_tool.exe를 실행
     - fast-attack_tool.exe와 InjecteeDLL.dll이 같은 경로 안에 있어야 함
     - Target PID : 타겟 프로세스 PID 입력
-        - Target PID를 입력하지 않거나 0을 입력 시 TestProcess를 생성해서 공격을 수행
+        - Target PID를 입력하지 않거나 0을 입력 시 TestProcess 또는 notepad를 생성해서 공격을 수행 가능
     - Target TID : 타겟 스레드 TID 입력(공격에 따라 사용하지 않는 입력)
     - Option : 공격 방식 선택
         - #1 : CreateRemoteThread(VirtualAllocEx, WriteProcessMemory)
@@ -75,6 +75,7 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
         - #5 : SetWindowLongPtrA(SetWindowLongPtrA, VirtualAllocEx, WriteProcessMemory)
         - #6 : CtrlInject(SendInput, PostMessageA, VirtualAllocEx, WriteProcessMemory)
         - #7 : PROPagate(SetPropA, VirtualAllocEx, WriteProcessMemory)
+        - #8 : CreateRemoteThread(VirtualAllocEx, VirtualProtectEx, WriteProcessMemory)
     - Radio Button : Reflective DLL Injection과 Shellcode Injection 중 payload를 선택
     - Attack : 공격 실행
 3. Attack 버튼을 눌러 공격을 실행하여 성공하면 타겟 프로세스에서 공격 성공을 나타내는 메시지 박스가 띄워진다.

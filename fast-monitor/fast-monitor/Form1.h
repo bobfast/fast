@@ -9,16 +9,32 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <tuple>
 #pragma warning(push)
 #if _MSC_VER > 1400
 #pragma warning(disable : 6102 6103) // /analyze warnings
 #endif
 #include <strsafe.h>
 #pragma warning(pop)
+/// <summary>
+/// flags
+/// </summary>
+#define FLAG_VirtualAllocEx 0b00000001
+#define FLAG_NtMapViewOfSection 0b00000010
+#define FLAG_VirtualProtectEx  0b00000100
+#define FLAG_CreateRemoteThread 0b00001000
+#define FLAG_SetWindowLongPtrA 0b00010000  
+#define FLAG_SetPropA 0b00100000
+#define FLAG_SetThreadContext 0b01000000
+#define FLAG_NtQueueApcThread 0b10000000 
+
 
 void init();
 int mon(int isFree_);
 void exiting();
+void vol(char* path);
+
+static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>>> decectionInfo;
 
 namespace CppCLRWinformsProjekt {
 
@@ -28,6 +44,7 @@ namespace CppCLRWinformsProjekt {
 	using namespace System::Windows::Forms;
 	using namespace System::Data;
 	using namespace System::Drawing;
+	using namespace System::Runtime::InteropServices;
 
 	/// <summary>
 	/// Zusammenfassung f? Form1
@@ -44,6 +61,7 @@ namespace CppCLRWinformsProjekt {
 			InitializeComponent();
 			init();
 			this->logBox->AppendText("Hook DLLs!\r\n\r\n");
+
 			//
 			//TODO: Konstruktorcode hier hinzuf?en.
 			//
@@ -61,11 +79,29 @@ namespace CppCLRWinformsProjekt {
 				delete components;
 			}
 		}
-	private: System::Windows::Forms::Button^ hookAndMonitoring;
-	private: System::Windows::Forms::Button^ unhook;
+
 	private: System::Windows::Forms::TextBox^ logBox;
 
 	private: System::Windows::Forms::ComboBox^ targetPID;
+	private: System::Windows::Forms::MenuStrip^ menuStrip1;
+	private: System::Windows::Forms::ToolStripMenuItem^ monitoringToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ startToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ stopToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ volatilityexeToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ browserawToolStripMenuItem;
+	private: System::Windows::Forms::OpenFileDialog^ openFileDialog1;
+
+	private: System::Windows::Forms::ListView^ api_list;
+	private: System::Windows::Forms::ColumnHeader^ api_name;
+	private: System::Windows::Forms::ColumnHeader^ addr;
+	private: System::Windows::Forms::ColumnHeader^ size;
+	private: System::Windows::Forms::ColumnHeader^ caller_pid;
+	private: System::Windows::Forms::ListView^ detected;
+
+	private: System::Windows::Forms::ColumnHeader^ callee_pid;
+	private: System::Windows::Forms::ColumnHeader^ attack_num;
+	private: System::Windows::Forms::ColumnHeader^ timestamp;
+
 	protected:
 
 
@@ -85,40 +121,35 @@ namespace CppCLRWinformsProjekt {
 		/// </summary>
 		void InitializeComponent(void)
 		{
-			this->hookAndMonitoring = (gcnew System::Windows::Forms::Button());
-			this->unhook = (gcnew System::Windows::Forms::Button());
 			this->logBox = (gcnew System::Windows::Forms::TextBox());
 			this->targetPID = (gcnew System::Windows::Forms::ComboBox());
+			this->menuStrip1 = (gcnew System::Windows::Forms::MenuStrip());
+			this->monitoringToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->startToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->stopToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->volatilityexeToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->browserawToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->openFileDialog1 = (gcnew System::Windows::Forms::OpenFileDialog());
+			this->api_list = (gcnew System::Windows::Forms::ListView());
+			this->caller_pid = (gcnew System::Windows::Forms::ColumnHeader());
+			this->addr = (gcnew System::Windows::Forms::ColumnHeader());
+			this->size = (gcnew System::Windows::Forms::ColumnHeader());
+			this->api_name = (gcnew System::Windows::Forms::ColumnHeader());
+			this->detected = (gcnew System::Windows::Forms::ListView());
+			this->callee_pid = (gcnew System::Windows::Forms::ColumnHeader());
+			this->attack_num = (gcnew System::Windows::Forms::ColumnHeader());
+			this->timestamp = (gcnew System::Windows::Forms::ColumnHeader());
+			this->menuStrip1->SuspendLayout();
 			this->SuspendLayout();
-			// 
-			// hookAndMonitoring
-			// 
-			this->hookAndMonitoring->Location = System::Drawing::Point(12, 12);
-			this->hookAndMonitoring->Name = L"hookAndMonitoring";
-			this->hookAndMonitoring->Size = System::Drawing::Size(242, 82);
-			this->hookAndMonitoring->TabIndex = 0;
-			this->hookAndMonitoring->Text = L"Start";
-			this->hookAndMonitoring->UseVisualStyleBackColor = true;
-			this->hookAndMonitoring->Click += gcnew System::EventHandler(this, &Form1::hookAndMonitoring_Click);
-			// 
-			// unhook
-			// 
-			this->unhook->Location = System::Drawing::Point(274, 12);
-			this->unhook->Name = L"unhook";
-			this->unhook->Size = System::Drawing::Size(240, 82);
-			this->unhook->TabIndex = 1;
-			this->unhook->Text = L"Stop";
-			this->unhook->UseVisualStyleBackColor = true;
-			this->unhook->Click += gcnew System::EventHandler(this, &Form1::unhook_Click);
 			// 
 			// logBox
 			// 
-			this->logBox->Location = System::Drawing::Point(12, 351);
+			this->logBox->Location = System::Drawing::Point(12, 455);
 			this->logBox->Multiline = true;
 			this->logBox->Name = L"logBox";
 			this->logBox->ReadOnly = true;
 			this->logBox->ScrollBars = System::Windows::Forms::ScrollBars::Both;
-			this->logBox->Size = System::Drawing::Size(1044, 529);
+			this->logBox->Size = System::Drawing::Size(1246, 425);
 			this->logBox->TabIndex = 2;
 			// 
 			// targetPID
@@ -126,52 +157,187 @@ namespace CppCLRWinformsProjekt {
 			this->targetPID->Font = (gcnew System::Drawing::Font(L"±¼¸²", 12, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(129)));
 			this->targetPID->FormattingEnabled = true;
-			this->targetPID->Location = System::Drawing::Point(803, 54);
+			this->targetPID->Location = System::Drawing::Point(1044, 57);
 			this->targetPID->Name = L"targetPID";
-			this->targetPID->Size = System::Drawing::Size(253, 40);
+			this->targetPID->Size = System::Drawing::Size(214, 40);
 			this->targetPID->TabIndex = 4;
 			this->targetPID->SelectedIndexChanged += gcnew System::EventHandler(this, &Form1::targetPID_SelectedIndexChanged);
+			// 
+			// menuStrip1
+			// 
+			this->menuStrip1->GripMargin = System::Windows::Forms::Padding(2, 2, 0, 2);
+			this->menuStrip1->ImageScalingSize = System::Drawing::Size(32, 32);
+			this->menuStrip1->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
+				this->monitoringToolStripMenuItem,
+					this->volatilityexeToolStripMenuItem
+			});
+			this->menuStrip1->Location = System::Drawing::Point(0, 0);
+			this->menuStrip1->Name = L"menuStrip1";
+			this->menuStrip1->Size = System::Drawing::Size(1270, 40);
+			this->menuStrip1->TabIndex = 5;
+			this->menuStrip1->Text = L"menuStrip1";
+			// 
+			// monitoringToolStripMenuItem
+			// 
+			this->monitoringToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
+				this->startToolStripMenuItem,
+					this->stopToolStripMenuItem
+			});
+			this->monitoringToolStripMenuItem->Name = L"monitoringToolStripMenuItem";
+			this->monitoringToolStripMenuItem->Size = System::Drawing::Size(155, 36);
+			this->monitoringToolStripMenuItem->Text = L"Monitoring";
+			// 
+			// startToolStripMenuItem
+			// 
+			this->startToolStripMenuItem->Name = L"startToolStripMenuItem";
+			this->startToolStripMenuItem->Size = System::Drawing::Size(198, 44);
+			this->startToolStripMenuItem->Text = L"Start";
+			this->startToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::startToolStripMenuItem_Click);
+			// 
+			// stopToolStripMenuItem
+			// 
+			this->stopToolStripMenuItem->Name = L"stopToolStripMenuItem";
+			this->stopToolStripMenuItem->Size = System::Drawing::Size(198, 44);
+			this->stopToolStripMenuItem->Text = L"Stop";
+			this->stopToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::stopToolStripMenuItem_Click);
+			// 
+			// volatilityexeToolStripMenuItem
+			// 
+			this->volatilityexeToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(1) { this->browserawToolStripMenuItem });
+			this->volatilityexeToolStripMenuItem->Name = L"volatilityexeToolStripMenuItem";
+			this->volatilityexeToolStripMenuItem->Size = System::Drawing::Size(128, 36);
+			this->volatilityexeToolStripMenuItem->Text = L"Volatility";
+			// 
+			// browserawToolStripMenuItem
+			// 
+			this->browserawToolStripMenuItem->Name = L"browserawToolStripMenuItem";
+			this->browserawToolStripMenuItem->Size = System::Drawing::Size(277, 44);
+			this->browserawToolStripMenuItem->Text = L"Browse .raw";
+			this->browserawToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::browserawToolStripMenuItem_Click);
+			// 
+			// openFileDialog1
+			// 
+			this->openFileDialog1->FileName = L"openFileDialog1";
+			// 
+			// api_list
+			// 
+			this->api_list->Anchor = static_cast<System::Windows::Forms::AnchorStyles>((((System::Windows::Forms::AnchorStyles::Top | System::Windows::Forms::AnchorStyles::Bottom)
+				| System::Windows::Forms::AnchorStyles::Left)
+				| System::Windows::Forms::AnchorStyles::Right));
+			this->api_list->Columns->AddRange(gcnew cli::array< System::Windows::Forms::ColumnHeader^  >(4) {
+				this->caller_pid, this->addr,
+					this->size, this->api_name
+			});
+			this->api_list->GridLines = true;
+			this->api_list->HideSelection = false;
+			this->api_list->Location = System::Drawing::Point(487, 113);
+			this->api_list->Name = L"api_list";
+			this->api_list->Size = System::Drawing::Size(771, 325);
+			this->api_list->TabIndex = 7;
+			this->api_list->UseCompatibleStateImageBehavior = false;
+			this->api_list->View = System::Windows::Forms::View::Details;
+			// 
+			// caller_pid
+			// 
+			this->caller_pid->Text = L"Caller\'s PID";
+			this->caller_pid->Width = 80;
+			// 
+			// addr
+			// 
+			this->addr->Text = L"address";
+			this->addr->Width = 120;
+			// 
+			// size
+			// 
+			this->size->Text = L"size";
+			this->size->Width = 58;
+			// 
+			// api_name
+			// 
+			this->api_name->Text = L"Windows API";
+			this->api_name->Width = 150;
+			// 
+			// detected
+			// 
+			this->detected->Anchor = static_cast<System::Windows::Forms::AnchorStyles>((((System::Windows::Forms::AnchorStyles::Top | System::Windows::Forms::AnchorStyles::Bottom)
+				| System::Windows::Forms::AnchorStyles::Left)
+				| System::Windows::Forms::AnchorStyles::Right));
+			this->detected->Columns->AddRange(gcnew cli::array< System::Windows::Forms::ColumnHeader^  >(3) {
+				this->callee_pid, this->attack_num,
+					this->timestamp
+			});
+			this->detected->Font = (gcnew System::Drawing::Font(L"±¼¸²", 9, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(129)));
+			this->detected->HideSelection = false;
+			this->detected->Location = System::Drawing::Point(13, 57);
+			this->detected->Name = L"detected";
+			this->detected->Size = System::Drawing::Size(451, 381);
+			this->detected->TabIndex = 8;
+			this->detected->UseCompatibleStateImageBehavior = false;
+			this->detected->View = System::Windows::Forms::View::Details;
+			this->detected->SelectedIndexChanged += gcnew System::EventHandler(this, &Form1::detected_SelectedIndexChanged);
+			// 
+			// callee_pid
+			// 
+			this->callee_pid->Text = L"PID";
+			this->callee_pid->Width = 40;
+			// 
+			// attack_num
+			// 
+			this->attack_num->Text = L"attack#";
+			// 
+			// timestamp
+			// 
+			this->timestamp->Text = L"timestamp";
+			this->timestamp->Width = 140;
 			// 
 			// Form1
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(13, 24);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->ClientSize = System::Drawing::Size(1085, 904);
+			this->ClientSize = System::Drawing::Size(1270, 904);
+			this->Controls->Add(this->detected);
+			this->Controls->Add(this->api_list);
 			this->Controls->Add(this->targetPID);
 			this->Controls->Add(this->logBox);
-			this->Controls->Add(this->unhook);
-			this->Controls->Add(this->hookAndMonitoring);
+			this->Controls->Add(this->menuStrip1);
+			this->MainMenuStrip = this->menuStrip1;
 			this->Name = L"Form1";
 			this->Text = L"FAST-Monitor";
+			this->Load += gcnew System::EventHandler(this, &Form1::Form1_Load);
+			this->menuStrip1->ResumeLayout(false);
+			this->menuStrip1->PerformLayout();
 			this->ResumeLayout(false);
 			this->PerformLayout();
 
 		}
 #pragma endregion
 
-	private: System::Void hookAndMonitoring_Click(System::Object^ sender, System::EventArgs^ e) {
-		this->logBox->AppendText("Hook DLLs!\r\n\r\n");
-		mon(0);
-
-	}
-
-	private: System::Void unhook_Click(System::Object^ sender, System::EventArgs^ e) {
-		this->logBox->AppendText("Unhook DLLs!\r\n\r\n");
-		mon(1);
-
-	}
-
-	public: Void logging(String^ text) {
+	public: Void logging(std::string buf) {
+		String^ text = gcnew String(buf.c_str());
 		String^ pid = (String^)(text->Split(' '))[0];
-		if(this->targetPID->Items->Contains(pid) != true)
+		if (this->targetPID->Items->Contains(pid) != true)
 			this->targetPID->Items->Add(pid);
 		this->logBox->AppendText(text);
+
 	}
 
 
-	private: System::Void AttackOpt_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
-		
+	public: Void show_detection(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR>> v) {
+
+		System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(callee_pid.c_str()));
+		item->SubItems->Add(gcnew String(std::get<3>(v[0]).ToString()));
+		System::DateTime^ dt = gcnew System::DateTime();
+		item->SubItems->Add(dt->Now.ToString("yyyy-MM-dd-HH-mm-ss"));
+
+		this->detected->Items->Add(item);
+
+		//###################
+
+		decectionInfo.push_back(v);
 	}
+
+
 	private: System::Void targetPID_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
 
 		if (this->targetPID->SelectedIndex > -1) {
@@ -179,6 +345,131 @@ namespace CppCLRWinformsProjekt {
 		}
 
 	}
+	private: System::Void Form1_Load(System::Object^ sender, System::EventArgs^ e) {
+	}
+	private: System::Void startToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+		this->logBox->AppendText("Hook DLLs!\r\n\r\n");
+		mon(0);
+	}
+	private: System::Void stopToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+		this->logBox->AppendText("Unhook DLLs!\r\n\r\n");
+		mon(1);
+	}
+	private: System::Void browserawToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+
+		System::Windows::Forms::DialogResult dr = this->openFileDialog1->ShowDialog();
+
+		if (System::Windows::Forms::DialogResult::OK == dr) {
+			char* path = (char*)(void*)Marshal::StringToHGlobalAnsi(this->openFileDialog1->FileName);
+			vol(path);
+			Marshal::FreeHGlobal((System::IntPtr)path);
+		}
+	}
+
+
+	private: System::Void detected_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
+
+		this->api_list->Items->Clear();
+
+		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>> v = decectionInfo.at(this->detected->FocusedItem->Index);
+
+
+
+		if (std::get<3>(v[0]) & FLAG_VirtualAllocEx)
+			listing_VirtualAllocEx(v);
+
+		if (std::get<3>(v[0]) & FLAG_NtMapViewOfSection)
+			listing_NtMapViewOfSection(v);
+
+		if (std::get<3>(v[0]) & FLAG_VirtualProtectEx)
+			listing_VirtualProtectEx(v);
+
+		if (std::get<3>(v[0]) & FLAG_CreateRemoteThread)
+			listing_CreateRemoteThread(v);
+
+		if (std::get<3>(v[0]) & FLAG_SetWindowLongPtrA)
+			listing_SetWindowLongPtr(v);
+
+		if (std::get<3>(v[0]) & FLAG_SetPropA)
+			listing_SetPropA(v);
+
+		if (std::get<3>(v[0]) & FLAG_SetThreadContext)
+			;
+
+		if (std::get<3>(v[0]) & FLAG_NtQueueApcThread)
+			;
+	}
+
+	private: Void listing_VirtualAllocEx(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>> v) {
+
+
+		System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(std::get<2>(v[0]).c_str()));
+		item->SubItems->Add(System::Convert::ToString((long long)std::get<0>(v[0]), 16));
+		item->SubItems->Add(gcnew String(std::get<1>(v[0]).ToString()));
+		item->SubItems->Add(gcnew String("VirtualAllocEx"));
+		this->api_list->Items->Add(item);
+
+	}
+
+	private: Void listing_NtMapViewOfSection(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>> v) {
+
+
+		System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(std::get<2>(v[0]).c_str()));
+		item->SubItems->Add(System::Convert::ToString((long long)std::get<0>(v[0]), 16));
+		item->SubItems->Add(gcnew String(std::get<1>(v[0]).ToString()));
+		item->SubItems->Add(gcnew String("NtMapViewOfSection"));
+		this->api_list->Items->Add(item);
+
+	}
+
+	private: Void listing_VirtualProtectEx(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>> v) {
+
+
+		System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(std::get<2>(v[0]).c_str()));
+		item->SubItems->Add(System::Convert::ToString((long long)std::get<0>(v[0]), 16));
+		item->SubItems->Add(gcnew String(std::get<1>(v[0]).ToString()));
+		item->SubItems->Add(gcnew String("VirtualProtectEx"));
+		this->api_list->Items->Add(item);
+
+	}
+
+	private: Void listing_CreateRemoteThread(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>> v) {
+		for (auto tp : v) {
+			if (std::get<3>(tp) == FLAG_CreateRemoteThread) {
+				System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(std::get<2>(tp).c_str()));
+				item->SubItems->Add(System::Convert::ToString((long long)std::get<0>(tp), 16));
+				item->SubItems->Add(gcnew String(""));
+				item->SubItems->Add(gcnew String("CreateRemoteThread"));
+				this->api_list->Items->Add(item);
+			}
+		}
+	}
+
+	private: Void listing_SetWindowLongPtr(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>> v) {
+		for (auto tp : v) {
+			if (std::get<3>(tp) == FLAG_SetWindowLongPtrA) {
+				System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(std::get<2>(tp).c_str()));
+				item->SubItems->Add(System::Convert::ToString((long long)std::get<0>(tp), 16));
+				item->SubItems->Add(gcnew String(""));
+				item->SubItems->Add(gcnew String("SetWindowLongPtr"));
+				this->api_list->Items->Add(item);
+			}
+		}
+	}
+
+	private: Void listing_SetPropA(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>> v) {
+		for (auto tp : v) {
+			if (std::get<3>(tp) == FLAG_SetPropA) {
+				System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(std::get<2>(tp).c_str()));
+				item->SubItems->Add(System::Convert::ToString((long long)std::get<0>(tp), 16));
+				item->SubItems->Add(gcnew String(""));
+				item->SubItems->Add(gcnew String("SetPropA"));
+				this->api_list->Items->Add(item);
+			}
+		}
+	}
+
+
 	};
 
 }

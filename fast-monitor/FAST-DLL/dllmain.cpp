@@ -37,6 +37,7 @@ static LPTHREAD_START_ROUTINE  CallSetThreadContext = NULL;
 static LPTHREAD_START_ROUTINE  CallNtQueueApcThread = NULL;
 static LPTHREAD_START_ROUTINE  CallSetWindowLongPtrA = NULL;
 static LPTHREAD_START_ROUTINE  CallSetPropA = NULL;
+static LPTHREAD_START_ROUTINE CallVirtualProtectEx = NULL;
 static LPTHREAD_START_ROUTINE  CallSleepEx = NULL;
 
 //#####################################
@@ -186,50 +187,35 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	ULONG Win32Protect
 )
 {
-
-	//printf("NtMapViewOfSection is HOOKED!\n");
-	//printf("protect : %p\n", Win32Protect);
-	if ((Win32Protect == PAGE_EXECUTE_READWRITE)) {
+	
 		memset(dllMMF, 0, MSG_SIZE);
-
-		NTSTATUS res = (*TrueNtMapViewOfSection)(
-			SectionHandle,
-			ProcessHandle,
-			BaseAddress,
-			ZeroBits,
-			CommitSize,
-			SectionOffset,
-			ViewSize,
-			InheritDisposition,
-			AllocationType,
-			Win32Protect);
-
-		HANDLE hThread = NULL;
 		char buf[MSG_SIZE] = "";
+		HANDLE hMonThread = NULL;
 
-		HANDLE newhP = NULL;
-		if (!(GetProcessId(ProcessHandle)))
-		{
 
-			//printf("GetProcessId(%ld) failed!!! [%ld]\n", GetProcessId(ProcessHandle), GetLastError());
+		if (Win32Protect == (PAGE_EXECUTE_READWRITE )) {
 
+			NTSTATUS res = (*TrueNtMapViewOfSection)(
+				SectionHandle,
+				ProcessHandle,
+				BaseAddress,
+				ZeroBits,
+				CommitSize,
+				SectionOffset,
+				ViewSize,
+				InheritDisposition,
+				AllocationType,
+				Win32Protect);
+
+			//GetProcessId(ProcessHandle) failed.
+			sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallNtMapViewOfSection:IPC Successful!", GetCurrentProcessId(), GetProcessId(ProcessHandle), (DWORD64)BaseAddress, (DWORD)CommitSize, Win32Protect);
+			memcpy(dllMMF, buf, strlen(buf));
+			hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallNtMapViewOfSection, monMMF, 0, NULL);
+			WaitForSingleObject(hMonThread, INFINITE);
+			CloseHandle(hMonThread);
+			printf("%s\n", (char*)dllMMF);
+			return res;
 		}
-		//sprintf_s(buf, "%lu:%016x:%08x:CallNtMapViewOfSection:IPC Successful!", GetProcessId(ProcessHandle), (LPVOID)(*BaseAddress), CommitSize);
-		sprintf_s(buf, "%lu:%p:%016llx:CallNtMapViewOfSection:IPC Successful!", GetCurrentProcessId(), (LPVOID)(*BaseAddress), CommitSize);
-		memcpy(dllMMF, buf, strlen(buf));
-		hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtMapViewOfSection, monMMF, 0, NULL);
-		WaitForSingleObject(hThread, INFINITE);
-		CloseHandle(hThread);
-		printf("%s\n", (char*)dllMMF); //####
-		//check_remote = TRUE;
-
-		//if (strncmp((char*)dllMMF, "DROP", 4) == 0) {
-		//	printf("So Dangerous\n");
-		//	return FALSE;
-		//}
-
-		return res;
-	}
 	else
 		return (*TrueNtMapViewOfSection)(
 			SectionHandle,
@@ -332,26 +318,8 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	HANDLE hMonThread = NULL;
 
 
-	if (flProtect == PAGE_EXECUTE_READWRITE
-	 || flProtect == PAGE_EXECUTE_WRITECOPY
-	 || flProtect == PAGE_READWRITE) {
-		/*if (flAllocationType == (MEM_RESERVE | MEM_COMMIT) && flProtect == PAGE_EXECUTE_READWRITE) {
-			if (isDetectedRWXPageWhenInitializing) {
-				char pid_msg[20];
-				LPCSTR msgs[] = {
-						"Non-initial RWX Page Detected.",
-						(LPCSTR)pid_msg
-				};
-				sprintf_s(pid_msg, "PID=%d", GetCurrentProcessId());
 
-				pDbgPrint("************* NON-INITIAL PAGE_EXECUTE_READWRITE DETECTED! *************\n");
-
-				ReportEventA(eventLog, EVENTLOG_SUCCESS, 0, 5678, NULL, 2, 0, msgs, NULL);
-				strcat_s(buf, "\n     FAST-DLL:IPC:Non-initial RWX Page Detected.     ");
-			}
-			else {
-				isDetectedRWXPageWhenInitializing = true;
-			}*/
+	if (flProtect == (PAGE_EXECUTE_READWRITE)) {
 
 		LPVOID ret = pVirtualAllocEx(
 			hProcess,
@@ -362,7 +330,6 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 		);
 
 		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize, flProtect);
-		//sprintf_s(buf, "%lu:%016x:%08x:CallVirtualAllocEx:IPC Successful!", GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
 		WaitForSingleObject(hMonThread, INFINITE);
@@ -559,7 +526,8 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	char buf[MSG_SIZE] = "";
 	HANDLE hT= NULL;
 
-	sprintf_s(buf, "%lu:%016llx:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), lpContext->Rip);
+	//GetProcessIdOfThread(hThread) failed.
+	sprintf_s(buf, "%lu:%lu:%016llx:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), GetProcessIdOfThread(hThread), lpContext->Rip);
 	memcpy(dllMMF, buf, strlen(buf));
 	hT = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetThreadContext, monMMF, 0, NULL);
 	WaitForSingleObject(hT, INFINITE);
@@ -624,10 +592,7 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 
 	CloseHandle(hProcess);
 
-	//DWORD64 target = *(DWORD64*)(*(DWORD64*)dwNewLong);
 	printf("%016llx\n", dwNewLong);
-
-	//sprintf_s(buf, "%lu:%016x:CallSetWindowLongPtrA:IPC Successful!     ", GetWindowThreadProcessId(hWnd, NULL), dwNewLong);
 	sprintf_s(buf, "%lu:%lu:%016llx:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), dwpid, p2);
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetWindowLongPtrA, monMMF, 0, NULL);
@@ -685,7 +650,7 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 	}
 
 
-	sprintf_s(buf, "%lu:%016llx:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), ptr);
+	sprintf_s(buf, "%lu:%lu:%016llx:CallSetPropA:IPC Successful!", GetCurrentProcessId(),dwpid, ptr);
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetPropA, monMMF, 0, NULL);
 	WaitForSingleObject(hThread, INFINITE);
@@ -708,10 +673,45 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 
 }
 
+//#####################################
+
+static BOOL(WINAPI* TrueVirtualProtectEx)(
+	HANDLE hProcess,
+	LPVOID lpAddress,
+	SIZE_T dwSize,
+	DWORD  flNewProtect,
+	PDWORD lpflOldProtect
+	) = VirtualProtectEx;
+
+DLLBASIC_API BOOL WINAPI  MyVirtualProtectEx(
+HANDLE hProcess,
+LPVOID lpAddress,
+SIZE_T dwSize,
+DWORD  flNewProtect,
+PDWORD lpflOldProtect)
+{
+	memset(dllMMF, 0, MSG_SIZE);
+	char buf[MSG_SIZE] = "";
+	HANDLE hMonThread = NULL;
 
 
+	if ( flNewProtect == (PAGE_EXECUTE_READWRITE ) ) {
 
+		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:MyVirtualProtectEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpAddress, (DWORD)dwSize, flNewProtect);
+		memcpy(dllMMF, buf, strlen(buf));
+		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualProtectEx, monMMF, 0, NULL);
+		WaitForSingleObject(hMonThread, INFINITE);
+		CloseHandle(hMonThread);
+		printf("%s\n", (char*)dllMMF);
+	}
 
+	return TrueVirtualProtectEx(
+		hProcess,
+		lpAddress,
+		dwSize,
+		flNewProtect,
+		lpflOldProtect);
+}
 //#####################################
 
 static LONG dwSlept = 0;
@@ -847,7 +847,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		CallNtQueueApcThread = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 8 * sizeof(DWORD64)));
 		CallSetWindowLongPtrA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 9 * sizeof(DWORD64)));
 		CallSetPropA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 10 * sizeof(DWORD64)));
-		CallSleepEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 11 * sizeof(DWORD64)));
+		CallVirtualProtectEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 11 * sizeof(DWORD64)));
+		CallSleepEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 12 * sizeof(DWORD64)));
 
 		//printf("%llu\n", *(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
 
@@ -873,6 +874,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourAttach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
 		DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
 		DetourAttach(&(PVOID&)TrueSetPropA, MySetPropA);
+		DetourAttach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);
 		//DetourAttach(&(PVOID&)TrueSleepEx, TimedSleepEx);
 
 		DetourTransactionCommit();
@@ -908,6 +910,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourDetach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
 		DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
 		DetourDetach(&(PVOID&)TrueSetPropA, MySetPropA);
+		DetourDetach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);
 		//DetourDetach(&(PVOID&)TrueSleepEx, TimedSleepEx);
 		DetourTransactionCommit();
 

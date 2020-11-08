@@ -1,5 +1,53 @@
 #include "call_api.h"
 
+
+
+void exDumpIt() {
+
+	BOOL bShellExecute = FALSE;
+	SHELLEXECUTEINFO stShellInfo = { sizeof(SHELLEXECUTEINFO) };
+	stShellInfo.lpVerb = TEXT("runas");
+	stShellInfo.lpFile = TEXT("DumpIt.exe");
+	stShellInfo.nShow = SW_SHOWNORMAL;
+	bShellExecute = ShellExecuteEx(&stShellInfo);
+	if (!bShellExecute)
+		MessageBoxA(NULL, "Executing DumpIt.exe Failed!", "DumpIt.exe Failed.!", MB_OK | MB_ICONQUESTION);
+
+	WaitForSingleObject(stShellInfo.hProcess, INFINITE);
+}
+
+void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags ) {
+	std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >> v = { std::make_tuple(ret, dwSize, caller_pid, flags) };
+	auto rwxItem = rwxList.find(callee_pid);
+	if (rwxItem != rwxList.end()) {
+		rwxItem->second.push_back(v);
+	}
+	else {
+		std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>> ls = {v };
+		rwxList.insert(std::make_pair(callee_pid, ls));
+	}
+}
+
+BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags) {
+	auto item = rwxList.find(callee_pid);
+	if (item != rwxList.end()) {
+
+		for (auto i : item->second) {
+			if (std::get<0>(i[0]) <= target && (std::get<0>(i[0]) + (DWORD64)(std::get<1>(i[0])) > target)) {
+				std::tuple<DWORD64, DWORD, std::string, UCHAR > tp = { std::make_tuple(target, dwSize, caller_pid, flags) };
+				i.push_back(tp);
+				std::get<3>(i[0]) |= flags;
+				Form1^ form = (Form1^)Application::OpenForms[0];
+				form->show_detection(callee_pid, i);
+				return TRUE;
+			}
+
+		}
+	}
+
+	return FALSE;
+}
+
 // Reference: https://stackoverflow.com/questions/3828835/how-can-we-check-if-a-file-exists-or-not-using-win32-program
 int fileExists(TCHAR* file)
 {
@@ -14,7 +62,7 @@ int fileExists(TCHAR* file)
 	return found;
 }
 
-void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>>& list)
+void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list)
 {
 	if (list.find(std::to_string(pid)) == list.end()) {
 		MessageBoxA(NULL, "Cannot dump memory region...", "Error", MB_OK | MB_ICONERROR);
@@ -22,10 +70,10 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 	}
 
 	auto recentAlloc = list[std::to_string(pid)].back();
-	DWORD recentWrittenBufferSize = recentAlloc.second;
-	LPVOID recentWrittenBaseAddress = (LPVOID)(recentAlloc.first);
-	FILE *f;
-	char *buf, filenameWithBaseAddr[261];
+	DWORD recentWrittenBufferSize = std::get<1>(recentAlloc[0]);
+	LPVOID recentWrittenBaseAddress = (LPVOID)(std::get<0>(recentAlloc[0]));
+	FILE* f;
+	char* buf, filenameWithBaseAddr[261];
 	SIZE_T buflen;
 	HANDLE hProcess;
 
@@ -42,7 +90,7 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 		while (1) {
 			if (i == 0) sprintf_s(filenameWithBaseAddr, "%s_%p.bin", filename, recentWrittenBaseAddress);
 			else sprintf_s(filenameWithBaseAddr, "%s_%p_%d.bin", filename, recentWrittenBaseAddress, i);
-			
+
 			if (!fileExists(filenameWithBaseAddr)) {
 				break;
 			}
@@ -97,57 +145,18 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
-	form->logging(gcnew System::String(caller_pid.c_str()));
-	form->logging(gcnew System::String(" : "));
-	form->logging(gcnew System::String(callee_pid.c_str()));
-	form->logging(gcnew System::String(" : VirtualAlloc"));
+	form->logging(caller_pid+" : "+ callee_pid+ " : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
 
-	switch (protect) {
 
-	case PAGE_EXECUTE_READWRITE:
-		form->logging(gcnew System::String(" -> Protection : PAGE_EXECUTE_READWRITE"));
-	case PAGE_EXECUTE_WRITECOPY:
-		form->logging(gcnew System::String(" + WRITECOPY"));
-
-		{ // code block - RWX list
-			auto rwxItem = rwxList.find(callee_pid);
-			if (rwxItem != rwxList.end()) {
-				rwxItem->second.push_back(std::make_pair(ret, dwSize));
-			}
-			else {
-				std::vector<std::pair<DWORD64, DWORD >> ls = { std::make_pair(ret, dwSize) };
-				rwxList.insert(std::make_pair(callee_pid, ls));
-			}
-		}
-		
-		form->logging(gcnew System::String("\r\n"));
-		break;
-
-	case PAGE_READWRITE:
-		form->logging(gcnew System::String(" -> Protection : PAGE_READWRITE"));
-
-		{ // code block - RW list
-			auto rwItem = rwList.find(callee_pid);
-			if (rwItem != rwList.end()) {
-				rwItem->second.push_back(std::make_pair(ret, dwSize));
-			}
-			else {
-				std::vector<std::pair<DWORD64, DWORD >> ls = { std::make_pair(ret, dwSize) };
-				rwList.insert(std::make_pair(callee_pid, ls));
-			}
-		}
-
-		form->logging(gcnew System::String("\r\n"));
-		break;
-	}
+	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx );
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
-	sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualAllocEx:Response Sended!", caller_pid.c_str(), ret, dwSize);
+	sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualAllocEx:Response Sended!", callee_pid.c_str(), ret, dwSize);
 	memcpy(monMMF, buf, strlen(buf));
 }
 
@@ -158,7 +167,7 @@ void CallQueueUserAPC(LPVOID monMMF) {
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
 
-	//form->logging(gcnew System::String(cp));
+
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
 
@@ -176,7 +185,7 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
 
-	//form->logging(gcnew System::String(cp));
+
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
 
@@ -200,9 +209,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
-	form->logging(gcnew System::String(caller_pid.c_str()));
-	form->logging(gcnew System::String(" : "));
-	form->logging(gcnew System::String(callee_pid.c_str()));
+
 
 	std::string addr(strtok_s(NULL, ":", &cp_context));
 	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
@@ -212,74 +219,59 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
-	
-	auto rwxItem = rwxList.find(callee_pid);
+
 
 	if (strncmp(addr.c_str(), "LoadLibraryA", 12) == 0) {
 		sprintf_s(buf, "%s:Detected:LoadLibraryA:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpParameter);
-		form->logging(gcnew System::String(" : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!"));
-		form->logging(gcnew System::String("\r\n"));
-		form->logging(gcnew System::String("\r\n"));
+		form->logging(caller_pid+" : "+ callee_pid +" : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n\r\n");
 		MessageBoxA(NULL, "CreateRemoteThread DLL Injection with LoadLibrary Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_LoadLibrary", rwList);
+		memcpy(monMMF, buf, strlen(buf));
+		return;
+	}
+	else if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_CreateRemoteThread)) {
+
+		sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
+
+		form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> Code Injection Detected! Addr:"+ addr+"\r\n\r\n");
+
+		if (MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+			exDumpIt();
+		}
+		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection", rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
 
-	else if (rwxItem != rwxList.end()) {
-
-		for (auto i : rwxItem->second) {
-			if (i.first <= lpStartAddress && (i.first + (DWORD64)i.second > lpStartAddress)) {
-				sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
-				form->logging(gcnew System::String(" : CreateRemoteThread -> Code Injection Detected! Addr: "));
-				form->logging(gcnew System::String(addr.c_str()));
-				form->logging(gcnew System::String("\r\n"));
-				form->logging(gcnew System::String("\r\n"));
-				MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-				memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection", rwxList);
-				memcpy(monMMF, buf, strlen(buf));
-				return;
-			}
-		}
-	}
-
-	sprintf_s(buf, "%s:%016llx:%016llx:CallCreateRemoteThread:Clean", caller_pid.c_str(), lpStartAddress, lpParameter);
+	sprintf_s(buf, "%s:%016llx:%016llx:CallCreateRemoteThread:Clean", callee_pid.c_str(), lpStartAddress, lpParameter);
 	memcpy(monMMF, buf, strlen(buf));
 
 }
 
 void CallNtMapViewOfSection(LPVOID monMMF) {
 
+
 	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
+
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-
-	std::string pid(strtok_s(cp, ":", &cp_context));
-
-	form->logging(gcnew System::String(pid.c_str()));
-	form->logging(gcnew System::String(" : NtMapViewOfSection -> Protection : PAGE_EXECUTE_READWRITE\r\n"));
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
 
-	DWORD64 BaseAddress = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	DWORD CommitSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	if (pFile != NULL) fprintf(pFile, "%llu\n", BaseAddress);
+	form->logging(caller_pid + " : " + callee_pid + " : NtMapViewOfSection ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
-	auto item = rwxList.find(pid);
-	if (item != rwxList.end()) {
-		item->second.push_back(std::make_pair(BaseAddress, CommitSize));
-	}
-	else {
-		std::vector<std::pair<DWORD64, DWORD >> ls = { std::make_pair(BaseAddress, CommitSize) };
-		rwxList.insert(std::make_pair(pid, ls));
-	}
+	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+
+	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_NtMapViewOfSection);
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
-	sprintf_s(buf, "%s:%016llx:%08lx:CallNtMapViewOfSection:Response Sended!", pid.c_str(), BaseAddress, CommitSize);
+	sprintf_s(buf, "%s:%016llx:%08lx:CallNtMapViewOfSection:Response Sended!", callee_pid.c_str(), ret, dwSize);
 	memcpy(monMMF, buf, strlen(buf));
 }
 
@@ -288,7 +280,7 @@ void CallCreateFileMappingA(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
+
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
 
@@ -305,7 +297,7 @@ void CallGetThreadContext(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
+
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
 
@@ -323,38 +315,31 @@ void CallSetThreadContext(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
+
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
 
-	std::string pid(strtok_s(cp, ":", &cp_context));
-
-
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
 	std::string addr(strtok_s(NULL, ":", &cp_context));
-	DWORD64 target = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+
+
+
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
-	auto item = rwxList.find(pid);
-	if (item != rwxList.end()) {
 
-		for (auto i : item->second) {
-			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", pid.c_str(), target);
-				form->logging(gcnew System::String(pid.c_str()));
-				form->logging(gcnew System::String(" : SetThreadContext -> Thread Hijacking Detected! Addr: "));
-				form->logging(gcnew System::String(addr.c_str()));
-				form->logging(gcnew System::String("\r\n"));
-				form->logging(gcnew System::String("\r\n"));
-				MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-				memcpy(monMMF, buf, strlen(buf));
-				return;
-			}
 
-		}
+	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext)) {
+		sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
+		form->logging(callee_pid+" : "+ caller_pid +" : SetThreadContext -> Thread Hijacking Detected! Addr: "+ addr+"\r\n\r\n");
+		MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+		memcpy(monMMF, buf, strlen(buf));
+		return;
 	}
 
-	sprintf_s(buf, "%s:%016llx:CallSetThreadContext:Clean", pid.c_str(), target);
+	sprintf_s(buf, "%s:%016llx:CallSetThreadContext:Clean", callee_pid.c_str(), lpStartAddress);
 	memcpy(monMMF, buf, strlen(buf));
 }
 
@@ -364,7 +349,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
+
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
@@ -375,40 +360,31 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 	memset(monMMF, 0, MSG_SIZE);
 
 	if (apc_routine.compare("GlobalGetAtomNameA") == 0) {
-		sprintf_s(buf, "%s:Detected:GlobalGetAtomNameA:CallNtQueueApcThread", caller_pid.c_str());
-		form->logging(gcnew System::String(caller_pid.c_str()));
-		form->logging(gcnew System::String(" : "));
-		form->logging(gcnew System::String(callee_pid.c_str()));
-		form->logging(gcnew System::String(" : NtQueueApcThread -> GlobalGetAtomNameA Detected!"));
-		form->logging(gcnew System::String(""));
-		form->logging(gcnew System::String("\r\n"));
+		sprintf_s(buf, "%s:Detected:GlobalGetAtomNameA:CallNtQueueApcThread", callee_pid.c_str());
+
+		form->logging(" : NtQueueApcThread -> GlobalGetAtomNameA Detected!\r\n");
+
 		//MessageBoxA(NULL, "NtQueueApcThread - GlobalGetAtomNameA Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 		//memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread_GlobalGetAtomNameA", rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
-	} else {
+	}
+	else {
 		DWORD64 target = (DWORD64)strtoll(apc_routine.c_str(), NULL, 16);
-		auto item = rwxList.find(callee_pid);
-		if (item != rwxList.end()) {
-			for (auto i : item->second) {
-				if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
-					sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", caller_pid.c_str(), target);
-					form->logging(gcnew System::String(caller_pid.c_str()));
-					form->logging(gcnew System::String(" : "));
-					form->logging(gcnew System::String(callee_pid.c_str()));
-					form->logging(gcnew System::String(" : NtQueueApcThread -> Code Injection Detected!"));
-					form->logging(gcnew System::String("\r\n"));
-					form->logging(gcnew System::String("\r\n"));
+		if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread )) {
+					sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
+
+					form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n\r\n");
+
 					MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 					memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
 					memcpy(monMMF, buf, strlen(buf));
 					return;
-				}
-			}
+			
 		}
 	}
 
-	sprintf_s(buf, "%s:%s:CallNtQueueApcThread:Clean", caller_pid.c_str(), apc_routine.c_str());
+	sprintf_s(buf, "%s:%s:CallNtQueueApcThread:Clean", callee_pid.c_str(), apc_routine.c_str());
 	memcpy(monMMF, buf, strlen(buf));
 }
 
@@ -418,38 +394,31 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
+
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
+
 
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
 	std::string addr(strtok_s(NULL, ":", &cp_context));
-	DWORD64 target = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
-	auto item = rwxList.find(callee_pid);
-	if (item != rwxList.end()) {
 
-		for (auto i : item->second) {
-			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", caller_pid.c_str(), target);
-				form->logging(gcnew System::String(caller_pid.c_str()));
-				form->logging(gcnew System::String(" : "));
-				form->logging(gcnew System::String(callee_pid.c_str()));
-				form->logging(gcnew System::String(" : SetWindowLongPtrA -> Code Injection Detected! Addr: "));
-				form->logging(gcnew System::String(addr.c_str()));
-				form->logging(gcnew System::String("\r\n"));
-				form->logging(gcnew System::String("\r\n"));
+
+	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA)) {
+				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
+				form->logging(caller_pid+" : "+ callee_pid +" : SetWindowLongPtrA -> Code Injection Detected! Addr: "+ addr +"\r\n\r\n");
 				MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 				memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
 				memcpy(monMMF, buf, strlen(buf));
 				return;
-			}
-		}
+			
 	}
 
-	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", caller_pid.c_str(), target);
+	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", callee_pid.c_str(), lpStartAddress);
 	memcpy(monMMF, buf, strlen(buf));
 
 }
@@ -461,40 +430,61 @@ void CallSetPropA(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
+
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
 
-	std::string pid(strtok_s(cp, ":", &cp_context));
-
-
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
 	std::string addr(strtok_s(NULL, ":", &cp_context));
-	DWORD64 target = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
-	auto item = rwxList.find(pid);
-	if (item != rwxList.end()) {
 
-		for (auto i : item->second) {
-			if (i.first <= target && (i.first + (DWORD64)i.second > target)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", pid.c_str(), target);
-				form->logging(gcnew System::String(pid.c_str()));
-				form->logging(gcnew System::String(" : SetPropA -> Code Injection Detected! Addr: "));
-				form->logging(gcnew System::String(addr.c_str()));
-				form->logging(gcnew System::String("\r\n"));
-				form->logging(gcnew System::String("\r\n"));
+
+
+	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA)) {
+				sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
+				form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n\r\n");
 				MessageBoxA(NULL, "CallSetPropA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 				memcpy(monMMF, buf, strlen(buf));
 				return;
-			}
-
-		}
 	}
 
-	sprintf_s(buf, "%s:%016llx:CallSetPropA:Clean", pid.c_str(), target);
+	sprintf_s(buf, "%s:%016llx:CallSetPropA:Clean", callee_pid.c_str(), lpStartAddress);
 	memcpy(monMMF, buf, strlen(buf));
 }
+
+void CallVirtualProtectEx(LPVOID monMMF) {
+
+	Form1^ form = (Form1^)Application::OpenForms[0];
+
+	char* cp = (char*)monMMF;
+	char* cp_context = NULL;
+
+	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
+
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+
+	form->logging(caller_pid + " : " + callee_pid + " : VirtualProtectEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
+
+	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+
+
+	insertList(callee_pid, ret, dwSize, caller_pid, (UCHAR)0b00000100);
+
+
+	memset(monMMF, 0, MSG_SIZE);
+	char buf[MSG_SIZE] = "";
+	sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualProtectEx:Response Sended!", callee_pid.c_str(), ret, dwSize);
+	memcpy(monMMF, buf, strlen(buf));
+}
+
 
 void CallSleepEx(LPVOID monMMF) {
 
@@ -502,7 +492,7 @@ void CallSleepEx(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
+
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
 
