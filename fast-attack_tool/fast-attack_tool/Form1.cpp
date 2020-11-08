@@ -27,7 +27,7 @@ void init() {
 	if (fp == NULL) {
 
 	}
-	
+
 	fseek(fp, 0L, SEEK_END);
 	dwLength = ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
@@ -97,30 +97,39 @@ void attack(unsigned int pid, unsigned int tid, int method, int payload_type)
 		form->set_status("Choose the Attack Option.");
 		return;
 	}
-	else if (method != 5 && method != 7 && pid == 0) {
-
+	else if (pid == 0) {
 		STARTUPINFO suinfo = { 0 };
 		suinfo.cb = sizeof(STARTUPINFO);
 		PROCESS_INFORMATION procinfo;
 
-		CreateProcess(NULL, "TestProcess.exe", NULL, NULL, FALSE, 0, NULL, NULL, &suinfo, &procinfo);
+		if (method == 4 || method == 3) {
+			form->set_status("Executing notepad.exe.");
+
+			CreateProcess(NULL, "C:\\Windows\\System32\\notepad.exe", NULL, NULL, FALSE, 0, NULL, NULL, &suinfo, &procinfo);
+
+			Sleep(200);
+
+		}
+		else if (method != 5 && method != 7) {
+
+			form->set_status("Executing TestProcess.exe.");
+
+			CreateProcess(NULL, "TestProcess.exe", NULL, NULL, FALSE, 0, NULL, NULL, &suinfo, &procinfo);
+
+			Sleep(100);
+		}
 
 		pid = procinfo.dwProcessId;
 		tid = procinfo.dwThreadId;
-
-		form->set_status("Executing TestProcess.exe.");
-
-		
-		Sleep(200);
 	}
 	else {
 		form->set_status("");
 	}
 
-	hProcess = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION 
+	hProcess = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION
 		| PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, pid);
 	if (hProcess == NULL) {
-		
+
 	}
 
 
@@ -155,6 +164,9 @@ void attack(unsigned int pid, unsigned int tid, int method, int payload_type)
 		break;
 	case 7:
 		LoadRemoteLibraryR7(payload_type);
+		break;
+	case 8:
+		LoadRemoteLibraryR8(payload_type, hProcess);
 		break;
 	default:
 		break;

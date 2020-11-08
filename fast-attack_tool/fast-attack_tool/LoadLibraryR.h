@@ -17,6 +17,8 @@ typedef enum _SECTION_INHERIT {
 
 DWORD GetReflectiveLoaderOffset(VOID* lpReflectiveDllBuffer, const char* exportedFuncName);
 
+
+
 void WINAPI LoadRemoteLibraryR(int payload_type, HANDLE hProcess);
 
 void WINAPI LoadRemoteLibraryR2(int payload_type, HANDLE hProcess);
@@ -30,6 +32,8 @@ void WINAPI LoadRemoteLibraryR5(int payload_type);
 void WINAPI LoadRemoteLibraryR6(int payload_type, HANDLE hProcess);
 
 void WINAPI LoadRemoteLibraryR7(int payload_type);
+
+void WINAPI LoadRemoteLibraryR8(int payload_type, HANDLE hProcess);
 
 // Generating Payload.
 void* memmem(const void* haystack, size_t haystack_len, const void* const needle, const size_t needle_len);

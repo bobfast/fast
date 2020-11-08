@@ -3,11 +3,14 @@
 using namespace CppCLRWinformsProjekt;
 #define MSG_SIZE 256
 
-static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList;
+static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>>>> rwxList;
 extern FILE* pFile;
 
+void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags);
+BOOL checkList(std::string pid, DWORD64 target ,  DWORD dwSize, std::string caller_pid, UCHAR flags);
+
 int fileExists(TCHAR* file);
-void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>>& list);
+void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list);
 
 
 
@@ -27,6 +30,7 @@ void CallSetThreadContext(LPVOID monMMF);
 void CallNtQueueApcThread(LPVOID monMMF);
 void CallSetWindowLongPtrA(LPVOID monMMF);
 void CallSetPropA(LPVOID monMMF);
+void CallVirtualProtectEx(LPVOID monMMF);
 void CallSleepEx(LPVOID monMMF);
 
 //######################################################
