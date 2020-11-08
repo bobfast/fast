@@ -72,10 +72,10 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 	auto recentAlloc = list[std::to_string(pid)].back();
 	DWORD recentWrittenBufferSize = std::get<1>(recentAlloc[0]);
 	LPVOID recentWrittenBaseAddress = (LPVOID)(std::get<0>(recentAlloc[0]));
-	FILE* f;
-	char* buf, filenameWithBaseAddr[261];
-	SIZE_T buflen;
-	HANDLE hProcess;
+	FILE* f = NULL;
+	char* buf = NULL, filenameWithBaseAddr[261] = "";
+	SIZE_T buflen = 0;
+	HANDLE hProcess = NULL;
 
 	do {
 		buf = new char[recentWrittenBufferSize];
@@ -151,7 +151,6 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
 
-
 	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx );
 
 	memset(monMMF, 0, MSG_SIZE);
@@ -215,16 +214,35 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
 	DWORD64 lpParameter = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 
-
-
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
 
 	if (strncmp(addr.c_str(), "LoadLibraryA", 12) == 0) {
 		sprintf_s(buf, "%s:Detected:LoadLibraryA:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpParameter);
-		form->logging(caller_pid+" : "+ callee_pid +" : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n\r\n");
-		MessageBoxA(NULL, "CreateRemoteThread DLL Injection with LoadLibrary Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+		do {
+			char buf[256] = "", messagePrint[356] = "";
+			SIZE_T buflen = 0;
+
+			HANDLE hTargetProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, std::stoi(callee_pid));
+			if (!hTargetProcess) {
+				printf("Error: failed to open target process.\n");
+				break;
+			}
+
+			if (!ReadProcessMemory(hTargetProcess, (LPCVOID)lpParameter, buf, 256, &buflen)) {
+				printf("Error: cannot read target process memory for dump.\n");
+				break;
+			}
+			
+			form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n");
+			form->logging("DLL File: " + std::string(buf) + "\r\n\r\n");
+			sprintf_s(messagePrint, "CreateRemoteThread DLL Injection with LoadLibrary Detected!\nDLL File: %s", buf);
+			MessageBoxA(NULL, messagePrint, "Detection Alert!", MB_OK | MB_ICONQUESTION);
+
+			break;
+		} while (1);
+
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
@@ -312,7 +330,7 @@ void CallGetThreadContext(LPVOID monMMF) {
 void CallSetThreadContext(LPVOID monMMF) {
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
-
+	
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
 
@@ -321,15 +339,11 @@ void CallSetThreadContext(LPVOID monMMF) {
 
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
-
 	std::string addr(strtok_s(NULL, ":", &cp_context));
 	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
 
-
-
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
-
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
