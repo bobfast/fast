@@ -235,7 +235,8 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 				break;
 			}
 			
-			form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n\r\n");
+			form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n");
+			form->logging("DLL File: " + std::string(buf) + "\r\n\r\n");
 			sprintf_s(messagePrint, "CreateRemoteThread DLL Injection with LoadLibrary Detected!\nDLL File: %s", buf);
 			MessageBoxA(NULL, messagePrint, "Detection Alert!", MB_OK | MB_ICONQUESTION);
 
