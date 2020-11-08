@@ -60,7 +60,6 @@ namespace CppCLRWinformsProjekt {
 		{
 			InitializeComponent();
 			init();
-			this->logBox->AppendText("Hook DLLs!\r\n\r\n");
 
 			//
 			//TODO: Konstruktorcode hier hinzuf?en.
