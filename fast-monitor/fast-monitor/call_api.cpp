@@ -72,7 +72,7 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 	auto recentAlloc = list[std::to_string(pid)].back();
 	DWORD recentWrittenBufferSize = std::get<1>(recentAlloc[0]);
 	LPVOID recentWrittenBaseAddress = (LPVOID)(std::get<0>(recentAlloc[0]));
-	FILE* f = NULL;
+	FILE* f = NULL, *disasm_f = NULL;
 	char* buf = NULL, filenameWithBaseAddr[261] = "";
 	SIZE_T buflen = 0;
 	HANDLE hProcess = NULL;
@@ -118,6 +118,47 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 
 		fwrite(buf, 1, buflen, f);
 
+		// capstone disassembling code
+		do {
+			csh handle;
+			cs_insn* insn;
+			size_t count;
+			std::string filename_disasm(filenameWithBaseAddr);
+
+			filename_disasm = filename_disasm + ".txt";
+			fopen_s(&disasm_f, filename_disasm.c_str(), "wt");
+
+			if (disasm_f == NULL) {
+				printf("Error: cannot create file (disasm).\n");
+				break;
+			}
+
+			if (cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK)
+			{
+				break;
+			}
+
+			count = cs_disasm(handle, (uint8_t*)buf, recentWrittenBufferSize - 1, 0x1000, 0, &insn);
+			if (count > 0) {
+				size_t j;
+				for (j = 0; j < count; j++) {
+					fprintf(disasm_f, "0x%" PRIx64 ":\t%s\t\t%s\n", insn[j].address, insn[j].mnemonic,
+						insn[j].op_str);
+				}
+
+				cs_free(insn, count);
+			}
+			else {
+				break;
+			}
+
+			cs_close(&handle);
+
+			break;
+		} while (1);
+
+		if (disasm_f != NULL) fclose(disasm_f);
+
 		break;
 	} while (1);
 
@@ -125,6 +166,7 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 	if (hProcess != NULL) CloseHandle(hProcess);
 	if (f != NULL) fclose(f);
 }
+
 
 
 
@@ -386,15 +428,14 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 	else {
 		DWORD64 target = (DWORD64)strtoll(apc_routine.c_str(), NULL, 16);
 		if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread )) {
-					sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
+			sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
 
-					form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n\r\n");
+			form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n\r\n");
 
-					MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-					memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
-					memcpy(monMMF, buf, strlen(buf));
-					return;
-			
+			MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+			memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
+			memcpy(monMMF, buf, strlen(buf));
+			return;
 		}
 	}
 
@@ -423,13 +464,12 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
-				form->logging(caller_pid+" : "+ callee_pid +" : SetWindowLongPtrA -> Code Injection Detected! Addr: "+ addr +"\r\n\r\n");
-				MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-				memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
-				memcpy(monMMF, buf, strlen(buf));
-				return;
-			
+		sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
+		form->logging(caller_pid+" : "+ callee_pid +" : SetWindowLongPtrA -> Code Injection Detected! Addr: "+ addr +"\r\n\r\n");
+		MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
+		memcpy(monMMF, buf, strlen(buf));
+		return;	
 	}
 
 	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", callee_pid.c_str(), lpStartAddress);
@@ -460,11 +500,11 @@ void CallSetPropA(LPVOID monMMF) {
 
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
-				form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n\r\n");
-				MessageBoxA(NULL, "CallSetPropA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-				memcpy(monMMF, buf, strlen(buf));
-				return;
+		sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
+		form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n\r\n");
+		MessageBoxA(NULL, "CallSetPropA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+		memcpy(monMMF, buf, strlen(buf));
+		return;
 	}
 
 	sprintf_s(buf, "%s:%016llx:CallSetPropA:Clean", callee_pid.c_str(), lpStartAddress);

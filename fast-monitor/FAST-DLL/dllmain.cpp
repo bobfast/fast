@@ -526,6 +526,8 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread= NULL;
 
+	DebugBreak();
+
 	//GetProcessIdOfThread(hThread) failed.
 	sprintf_s(buf, "%lu:%lu:%016llx:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rip);
 
@@ -543,10 +545,10 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 		printf("CallSetThreadContext : Thread Hijacking Attack Detected and Prevented!\n");
 		return NULL;
 	}
-	return (*TrueSetThreadContext)(
+	return TrueSetThreadContext(
 		hThread,
 		lpContext
-		);
+	);
 }
 
 

@@ -1,11 +1,15 @@
 #pragma once
 #include "Form1.h"
+#include <inttypes.h>
+#include <capstone/capstone/capstone.h>
+
 using namespace CppCLRWinformsProjekt;
 #define MSG_SIZE 256
 
 static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>>>> rwxList;
 extern FILE* pFile;
 
+void exDumpIt();
 void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags);
 BOOL checkList(std::string pid, DWORD64 target ,  DWORD dwSize, std::string caller_pid, UCHAR flags);
 
