@@ -62,7 +62,7 @@ int fileExists(TCHAR* file)
 	return found;
 }
 
-void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list)
+void memory_region_dump(DWORD pid, const char* filename, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list)
 {
 	if (list.find(std::to_string(pid)) == list.end()) {
 		MessageBoxA(NULL, "Cannot dump memory region...", "Error", MB_OK | MB_ICONERROR);
@@ -120,26 +120,36 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 
 		// capstone disassembling code
 		do {
-			csh handle;
+			if (entryPoint == NULL) break;
+
+			csh cshandle;
 			cs_insn* insn;
-			size_t count;
+			size_t entryoffset, count;
 			std::string filename_disasm(filenameWithBaseAddr);
 
 			filename_disasm = filename_disasm + ".txt";
 			fopen_s(&disasm_f, filename_disasm.c_str(), "wt");
 
 			if (disasm_f == NULL) {
-				printf("Error: cannot create file (disasm).\n");
+				// file cannot create -> disasm ignored
 				break;
 			}
 
-			if (cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK)
-			{
+			if (cs_open(CS_ARCH_X86, CS_MODE_64, &cshandle) != CS_ERR_OK) {
+				// capstone cannot open -> disasm ignored
 				break;
 			}
 
-			count = cs_disasm(handle, (uint8_t*)buf, recentWrittenBufferSize - 1, 0x1000, 0, &insn);
+			entryoffset = (size_t)((DWORD64)entryPoint - (DWORD64)recentWrittenBaseAddress);
+
+			if (entryoffset >= recentWrittenBufferSize) {
+				// not valid entryoffset -> disasm ignored
+				break;
+			}
+
+			count = cs_disasm(cshandle, (uint8_t*)buf + entryoffset, recentWrittenBufferSize - entryoffset - 1, (uint64_t)entryPoint, 0, &insn);
 			if (count > 0) {
+				// disassembling
 				size_t j;
 				for (j = 0; j < count; j++) {
 					fprintf(disasm_f, "0x%" PRIx64 ":\t%s\t\t%s\n", insn[j].address, insn[j].mnemonic,
@@ -149,10 +159,11 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 				cs_free(insn, count);
 			}
 			else {
+				// cannot disasm -> disasm ignored
 				break;
 			}
 
-			cs_close(&handle);
+			cs_close(&cshandle);
 
 			break;
 		} while (1);
@@ -297,7 +308,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 		if (MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
 			exDumpIt();
 		}
-		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection", rwxList);
+		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection", (LPVOID)lpStartAddress, rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
@@ -433,7 +444,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 			form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n\r\n");
 
 			MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-			memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
+			memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", (LPVOID)target, rwxList);
 			memcpy(monMMF, buf, strlen(buf));
 			return;
 		}
@@ -467,7 +478,7 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
 		form->logging(caller_pid+" : "+ callee_pid +" : SetWindowLongPtrA -> Code Injection Detected! Addr: "+ addr +"\r\n\r\n");
 		MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
+		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetWindowLongPtrA", (LPVOID)lpStartAddress, rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;	
 	}
@@ -503,6 +514,7 @@ void CallSetPropA(LPVOID monMMF) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
 		form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n\r\n");
 		MessageBoxA(NULL, "CallSetPropA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetPropA", (LPVOID)lpStartAddress, rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}

@@ -526,7 +526,7 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread= NULL;
 
-	DebugBreak();
+	//DebugBreak();
 
 	//GetProcessIdOfThread(hThread) failed.
 	sprintf_s(buf, "%lu:%lu:%016llx:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rip);
