@@ -2,34 +2,144 @@
 #include <iostream>
 #include <Windows.h>
 #include <wincrypt.h>
+#include <string.h>
+#include <Psapi.h>
+#include <tlhelp32.h>
 
 #define BYTES_TO_HASH 512
+#define MAX_PROCESS_NAME 512
+#define ESUCCESS	0
+#define ENOPROC		1
+#define ENONAME		2
 
 using namespace std;
 
 BOOL calcMD5(byte* data, LPSTR md5);
-char* md5List;
+DWORD64 GetModuleAddress(const char* moduleName, int pid);
+
 
 int main(int argc, char** argv) {
-	//int Buffer = 0;
-    char* Buffer;
 
-	HANDLE ImageBase;
 	PIMAGE_DOS_HEADER pDH = NULL;
 	PIMAGE_NT_HEADERS pNTH = NULL;
 	PIMAGE_FILE_HEADER pFH = NULL;
 	PIMAGE_SECTION_HEADER pSH = NULL;
+	HANDLE hProcessSnap;
 
-	if ((ImageBase = GetModuleHandle(NULL)) == NULL) {
-		printf("Could net get getmodulehandle\n");
+	int pid = atoi(argv[1]);
+
+	char filePath[256] = { 0, };
+	char fileName[256] = { 0, };
+
+	HANDLE hp = OpenProcess(PROCESS_ALL_ACCESS, 0, pid);
+	if (!hp) {
+		printf("FAILED OPENPROCESS\n");
+		return false;
 	}
-	else
-		//printf("OK GetModuleHandle\n");
-	
-	pDH = (PIMAGE_DOS_HEADER)ImageBase;
+	else {
+		GetModuleFileNameEx(hp, NULL, filePath, 256);
+		GetFileTitle(filePath, fileName, 256);
+	}
+
+	void* lpBaseAddress = (void*)GetModuleAddress(fileName, pid);
+
+
+	/// <summary>
+	/// Process PE (Memory)
+	/// </summary>
+	/// <param name="argc"></param>
+	/// <param name="argv"></param>
+	/// <returns></returns>
+
+	BYTE buf[700] = { 0, };
+	BYTE* textAddr = NULL;
+	int textSize;
+
+	if (ReadProcessMemory(hp, lpBaseAddress, &buf, sizeof(buf), NULL)) {
+		pDH = (PIMAGE_DOS_HEADER)buf;
+		if (pDH->e_magic != IMAGE_DOS_SIGNATURE) {
+			printf("Could not get IMAGE_DOS_HEADER\n");
+			CloseHandle(hp);
+			return false;
+		}
+		else
+			//printf("OK IMAGE_DOS_HEADER\n");
+
+		pNTH = (PIMAGE_NT_HEADERS)((PBYTE)pDH + pDH->e_lfanew);
+		if (pNTH->Signature != IMAGE_NT_SIGNATURE) {
+			printf("Could not get IMAGE_NT_HEADER\n");
+			CloseHandle(hp);
+			return false;
+		}
+		else
+			//printf("OK IMAGE_NT_HEADER\n");
+
+		pFH = &pNTH->FileHeader;
+		pSH = IMAGE_FIRST_SECTION(pNTH);
+
+		for (int i = 0; i < pFH->NumberOfSections; i++) {
+			if (!strcmp((char*)pSH->Name, ".text")) {
+				/*cout << "Section name:" << pSH->Name << endl;
+				cout << "             Virtual Size:" << pSH->Misc.VirtualSize << endl;
+				cout << "             Virtual address:" << pSH->VirtualAddress << endl;
+				cout << "             SizeofRawData:" << pSH->SizeOfRawData << endl;
+				cout << "             PointertoRelocations:" << pSH->PointerToRelocations << endl;
+				cout << "             Characteristics:" << pSH->Characteristics << endl;*/
+
+				textAddr = (BYTE*)lpBaseAddress + pSH->VirtualAddress;
+				textSize = pSH->Misc.VirtualSize;
+				break;
+			}
+			pSH++;
+		}
+	}
+	else {
+		printf("ReadProcessMemory error code : %d\n", GetLastError());
+		CloseHandle(hp);
+		return false;
+	}
+
+	/// <summary>
+	/// File PE (Disk)
+	/// </summary>
+	/// <param name="argc"></param>
+	/// <param name="argv"></param>
+	/// <returns></returns>
+	long lSize;
+	BYTE* buffer;
+	size_t result;
+	BYTE* ftextAddr = NULL;
+	int ftextSize;
+
+	FILE* pFile = fopen(filePath, "rb");
+	if (!pFile) {
+		printf("FAILED FILE OPEN : %s\n", filePath);
+		CloseHandle(hp);
+		exit(1);
+	}
+
+	fseek(pFile, 0, SEEK_END);
+	lSize = ftell(pFile);
+	rewind(pFile);
+
+	buffer = (BYTE*)malloc(sizeof(BYTE) * lSize);
+	if (buffer == NULL) {
+		fputs("Memory error", stderr);
+		exit(2);
+	}
+
+	result = fread(buffer, 1, lSize, pFile);
+	if (result != lSize) {
+		fputs("Reading error", stderr);
+		exit(3);
+	}
+
+	pDH = (PIMAGE_DOS_HEADER)buffer;
 	if (pDH->e_magic != IMAGE_DOS_SIGNATURE) {
 		printf("Could not get IMAGE_DOS_HEADER\n");
-		CloseHandle(ImageBase);
+		CloseHandle(hp);
+		fclose(pFile);
+		free(buffer);
 		return false;
 	}
 	else
@@ -38,7 +148,9 @@ int main(int argc, char** argv) {
 	pNTH = (PIMAGE_NT_HEADERS)((PBYTE)pDH + pDH->e_lfanew);
 	if (pNTH->Signature != IMAGE_NT_SIGNATURE) {
 		printf("Could not get IMAGE_NT_HEADER\n");
-		CloseHandle(ImageBase);
+		CloseHandle(hp);
+		fclose(pFile);
+		free(buffer);
 		return false;
 	}
 	else
@@ -46,8 +158,6 @@ int main(int argc, char** argv) {
 
 	pFH = &pNTH->FileHeader;
 	pSH = IMAGE_FIRST_SECTION(pNTH);
-	char md5[33];
-	BYTE buff[512];
 
 	for (int i = 0; i < pFH->NumberOfSections; i++) {
 		if (!strcmp((char*)pSH->Name, ".text")) {
@@ -58,30 +168,60 @@ int main(int argc, char** argv) {
 			cout << "             PointertoRelocations:" << pSH->PointerToRelocations << endl;
 			cout << "             Characteristics:" << pSH->Characteristics << endl;*/
 
-			md5List = (char*)malloc(sizeof(md5)*(((int)pSH->Misc.VirtualSize/512)+1));
-			
-			BYTE* temp = (BYTE*)ImageBase + pSH->VirtualAddress;
-			for (int i = 0; i < (int)pSH->Misc.VirtualSize; i+=512) {
-				//printf("%02X ", temp[i]);
-
-				memcpy(buff, &temp[i], 512);
-				/*for (int j = 0; j < 512; j++) {
-					printf("%02X ", buff[j]);
-				}
-				printf("\n\n\n\n\n");*/
-
-				if (calcMD5(buff, md5)){
-					printf("MD5: %s\n", md5);
-					//md5List[i] = (char*)md5;
-				}else
-					printf("MD5 calculation failed.\n");
-			}
+			ftextAddr = buffer + 0x400;
+			ftextSize = pSH->Misc.VirtualSize;
 			break;
 		}
 		pSH++;
 	}
-	ImageBase = NULL;
-	CloseHandle(ImageBase);
+
+
+
+	/// <summary>
+	/// Hashing
+	/// </summary>
+	/// <param name="argc"></param>
+	/// <param name="argv"></param>
+	/// <returns></returns>
+	BYTE textSection[512] = { 0, };
+	int HashNum = (((textSize / 512) + 1) > ((ftextSize / 512) + 1)) ? (textSize / 512) + 1 : (ftextSize / 512) + 1;
+	char md5[33];
+	char fmd5[33];
+	BYTE temp[512] = { 0, };
+
+	for(int i=0; i< HashNum; i++){
+		if (ReadProcessMemory(hp, textAddr, &textSection, sizeof(textSection), NULL)) {
+
+			memcpy(temp, &ftextAddr[i*512], 512);
+			
+			if (calcMD5(textSection, md5) && calcMD5(temp, fmd5)) {
+				printf("%s  %s\n", md5, fmd5);           /////////////////////////////////
+				if (strcmp(md5,fmd5)) {
+					printf("%d : Code Section is changed (0x%p)\n", pid, textAddr+(i * 512));
+					fclose(pFile);
+					free(buffer);
+					CloseHandle(hp);
+					return 0;
+				}
+			}
+			else
+				printf("MD5 calculation failed.\n"); 
+
+			textAddr += 512;
+			//printf("\n\n\n\n\n");
+		}
+		else {
+			printf("ReadProcessMemory error code : %d\n", GetLastError());
+			fclose(pFile);
+			free(buffer);
+			CloseHandle(hp);
+			return false;
+		}
+	}
+
+	fclose(pFile);
+	free(buffer);
+	CloseHandle(hp);
 	return 0;
 }
 
@@ -137,3 +277,24 @@ BOOL calcMD5(byte* data, LPSTR md5)
 		return FALSE;
 	}
 }
+
+
+DWORD64 GetModuleAddress(const char* moduleName, int pid)
+{
+	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
+	MODULEENTRY32 moduleEntry;
+	moduleEntry.dwSize = sizeof(MODULEENTRY32);
+
+	Module32First(snapshot, &moduleEntry);
+	do
+	{
+		if (!strcmp(moduleName, moduleEntry.szModule))
+		{
+			CloseHandle(snapshot);
+			return (DWORD64)moduleEntry.modBaseAddr;
+		}
+	} while (Module32Next(snapshot, &moduleEntry));
+
+	CloseHandle(snapshot);
+}
+

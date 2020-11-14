@@ -1,3 +1,2 @@
 ﻿  main.cpp
-C:\Users\real1\Desktop\getCodeSection\getCodeSection\main.cpp(14,11): warning C4101: 'Buffer' :참조되지 않은 지역 변수입니다.
   getCodeSection.vcxproj -> C:\Users\real1\Desktop\getCodeSection\x64\Debug\getCodeSection.exe
