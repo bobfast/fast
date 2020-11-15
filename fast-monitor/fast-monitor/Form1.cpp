@@ -76,7 +76,7 @@ void init() {
 
 	fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
 		0,
-		(DWORD)((dwBufSize + sizeof(DWORD) + 12 * sizeof(DWORD64))), (LPCSTR)"shared");
+		(DWORD)((dwBufSize + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"shared");
 
 
 	map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
@@ -119,13 +119,17 @@ void init() {
 	fp = CallSetPropA;
 	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
-	fp = CallSleepEx;
+	fp = CallVirtualProtectEx;
 	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 11 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallSleepEx;
+	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 12 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 
 
 	//Initial Hooking.
-	mon(0);
+	//mon(0);
+
 }
 
 void exiting() {
@@ -139,6 +143,19 @@ void exiting() {
 	UnmapViewOfFile(map_addr);
 	CloseHandle(fm);
 	fclose(pFile);
+}
+
+
+void vol(char * path) {
+
+	char cmd[MSG_SIZE] = "";
+	sprintf_s(cmd , "/C vol.exe -f %s --profile=Win10x64 malfind  -D . ", path);
+	
+	HANDLE vh = ShellExecute(NULL, "open", "cmd.exe",  cmd, ".", SW_NORMAL);
+	if (!vh)
+		MessageBoxA(NULL, "Executing Volatility.exe Failed!", "Volatility.exe Failed.!", MB_OK | MB_ICONQUESTION);
+
+
 }
 
 
