@@ -2,15 +2,14 @@
 
 using namespace System;
 
-//int main(array<System::String ^> ^args)
-//{
-//    return 0;
-//}
 
 #include "Form1.h"
 
 using namespace System::Windows::Forms;
 
+
+//////////////////////////////////////////////////////////////////////////////
+//Running Winform's Form1 instance.
 [STAThread]
 int main() {
 	Application::EnableVisualStyles();
