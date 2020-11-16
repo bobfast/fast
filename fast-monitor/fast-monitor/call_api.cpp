@@ -518,7 +518,7 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid), form);
 
 		MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
+		memory_region_dump(std::stoi(callee_pid), "SetWindowLongPtrA", (LPVOID)lpStartAddress, rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
