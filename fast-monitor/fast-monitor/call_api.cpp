@@ -15,7 +15,7 @@ void exDumpIt() {
 	stShellInfo.nShow = SW_SHOWNORMAL;
 	bShellExecute = ShellExecuteEx(&stShellInfo);
 	if (!bShellExecute)
-		MessageBoxA(NULL, "Executing DumpIt.exe Failed!", "DumpIt.exe Failed.!", MB_OK | MB_ICONQUESTION);
+		MessageBoxA(NULL, "Executing DumpIt.exe Failed!", "DumpIt.exe Failed.!", MB_OK | MB_ICONERROR);
 
 	WaitForSingleObject(stShellInfo.hProcess, INFINITE);
 }
@@ -70,17 +70,29 @@ void exGhidraHeadless(LPCSTR filename)
 {
 	BOOL bShellExecute = FALSE;
 	SHELLEXECUTEINFO stShellInfo = { sizeof(SHELLEXECUTEINFO) };
+
+	if (ghidraDirectory == "") {
+		return;
+	}
+
+	std::string analyzeHeadless_bat = ghidraDirectory + "\\support\\analyzeHeadless.bat";
+
+	if (!fileExists((TCHAR*)(analyzeHeadless_bat.c_str()))) {
+		MessageBoxA(NULL, (analyzeHeadless_bat + " not found.").c_str(), "Ghidra Failed.!", MB_OK | MB_ICONERROR);
+		return;
+	}
+
 	stShellInfo.lpVerb = TEXT("open");
 	stShellInfo.lpFile = TEXT("cmd");
 	stShellInfo.lpParameters = TEXT(
-		(std::string("/c D:\\ProgramForResearch\\ghidra_9.1.2_PUBLIC\\support\\analyzeHeadless.bat . GhidraMemdmpProject -import ")
+		(std::string("/c \"") + analyzeHeadless_bat + "\" . GhidraMemdmpProject -import "
 			+ filename).c_str()
 	);
 	stShellInfo.nShow = SW_SHOWNORMAL;
 	bShellExecute = ShellExecuteEx(&stShellInfo);
 
 	if (!bShellExecute) {
-		MessageBoxA(NULL, "Executing Ghidra Headless Failed!", "Ghidra Failed.!", MB_OK | MB_ICONQUESTION);
+		MessageBoxA(NULL, "Executing Ghidra Headless Failed!", "Ghidra Failed.!", MB_OK | MB_ICONERROR);
 		return;
 	}
 

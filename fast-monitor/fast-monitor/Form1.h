@@ -10,6 +10,7 @@
 #include <vector>
 #include <unordered_map>
 #include <tuple>
+#include <msclr\marshal_cppstd.h>
 #pragma warning(push)
 #if _MSC_VER > 1400
 #pragma warning(disable : 6102 6103) // /analyze warnings
@@ -35,6 +36,7 @@ void exiting();
 void vol(char* path);
 
 static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>>> decectionInfo;
+static std::string ghidraDirectory = "";
 
 namespace CppCLRWinformsProjekt {
 
@@ -505,15 +507,35 @@ namespace CppCLRWinformsProjekt {
 
 
 	private: System::Void runGhidraToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
-		if (!IO::File::Exists("GhidraMemdmpProject.gpr")) {
-			MessageBox::Show("There is no ghidra project for dumpfiles. (not detected yet...)", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+		if (ghidraDirectory == "") {
+			MessageBox::Show("You must set your Ghidra directory", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
 			return;
 		}
 
-		Diagnostics::Process::Start("D:\\ProgramForResearch\\ghidra_9.1.2_PUBLIC\\ghidraRun.bat", IO::Path::GetFullPath("GhidraMemdmpProject.gpr"));
+		if (!IO::File::Exists("GhidraMemdmpProject.gpr")) {
+			MessageBox::Show("There is no Ghidra project for dumpfiles. (not detected yet...)", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		}
+
+		String^ ghidraRun_bat = gcnew String((ghidraDirectory + "\\ghidraRun.bat").c_str());
+
+		if (!IO::File::Exists(ghidraRun_bat)) {
+			MessageBox::Show(ghidraRun_bat + " not found.", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		}
+
+		Diagnostics::Process::Start(ghidraRun_bat, IO::Path::GetFullPath("GhidraMemdmpProject.gpr"));
 	}
 
 	private: System::Void setGhidraPathToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+		Windows::Forms::FolderBrowserDialog^ dialog = gcnew Windows::Forms::FolderBrowserDialog();
+		Windows::Forms::DialogResult result = dialog->ShowDialog();
+		msclr::interop::marshal_context context;
+
+		if (result == Windows::Forms::DialogResult::OK) {
+			ghidraDirectory = context.marshal_as<std::string>(dialog->SelectedPath);
+			this->logBox->AppendText("Set Ghidra directory: " + gcnew String(ghidraDirectory.c_str()) + "\r\n");
+		}
 	}
 };
 
