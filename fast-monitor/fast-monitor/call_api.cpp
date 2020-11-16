@@ -62,7 +62,28 @@ int fileExists(TCHAR* file)
 	return found;
 }
 
-void memory_region_dump(DWORD pid, const char* filename, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list)
+void exGhidraHeadless(LPCSTR filename)
+{
+	BOOL bShellExecute = FALSE;
+	SHELLEXECUTEINFO stShellInfo = { sizeof(SHELLEXECUTEINFO) };
+	stShellInfo.lpVerb = TEXT("open");
+	stShellInfo.lpFile = TEXT("cmd");
+	stShellInfo.lpParameters = TEXT(
+		(std::string("/c D:\\ProgramForResearch\\ghidra_9.1.2_PUBLIC\\support\\analyzeHeadless.bat . GhidraMemdmpProject -import ")
+			+ filename).c_str()
+	);
+	stShellInfo.nShow = SW_SHOWNORMAL;
+	bShellExecute = ShellExecuteEx(&stShellInfo);
+
+	if (!bShellExecute) {
+		MessageBoxA(NULL, "Executing Ghidra Headless Failed!", "Ghidra Failed.!", MB_OK | MB_ICONQUESTION);
+		return;
+	}
+
+	WaitForSingleObject(stShellInfo.hProcess, INFINITE);
+}
+
+void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list)
 {
 	if (list.find(std::to_string(pid)) == list.end()) {
 		MessageBoxA(NULL, "Cannot dump memory region...", "Error", MB_OK | MB_ICONERROR);
@@ -73,9 +94,10 @@ void memory_region_dump(DWORD pid, const char* filename, LPVOID entryPoint, std:
 	DWORD recentWrittenBufferSize = std::get<1>(recentAlloc[0]);
 	LPVOID recentWrittenBaseAddress = (LPVOID)(std::get<0>(recentAlloc[0]));
 	FILE* f = NULL, *disasm_f = NULL;
-	char* buf = NULL, filenameWithBaseAddr[261] = "";
+	char* buf = NULL, basefilename_memdmp[261] = "", basefilename_disasm[261] = "";
 	SIZE_T buflen = 0;
 	HANDLE hProcess = NULL;
+	std::string filename_memdmp, filename_disasm;
 
 	do {
 		buf = new char[recentWrittenBufferSize];
@@ -88,17 +110,25 @@ void memory_region_dump(DWORD pid, const char* filename, LPVOID entryPoint, std:
 		int i = 0;
 
 		while (1) {
-			if (i == 0) sprintf_s(filenameWithBaseAddr, "%s_%p.bin", filename, recentWrittenBaseAddress);
-			else sprintf_s(filenameWithBaseAddr, "%s_%p_%d.bin", filename, recentWrittenBaseAddress, i);
+			if (i == 0) {
+				sprintf_s(basefilename_memdmp, "%d_%s_%p", pid, name, recentWrittenBaseAddress);
+				sprintf_s(basefilename_disasm, "%d_%s_%p_%p", pid, name, recentWrittenBaseAddress, entryPoint);
+			}
+			else {
+				sprintf_s(basefilename_memdmp, "%d_%s_%p_(%d)", pid, name, recentWrittenBaseAddress, i);
+				sprintf_s(basefilename_disasm, "%d_%s_%p_%p_(%d)", pid, name, recentWrittenBaseAddress, entryPoint, i);
+			}
 
-			if (!fileExists(filenameWithBaseAddr)) {
+			filename_memdmp = std::string("[memdmp]") + std::string(basefilename_memdmp) + std::string(".bin");
+
+			if (!fileExists( (TCHAR*)(filename_memdmp.c_str()) )) {
 				break;
 			}
 
 			i++;
 		}
 
-		fopen_s(&f, filenameWithBaseAddr, "wb");
+		fopen_s(&f, filename_memdmp.c_str(), "wb");
 
 		if (f == NULL) {
 			printf("Error: cannot create file.\n");
@@ -125,9 +155,15 @@ void memory_region_dump(DWORD pid, const char* filename, LPVOID entryPoint, std:
 			csh cshandle;
 			cs_insn* insn;
 			size_t entryoffset, count;
-			std::string filename_disasm(filenameWithBaseAddr);
 
-			filename_disasm = filename_disasm + ".txt";
+			entryoffset = (size_t)((DWORD64)entryPoint - (DWORD64)recentWrittenBaseAddress);
+
+			if (entryoffset >= recentWrittenBufferSize) {
+				// not valid entryoffset -> disasm ignored
+				break;
+			}
+
+			filename_disasm = std::string("[disasm]") + std::string(basefilename_disasm) + std::string(".txt");
 			fopen_s(&disasm_f, filename_disasm.c_str(), "wt");
 
 			if (disasm_f == NULL) {
@@ -137,13 +173,6 @@ void memory_region_dump(DWORD pid, const char* filename, LPVOID entryPoint, std:
 
 			if (cs_open(CS_ARCH_X86, CS_MODE_64, &cshandle) != CS_ERR_OK) {
 				// capstone cannot open -> disasm ignored
-				break;
-			}
-
-			entryoffset = (size_t)((DWORD64)entryPoint - (DWORD64)recentWrittenBaseAddress);
-
-			if (entryoffset >= recentWrittenBufferSize) {
-				// not valid entryoffset -> disasm ignored
 				break;
 			}
 
@@ -158,10 +187,6 @@ void memory_region_dump(DWORD pid, const char* filename, LPVOID entryPoint, std:
 
 				cs_free(insn, count);
 			}
-			else {
-				// cannot disasm -> disasm ignored
-				break;
-			}
 
 			cs_close(&cshandle);
 
@@ -175,7 +200,10 @@ void memory_region_dump(DWORD pid, const char* filename, LPVOID entryPoint, std:
 
 	if (buf != NULL) delete[] buf;
 	if (hProcess != NULL) CloseHandle(hProcess);
-	if (f != NULL) fclose(f);
+	if (f != NULL) {
+		fclose(f);
+		exGhidraHeadless(filename_memdmp.c_str());
+	}
 }
 
 
@@ -308,7 +336,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 		if (MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
 			exDumpIt();
 		}
-		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection", (LPVOID)lpStartAddress, rwxList);
+		memory_region_dump(std::stoi(callee_pid), "CodeInjection", (LPVOID)lpStartAddress, rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
@@ -432,7 +460,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 		form->logging(" : NtQueueApcThread -> GlobalGetAtomNameA Detected!\r\n");
 
 		//MessageBoxA(NULL, "NtQueueApcThread - GlobalGetAtomNameA Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-		//memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread_GlobalGetAtomNameA", rwxList);
+		//memory_region_dump(std::stoi(callee_pid), "NtQueueApcThread_GlobalGetAtomNameA", rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
@@ -444,7 +472,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 			form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n\r\n");
 
 			MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-			memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", (LPVOID)target, rwxList);
+			memory_region_dump(std::stoi(callee_pid), "NtQueueApcThread", (LPVOID)target, rwxList);
 			memcpy(monMMF, buf, strlen(buf));
 			return;
 		}
@@ -478,7 +506,7 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
 		form->logging(caller_pid+" : "+ callee_pid +" : SetWindowLongPtrA -> Code Injection Detected! Addr: "+ addr +"\r\n\r\n");
 		MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetWindowLongPtrA", (LPVOID)lpStartAddress, rwxList);
+		memory_region_dump(std::stoi(callee_pid), "SetWindowLongPtrA", (LPVOID)lpStartAddress, rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;	
 	}
@@ -514,7 +542,7 @@ void CallSetPropA(LPVOID monMMF) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
 		form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n\r\n");
 		MessageBoxA(NULL, "CallSetPropA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetPropA", (LPVOID)lpStartAddress, rwxList);
+		memory_region_dump(std::stoi(callee_pid), "SetPropA", (LPVOID)lpStartAddress, rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}

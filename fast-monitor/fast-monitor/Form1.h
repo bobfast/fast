@@ -100,6 +100,9 @@ namespace CppCLRWinformsProjekt {
 	private: System::Windows::Forms::ColumnHeader^ callee_pid;
 	private: System::Windows::Forms::ColumnHeader^ attack_num;
 	private: System::Windows::Forms::ColumnHeader^ timestamp;
+	private: System::Windows::Forms::ToolStripMenuItem^ ghidraToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ runGhidraToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ setGhidraPathToolStripMenuItem;
 
 	protected:
 
@@ -138,17 +141,21 @@ namespace CppCLRWinformsProjekt {
 			this->callee_pid = (gcnew System::Windows::Forms::ColumnHeader());
 			this->attack_num = (gcnew System::Windows::Forms::ColumnHeader());
 			this->timestamp = (gcnew System::Windows::Forms::ColumnHeader());
+			this->ghidraToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->runGhidraToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->setGhidraPathToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->menuStrip1->SuspendLayout();
 			this->SuspendLayout();
 			// 
 			// logBox
 			// 
-			this->logBox->Location = System::Drawing::Point(12, 455);
+			this->logBox->Location = System::Drawing::Point(6, 228);
+			this->logBox->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->logBox->Multiline = true;
 			this->logBox->Name = L"logBox";
 			this->logBox->ReadOnly = true;
 			this->logBox->ScrollBars = System::Windows::Forms::ScrollBars::Both;
-			this->logBox->Size = System::Drawing::Size(1246, 425);
+			this->logBox->Size = System::Drawing::Size(673, 214);
 			this->logBox->TabIndex = 2;
 			// 
 			// targetPID
@@ -156,23 +163,24 @@ namespace CppCLRWinformsProjekt {
 			this->targetPID->Font = (gcnew System::Drawing::Font(L"±¼¸²", 12, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(129)));
 			this->targetPID->FormattingEnabled = true;
-			this->targetPID->Location = System::Drawing::Point(1044, 57);
+			this->targetPID->Location = System::Drawing::Point(562, 28);
+			this->targetPID->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->targetPID->Name = L"targetPID";
-			this->targetPID->Size = System::Drawing::Size(214, 40);
+			this->targetPID->Size = System::Drawing::Size(117, 24);
 			this->targetPID->TabIndex = 4;
 			this->targetPID->SelectedIndexChanged += gcnew System::EventHandler(this, &Form1::targetPID_SelectedIndexChanged);
 			// 
 			// menuStrip1
 			// 
-			this->menuStrip1->GripMargin = System::Windows::Forms::Padding(2, 2, 0, 2);
 			this->menuStrip1->ImageScalingSize = System::Drawing::Size(32, 32);
-			this->menuStrip1->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
+			this->menuStrip1->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(3) {
 				this->monitoringToolStripMenuItem,
-					this->volatilityexeToolStripMenuItem
+					this->volatilityexeToolStripMenuItem, this->ghidraToolStripMenuItem
 			});
 			this->menuStrip1->Location = System::Drawing::Point(0, 0);
 			this->menuStrip1->Name = L"menuStrip1";
-			this->menuStrip1->Size = System::Drawing::Size(1270, 40);
+			this->menuStrip1->Padding = System::Windows::Forms::Padding(3, 1, 0, 1);
+			this->menuStrip1->Size = System::Drawing::Size(684, 24);
 			this->menuStrip1->TabIndex = 5;
 			this->menuStrip1->Text = L"menuStrip1";
 			// 
@@ -183,20 +191,20 @@ namespace CppCLRWinformsProjekt {
 					this->stopToolStripMenuItem
 			});
 			this->monitoringToolStripMenuItem->Name = L"monitoringToolStripMenuItem";
-			this->monitoringToolStripMenuItem->Size = System::Drawing::Size(155, 36);
+			this->monitoringToolStripMenuItem->Size = System::Drawing::Size(79, 22);
 			this->monitoringToolStripMenuItem->Text = L"Monitoring";
 			// 
 			// startToolStripMenuItem
 			// 
 			this->startToolStripMenuItem->Name = L"startToolStripMenuItem";
-			this->startToolStripMenuItem->Size = System::Drawing::Size(198, 44);
+			this->startToolStripMenuItem->Size = System::Drawing::Size(99, 22);
 			this->startToolStripMenuItem->Text = L"Start";
 			this->startToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::startToolStripMenuItem_Click);
 			// 
 			// stopToolStripMenuItem
 			// 
 			this->stopToolStripMenuItem->Name = L"stopToolStripMenuItem";
-			this->stopToolStripMenuItem->Size = System::Drawing::Size(198, 44);
+			this->stopToolStripMenuItem->Size = System::Drawing::Size(99, 22);
 			this->stopToolStripMenuItem->Text = L"Stop";
 			this->stopToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::stopToolStripMenuItem_Click);
 			// 
@@ -204,13 +212,13 @@ namespace CppCLRWinformsProjekt {
 			// 
 			this->volatilityexeToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(1) { this->browserawToolStripMenuItem });
 			this->volatilityexeToolStripMenuItem->Name = L"volatilityexeToolStripMenuItem";
-			this->volatilityexeToolStripMenuItem->Size = System::Drawing::Size(128, 36);
+			this->volatilityexeToolStripMenuItem->Size = System::Drawing::Size(66, 22);
 			this->volatilityexeToolStripMenuItem->Text = L"Volatility";
 			// 
 			// browserawToolStripMenuItem
 			// 
 			this->browserawToolStripMenuItem->Name = L"browserawToolStripMenuItem";
-			this->browserawToolStripMenuItem->Size = System::Drawing::Size(277, 44);
+			this->browserawToolStripMenuItem->Size = System::Drawing::Size(138, 22);
 			this->browserawToolStripMenuItem->Text = L"Browse .raw";
 			this->browserawToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::browserawToolStripMenuItem_Click);
 			// 
@@ -229,9 +237,10 @@ namespace CppCLRWinformsProjekt {
 			});
 			this->api_list->GridLines = true;
 			this->api_list->HideSelection = false;
-			this->api_list->Location = System::Drawing::Point(487, 113);
+			this->api_list->Location = System::Drawing::Point(262, 56);
+			this->api_list->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->api_list->Name = L"api_list";
-			this->api_list->Size = System::Drawing::Size(771, 325);
+			this->api_list->Size = System::Drawing::Size(417, 164);
 			this->api_list->TabIndex = 7;
 			this->api_list->UseCompatibleStateImageBehavior = false;
 			this->api_list->View = System::Windows::Forms::View::Details;
@@ -268,9 +277,10 @@ namespace CppCLRWinformsProjekt {
 			this->detected->Font = (gcnew System::Drawing::Font(L"±¼¸²", 9, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(129)));
 			this->detected->HideSelection = false;
-			this->detected->Location = System::Drawing::Point(13, 57);
+			this->detected->Location = System::Drawing::Point(7, 28);
+			this->detected->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->detected->Name = L"detected";
-			this->detected->Size = System::Drawing::Size(451, 381);
+			this->detected->Size = System::Drawing::Size(245, 192);
 			this->detected->TabIndex = 8;
 			this->detected->UseCompatibleStateImageBehavior = false;
 			this->detected->View = System::Windows::Forms::View::Details;
@@ -290,17 +300,42 @@ namespace CppCLRWinformsProjekt {
 			this->timestamp->Text = L"timestamp";
 			this->timestamp->Width = 140;
 			// 
+			// ghidraToolStripMenuItem
+			// 
+			this->ghidraToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
+				this->runGhidraToolStripMenuItem,
+					this->setGhidraPathToolStripMenuItem
+			});
+			this->ghidraToolStripMenuItem->Name = L"ghidraToolStripMenuItem";
+			this->ghidraToolStripMenuItem->Size = System::Drawing::Size(54, 22);
+			this->ghidraToolStripMenuItem->Text = L"Ghidra";
+			// 
+			// runGhidraToolStripMenuItem
+			// 
+			this->runGhidraToolStripMenuItem->Name = L"runGhidraToolStripMenuItem";
+			this->runGhidraToolStripMenuItem->Size = System::Drawing::Size(180, 22);
+			this->runGhidraToolStripMenuItem->Text = L"Run Ghidra";
+			this->runGhidraToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::runGhidraToolStripMenuItem_Click);
+			// 
+			// setGhidraPathToolStripMenuItem
+			// 
+			this->setGhidraPathToolStripMenuItem->Name = L"setGhidraPathToolStripMenuItem";
+			this->setGhidraPathToolStripMenuItem->Size = System::Drawing::Size(180, 22);
+			this->setGhidraPathToolStripMenuItem->Text = L"Set Ghidra Path";
+			this->setGhidraPathToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::setGhidraPathToolStripMenuItem_Click);
+			// 
 			// Form1
 			// 
-			this->AutoScaleDimensions = System::Drawing::SizeF(13, 24);
+			this->AutoScaleDimensions = System::Drawing::SizeF(7, 12);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->ClientSize = System::Drawing::Size(1270, 904);
+			this->ClientSize = System::Drawing::Size(684, 452);
 			this->Controls->Add(this->detected);
 			this->Controls->Add(this->api_list);
 			this->Controls->Add(this->targetPID);
 			this->Controls->Add(this->logBox);
 			this->Controls->Add(this->menuStrip1);
 			this->MainMenuStrip = this->menuStrip1;
+			this->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
 			this->Name = L"Form1";
 			this->Text = L"FAST-Monitor";
 			this->Load += gcnew System::EventHandler(this, &Form1::Form1_Load);
@@ -469,7 +504,18 @@ namespace CppCLRWinformsProjekt {
 	}
 
 
-	};
+	private: System::Void runGhidraToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+		if (!IO::File::Exists("GhidraMemdmpProject.gpr")) {
+			MessageBox::Show("There is no ghidra project for dumpfiles. (not detected yet...)", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		}
+
+		Diagnostics::Process::Start("D:\\ProgramForResearch\\ghidra_9.1.2_PUBLIC\\ghidraRun.bat", IO::Path::GetFullPath("GhidraMemdmpProject.gpr"));
+	}
+
+	private: System::Void setGhidraPathToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+	}
+};
 
 }
 

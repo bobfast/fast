@@ -14,8 +14,8 @@ void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string c
 BOOL checkList(std::string pid, DWORD64 target ,  DWORD dwSize, std::string caller_pid, UCHAR flags);
 
 int fileExists(TCHAR* file);
-void memory_region_dump(DWORD pid, const char* filename, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list);
-
+void exGhidraHeadless(LPCSTR filename);
+void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list);
 
 
 
