@@ -1,6 +1,7 @@
 #include "call_api.h"
 
 FILE* pFile;
+std::string ghidraDirectory = "";
 static UINT32 hook_cnt = 0;
 static 	HANDLE fm = NULL;
 static char* map_addr;

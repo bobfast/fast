@@ -1,7 +1,6 @@
 #include "call_api.h"
 #include <Psapi.h>
 
-
 void CompareCode(int pid, int caller_pid, Form1^ form);
 BOOL calcMD5(byte* data, LPSTR md5);
 DWORD64 GetModuleAddress(const char* moduleName, int pid);

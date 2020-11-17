@@ -36,7 +36,7 @@ void exiting();
 void vol(char* path);
 
 static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>>> decectionInfo;
-static std::string ghidraDirectory = "";
+extern std::string ghidraDirectory;
 
 namespace CppCLRWinformsProjekt {
 
