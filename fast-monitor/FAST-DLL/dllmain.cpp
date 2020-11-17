@@ -874,7 +874,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
-		DetourAttach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
+		//DetourAttach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
 		DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
 		DetourAttach(&(PVOID&)TrueSetPropA, MySetPropA);
 		DetourAttach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);
@@ -910,7 +910,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
-		DetourDetach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
+		//DetourDetach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
 		DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
 		DetourDetach(&(PVOID&)TrueSetPropA, MySetPropA);
 		DetourDetach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);

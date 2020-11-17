@@ -105,6 +105,7 @@ namespace CppCLRWinformsProjekt {
 	private: System::Windows::Forms::ToolStripMenuItem^ ghidraToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ runGhidraToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ setGhidraPathToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ createNewGhidraProjectAndImportbinFilesToolStripMenuItem;
 
 	protected:
 
@@ -133,6 +134,10 @@ namespace CppCLRWinformsProjekt {
 			this->stopToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->volatilityexeToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->browserawToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->ghidraToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->setGhidraPathToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->createNewGhidraProjectAndImportbinFilesToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->runGhidraToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->openFileDialog1 = (gcnew System::Windows::Forms::OpenFileDialog());
 			this->api_list = (gcnew System::Windows::Forms::ListView());
 			this->caller_pid = (gcnew System::Windows::Forms::ColumnHeader());
@@ -143,16 +148,13 @@ namespace CppCLRWinformsProjekt {
 			this->callee_pid = (gcnew System::Windows::Forms::ColumnHeader());
 			this->attack_num = (gcnew System::Windows::Forms::ColumnHeader());
 			this->timestamp = (gcnew System::Windows::Forms::ColumnHeader());
-			this->ghidraToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
-			this->runGhidraToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
-			this->setGhidraPathToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->menuStrip1->SuspendLayout();
 			this->SuspendLayout();
 			// 
 			// logBox
 			// 
 			this->logBox->Location = System::Drawing::Point(6, 228);
-			this->logBox->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
+			this->logBox->Margin = System::Windows::Forms::Padding(2);
 			this->logBox->Multiline = true;
 			this->logBox->Name = L"logBox";
 			this->logBox->ReadOnly = true;
@@ -166,7 +168,7 @@ namespace CppCLRWinformsProjekt {
 				static_cast<System::Byte>(129)));
 			this->targetPID->FormattingEnabled = true;
 			this->targetPID->Location = System::Drawing::Point(562, 28);
-			this->targetPID->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
+			this->targetPID->Margin = System::Windows::Forms::Padding(2);
 			this->targetPID->Name = L"targetPID";
 			this->targetPID->Size = System::Drawing::Size(117, 24);
 			this->targetPID->TabIndex = 4;
@@ -224,6 +226,37 @@ namespace CppCLRWinformsProjekt {
 			this->browserawToolStripMenuItem->Text = L"Browse .raw";
 			this->browserawToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::browserawToolStripMenuItem_Click);
 			// 
+			// ghidraToolStripMenuItem
+			// 
+			this->ghidraToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(3) {
+				this->setGhidraPathToolStripMenuItem,
+					this->createNewGhidraProjectAndImportbinFilesToolStripMenuItem, this->runGhidraToolStripMenuItem
+			});
+			this->ghidraToolStripMenuItem->Name = L"ghidraToolStripMenuItem";
+			this->ghidraToolStripMenuItem->Size = System::Drawing::Size(54, 22);
+			this->ghidraToolStripMenuItem->Text = L"Ghidra";
+			// 
+			// setGhidraPathToolStripMenuItem
+			// 
+			this->setGhidraPathToolStripMenuItem->Name = L"setGhidraPathToolStripMenuItem";
+			this->setGhidraPathToolStripMenuItem->Size = System::Drawing::Size(293, 22);
+			this->setGhidraPathToolStripMenuItem->Text = L"Set Ghidra Directory Path";
+			this->setGhidraPathToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::setGhidraPathToolStripMenuItem_Click);
+			// 
+			// createNewGhidraProjectAndImportbinFilesToolStripMenuItem
+			// 
+			this->createNewGhidraProjectAndImportbinFilesToolStripMenuItem->Name = L"createNewGhidraProjectAndImportbinFilesToolStripMenuItem";
+			this->createNewGhidraProjectAndImportbinFilesToolStripMenuItem->Size = System::Drawing::Size(293, 22);
+			this->createNewGhidraProjectAndImportbinFilesToolStripMenuItem->Text = L"New Ghidra Project and Import .bin Files";
+			this->createNewGhidraProjectAndImportbinFilesToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::createNewGhidraProjectAndImportbinFilesToolStripMenuItem_Click);
+			// 
+			// runGhidraToolStripMenuItem
+			// 
+			this->runGhidraToolStripMenuItem->Name = L"runGhidraToolStripMenuItem";
+			this->runGhidraToolStripMenuItem->Size = System::Drawing::Size(293, 22);
+			this->runGhidraToolStripMenuItem->Text = L"Run Ghidra and Open Project";
+			this->runGhidraToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::runGhidraToolStripMenuItem_Click);
+			// 
 			// openFileDialog1
 			// 
 			this->openFileDialog1->FileName = L"openFileDialog1";
@@ -240,7 +273,7 @@ namespace CppCLRWinformsProjekt {
 			this->api_list->GridLines = true;
 			this->api_list->HideSelection = false;
 			this->api_list->Location = System::Drawing::Point(262, 56);
-			this->api_list->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
+			this->api_list->Margin = System::Windows::Forms::Padding(2);
 			this->api_list->Name = L"api_list";
 			this->api_list->Size = System::Drawing::Size(417, 164);
 			this->api_list->TabIndex = 7;
@@ -280,7 +313,7 @@ namespace CppCLRWinformsProjekt {
 				static_cast<System::Byte>(129)));
 			this->detected->HideSelection = false;
 			this->detected->Location = System::Drawing::Point(7, 28);
-			this->detected->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
+			this->detected->Margin = System::Windows::Forms::Padding(2);
 			this->detected->Name = L"detected";
 			this->detected->Size = System::Drawing::Size(245, 192);
 			this->detected->TabIndex = 8;
@@ -302,30 +335,6 @@ namespace CppCLRWinformsProjekt {
 			this->timestamp->Text = L"timestamp";
 			this->timestamp->Width = 140;
 			// 
-			// ghidraToolStripMenuItem
-			// 
-			this->ghidraToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
-				this->runGhidraToolStripMenuItem,
-					this->setGhidraPathToolStripMenuItem
-			});
-			this->ghidraToolStripMenuItem->Name = L"ghidraToolStripMenuItem";
-			this->ghidraToolStripMenuItem->Size = System::Drawing::Size(54, 22);
-			this->ghidraToolStripMenuItem->Text = L"Ghidra";
-			// 
-			// runGhidraToolStripMenuItem
-			// 
-			this->runGhidraToolStripMenuItem->Name = L"runGhidraToolStripMenuItem";
-			this->runGhidraToolStripMenuItem->Size = System::Drawing::Size(180, 22);
-			this->runGhidraToolStripMenuItem->Text = L"Run Ghidra";
-			this->runGhidraToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::runGhidraToolStripMenuItem_Click);
-			// 
-			// setGhidraPathToolStripMenuItem
-			// 
-			this->setGhidraPathToolStripMenuItem->Name = L"setGhidraPathToolStripMenuItem";
-			this->setGhidraPathToolStripMenuItem->Size = System::Drawing::Size(180, 22);
-			this->setGhidraPathToolStripMenuItem->Text = L"Set Ghidra Path";
-			this->setGhidraPathToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::setGhidraPathToolStripMenuItem_Click);
-			// 
 			// Form1
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(7, 12);
@@ -337,7 +346,7 @@ namespace CppCLRWinformsProjekt {
 			this->Controls->Add(this->logBox);
 			this->Controls->Add(this->menuStrip1);
 			this->MainMenuStrip = this->menuStrip1;
-			this->Margin = System::Windows::Forms::Padding(2, 2, 2, 2);
+			this->Margin = System::Windows::Forms::Padding(2);
 			this->Name = L"Form1";
 			this->Text = L"FAST-Monitor";
 			this->Load += gcnew System::EventHandler(this, &Form1::Form1_Load);
@@ -505,28 +514,6 @@ namespace CppCLRWinformsProjekt {
 		}
 	}
 
-
-	private: System::Void runGhidraToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
-		if (ghidraDirectory == "") {
-			MessageBox::Show("You must set your Ghidra directory", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
-			return;
-		}
-
-		if (!IO::File::Exists("GhidraMemdmpProject.gpr")) {
-			MessageBox::Show("There is no Ghidra project for dumpfiles. (not detected yet...)", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
-			return;
-		}
-
-		String^ ghidraRun_bat = gcnew String((ghidraDirectory + "\\ghidraRun.bat").c_str());
-
-		if (!IO::File::Exists(ghidraRun_bat)) {
-			MessageBox::Show(ghidraRun_bat + " not found.", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
-			return;
-		}
-
-		Diagnostics::Process::Start(ghidraRun_bat, IO::Path::GetFullPath("GhidraMemdmpProject.gpr"));
-	}
-
 	private: System::Void setGhidraPathToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		Windows::Forms::FolderBrowserDialog^ dialog = gcnew Windows::Forms::FolderBrowserDialog();
 		Windows::Forms::DialogResult result = dialog->ShowDialog();
@@ -537,6 +524,9 @@ namespace CppCLRWinformsProjekt {
 			this->logBox->AppendText("Set Ghidra directory: " + gcnew String(ghidraDirectory.c_str()) + "\r\n");
 		}
 	}
+
+	private: System::Void createNewGhidraProjectAndImportbinFilesToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e);
+	private: System::Void runGhidraToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e);
 };
 
 }

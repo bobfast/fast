@@ -322,3 +322,59 @@ int CDECL mon(int isFree_)
 
 	return 0;
 }
+
+
+System::Void Form1::createNewGhidraProjectAndImportbinFilesToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+	if (ghidraDirectory == "") {
+		MessageBox::Show("You must set your Ghidra directory", "New Ghidra Project Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+		return;
+	}
+
+	array<String^>^ currentdirfiles = IO::Directory::GetFiles(".");
+	bool thereIsBinFile = false;
+
+	String^ analyzeHeadless_bat = gcnew String((ghidraDirectory + "\\support\\analyzeHeadless.bat").c_str());
+	String^ args = gcnew String(". GhidraMemdmpProject -import ");
+
+	if (!IO::File::Exists(analyzeHeadless_bat)) {
+		MessageBox::Show(analyzeHeadless_bat + " not found.", "New Ghidra Project Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+		return;
+	}
+
+	for (int i = 0; i < currentdirfiles->Length; i++) {
+		String^ elem = (String^)(currentdirfiles->GetValue(i));
+
+		// find .bin files
+		if (elem->LastIndexOf(".bin") == elem->Length - 4) {
+			thereIsBinFile = true;
+			args = args + "\"" + elem + "\" ";
+		}
+	}
+
+	if (thereIsBinFile)
+		Diagnostics::Process::Start(analyzeHeadless_bat, args);  // RUN analyzeHeadless.bat with arguments
+	else
+		MessageBox::Show("There is no dumped *.bin file.", "New Ghidra Project Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+}
+
+
+System::Void Form1::runGhidraToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+	if (ghidraDirectory == "") {
+		MessageBox::Show("You must set your Ghidra directory", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+		return;
+	}
+
+	if (!IO::File::Exists("GhidraMemdmpProject.gpr")) {
+		MessageBox::Show("There is no Ghidra project (GhidraMemdmpProject.gpr) file.", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+		return;
+	}
+
+	String^ ghidraRun_bat = gcnew String((ghidraDirectory + "\\ghidraRun.bat").c_str());
+
+	if (!IO::File::Exists(ghidraRun_bat)) {
+		MessageBox::Show(ghidraRun_bat + " not found.", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+		return;
+	}
+
+	Diagnostics::Process::Start(ghidraRun_bat, IO::Path::GetFullPath("GhidraMemdmpProject.gpr"));
+}
