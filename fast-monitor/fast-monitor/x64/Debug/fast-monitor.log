@@ -1,0 +1,26 @@
+﻿  call_api.cpp
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\Form1.h(396,4): warning C4390: ';': 제어된 빈 문이 있습니다. 이 문이 필요합니까?
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\Form1.h(399,4): warning C4390: ';': 제어된 빈 문이 있습니다. 이 문이 필요합니까?
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\call_api.cpp(639,16): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\call_api.cpp(732,8): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\call_api.cpp(552,9): warning C4101: 'hProcessSnap' :참조되지 않은 지역 변수입니다.
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\call_api.cpp(832,4): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  AssemblyInfo.cpp
+  CppCLR_WinformsProjekt.cpp
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\Form1.h(396,4): warning C4390: ';': 제어된 빈 문이 있습니다. 이 문이 필요합니까?
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\Form1.h(399,4): warning C4390: ';': 제어된 빈 문이 있습니다. 이 문이 필요합니까?
+  dumpProcess.cpp
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\Form1.h(396,4): warning C4390: ';': 제어된 빈 문이 있습니다. 이 문이 필요합니까?
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\Form1.h(399,4): warning C4390: ';': 제어된 빈 문이 있습니다. 이 문이 필요합니까?
+  Form1.cpp
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\Form1.h(396,4): warning C4390: ';': 제어된 빈 문이 있습니다. 이 문이 필요합니까?
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\Form1.h(399,4): warning C4390: ';': 제어된 빈 문이 있습니다. 이 문이 필요합니까?
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\Form1.cpp(138,20): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
+  .NETFramework,Version=v4.7.2.AssemblyAttributes.cpp
+  코드를 생성하고 있습니다...
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\call_api.cpp(866): warning C4715: 'GetModuleAddress': 모든 제어 경로에서 값을 반환하지는 않습니다.
+  call_api.obj : MSIL 모듈이 발견되었습니다. MSIL에 증분 링크를 사용할 수 없습니다. 전체 링크를 수행하고 있습니다.
+detours.lib(detours.obj) : warning LNK4099: 'detours.pdb' PDB를 'detours.lib(detours.obj)' 또는 'D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\x64\Debug\detours.pdb'에서 찾을 수 없습니다. 디버그 정보가 없는 것처럼 개체를 링크합니다.
+detours.lib(modules.obj) : warning LNK4099: 'detours.pdb' PDB를 'detours.lib(modules.obj)' 또는 'D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\x64\Debug\detours.pdb'에서 찾을 수 없습니다. 디버그 정보가 없는 것처럼 개체를 링크합니다.
+detours.lib(disasm.obj) : warning LNK4099: 'detours.pdb' PDB를 'detours.lib(disasm.obj)' 또는 'D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\x64\Debug\detours.pdb'에서 찾을 수 없습니다. 디버그 정보가 없는 것처럼 개체를 링크합니다.
+  fast-monitor.vcxproj -> D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\x64\Debug\fast-monitor.exe

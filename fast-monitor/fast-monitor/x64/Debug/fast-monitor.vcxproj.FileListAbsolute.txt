@@ -1,0 +1,3 @@
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\x64\Debug\fast-monitor.vcxprojAssemblyReference.cache
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\x64\Debug\fast_monitor.Form1.resources
+D:\Users\real1\Downloads\fast-1silver00\fast-1silver00\fast-monitor\fast-monitor\x64\Debug\fast-monitor.vcxproj.GenerateResource.cache

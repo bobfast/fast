@@ -576,6 +576,7 @@ void CompareCode(int pid, int caller_pid, Form1^ form) {
 
 	BYTE buf[700] = { 0, };
 	BYTE* textAddr = NULL;
+	BYTE* textAddr2 = NULL;
 	int textSize;
 
 	if (ReadProcessMemory(hp, lpBaseAddress, &buf, sizeof(buf), NULL)) {
@@ -610,6 +611,7 @@ void CompareCode(int pid, int caller_pid, Form1^ form) {
 				cout << "             Characteristics:" << pSH->Characteristics << endl;*/
 
 				textAddr = (BYTE*)lpBaseAddress + pSH->VirtualAddress;
+				textAddr2 = (BYTE*)lpBaseAddress + pSH->VirtualAddress;
 				textSize = pSH->Misc.VirtualSize;
 				break;
 			}
@@ -754,9 +756,35 @@ void CompareCode(int pid, int caller_pid, Form1^ form) {
 	}
 
 	if (resultPrint == false) {
-		//std::string stdpid((char*)pid);
-		form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Code Section is OK(not changed)\r\n\r\n");
-		//printf("%d : : Code Section is OK(not changed)\n", pid);
+		printf("%d :: Code Section is OK(not changed)\n", pid);
+	}
+	else {
+		unsigned int changeSize = MaxIntegrity - MinIntegrity;
+		//printf("Before : ");
+		printf(" \t 0x");
+		for (int i = MinIntegrity; i < MinIntegrity + 8; i++) {
+			printf("%02X", ftextAddr[i]);
+		}
+		//printf("\n");
+		//printf("After : ");
+		//BYTE *changedCode = (BYTE*)malloc(changeSize);
+		BYTE changedCode[8] = { 0, };
+		if (ReadProcessMemory(hp, textAddr2 + MinIntegrity, &changedCode, sizeof(changedCode), NULL)) {
+			printf("...  ->  0x");
+			for (int i = 0; i < sizeof(changedCode); i++) {
+				printf("%02X", changedCode[i]);
+			}
+			printf("...\n\n");
+			free(changedCode);
+		}
+		else {
+			printf("FAILED ReadProcessMemory : changedCode\n");
+			fclose(pFile);
+			free(changedCode);
+			free(buffer);
+			CloseHandle(hp);
+			return;
+		}
 	}
 
 	fclose(pFile);
