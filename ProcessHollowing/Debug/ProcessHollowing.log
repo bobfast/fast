@@ -1,0 +1,8 @@
+﻿D:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppCommon.targets(36,5): warning MSB4211: "IntermediateOutputPath" 속성에 처음으로 값이 설정되고 있지만 이미 "D:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppCommon.targets(35,5)"에서 사용되었습니다.
+D:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\Microsoft.Common.CurrentVersion.targets(337,5): warning MSB4211: "CleanFile" 속성에 처음으로 값이 설정되고 있지만 이미 "D:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppCommon.targets(35,5)"에서 사용되었습니다.
+cl : 명령줄 warning D9035: 'Gm' 옵션은 더 이상 사용되지 않으므로 이후 릴리스에서 제거될 예정입니다.
+  ProcessHollowing.cpp
+C:\Users\real1\Desktop\tessst\ProcessHollowing\src\ProcessHollowing\ProcessHollowing.cpp(113,3): warning C4477: 'printf' : 서식 문자열 '%p'에 'void *' 형식의 인수가 필요하지만 variadic 인수 1의 형식이 'DWORD'입니다.
+C:\Users\real1\Desktop\tessst\ProcessHollowing\src\ProcessHollowing\ProcessHollowing.cpp(119,9): warning C4477: 'printf' : 서식 문자열 '%p'에 'void *' 형식의 인수가 필요하지만 variadic 인수 1의 형식이 'DWORD'입니다.
+C:\Users\real1\Desktop\tessst\ProcessHollowing\src\ProcessHollowing\ProcessHollowing.cpp(295,2): warning C4996: 'strcat': This function or variable may be unsafe. Consider using strcat_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  ProcessHollowing.vcxproj -> C:\Users\real1\Desktop\tessst\ProcessHollowing\src\Debug\ProcessHollowing.exe
