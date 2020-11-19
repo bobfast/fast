@@ -4,10 +4,7 @@
 #include <vector>
 #include <string>
 #include <tuple>
-//#include "../../fast-monitor/fast-monitor/Form1.h"
-/// <summary>
-/// flags
-/// </summary>
+
 #define FLAG_VirtualAllocEx 0b00000001
 #define FLAG_NtMapViewOfSection 0b00000010
 #define FLAG_VirtualProtectEx  0b00000100
@@ -18,8 +15,6 @@
 #define FLAG_NtQueueApcThread 0b10000000 
 #define FLAG_WriteProcessMemory 0b10000000 
 
-
-#define indexof( datum, data ) ( &datum - &*data.begin() )
 
 
 namespace Show_node
@@ -52,14 +47,40 @@ namespace Show_node
 
             }
 
-            void listing(int current, int attribute, unsigned int idx,  std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string> tp) {
+            void listing(int current, int attribute, int index ,std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string> tp) {
+                if (current == 1) {
+                    imnodes::PushColorStyle(
+                        imnodes::ColorStyle_TitleBar, IM_COL32(37, 142, 63, 255));
+                    imnodes::PushColorStyle(
+                        imnodes::ColorStyle_TitleBarSelected, IM_COL32(71, 209, 71, 255));
+                    imnodes::PushColorStyle(
+                        imnodes::ColorStyle_TitleBarHovered, IM_COL32(71, 209, 71, 255));
+                }
+                else if (current == index) {
+                    imnodes::PushColorStyle(
+                        imnodes::ColorStyle_TitleBar, IM_COL32(230, 0, 0, 255));
+                    imnodes::PushColorStyle(
+                        imnodes::ColorStyle_TitleBarSelected, IM_COL32(255, 51,51, 255));
+                    imnodes::PushColorStyle(
+                        imnodes::ColorStyle_TitleBarHovered, IM_COL32(255, 51,51, 255));
+                }
+                else {
+                    imnodes::PushColorStyle(
+                        imnodes::ColorStyle_TitleBar, IM_COL32(230, 115, 0, 255));
+                    imnodes::PushColorStyle(
+                        imnodes::ColorStyle_TitleBarSelected, IM_COL32(255, 128, 0, 255));
+                    imnodes::PushColorStyle(
+                        imnodes::ColorStyle_TitleBarHovered, IM_COL32(255, 128, 0, 255));
+                }
                 imnodes::BeginNode(current);
                 imnodes::BeginNodeTitleBar();
                 ImGui::TextUnformatted(getAPI(std::get<3>(tp)).c_str());
                 imnodes::EndNodeTitleBar();
-                imnodes::BeginInputAttribute(attribute); //ex attribute 2
-                imnodes::EndInputAttribute();
-                imnodes::BeginOutputAttribute(attribute+1); // ex attribute 3
+                if (current != 1)
+                {
+                    imnodes::BeginInputAttribute(attribute); //ex attribute 2
+                    imnodes::EndInputAttribute();
+                }
                 ImGui::BulletText("CALLER PID    : %s", std::get<2>(tp).c_str());
                 ImGui::BulletText("START ADDRESS : %016llx", std::get<0>(tp));
                 if (std::get<1>(tp)>0) {
@@ -67,8 +88,14 @@ namespace Show_node
                     ImGui::BulletText("SIZE          : %d", std::get<1>(tp));
                 }
                 ImGui::BulletText("CALLER's PATH : %s", std::get<4>(tp).c_str());
-                imnodes::EndOutputAttribute();
+                if (current != index) {
+                    imnodes::BeginOutputAttribute(attribute + 1); // ex attribute 3
+                    imnodes::EndOutputAttribute();
+                }
                 imnodes::EndNode();
+                imnodes::PopColorStyle();
+                imnodes::PopColorStyle();
+                imnodes::PopColorStyle();
             }
       
             void show(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v)
@@ -81,7 +108,7 @@ namespace Show_node
                 imnodes::BeginNodeEditor();
 
                 for (auto tp : v) {
-                    listing(current, attribute, indexof(tp, v) , tp );
+                    listing(current, attribute, index,tp );
                     current++;
                     attribute += 3;
                 }
