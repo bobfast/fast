@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Quelldateien\imnode">
+      <UniqueIdentifier>{59258553-18d9-451e-84a7-8537b44a0f8a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="app.rc">
@@ -28,6 +31,45 @@
     </ClInclude>
     <ClInclude Include="call_api.h">
       <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\GL\gl3w.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\GL\glcorearb.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\graph.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\imconfig.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\imgui.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\imgui_impl_opengl3.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\imgui_impl_sdl.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\imgui_internal.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\imnodes.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\imstb_rectpack.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\imstb_textedit.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\imstb_truetype.h">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imnode\include\node_editor.h">
+      <Filter>Quelldateien\imnode</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -45,6 +87,30 @@
     </ClCompile>
     <ClCompile Include="dumpProcess.cpp">
       <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imnode\src\gl3w.cpp">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imnode\src\imgui.cpp">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imnode\src\imgui_draw.cpp">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imnode\src\imgui_impl_opengl3.cpp">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imnode\src\imgui_impl_sdl.cpp">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imnode\src\imgui_widgets.cpp">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imnode\src\imnodes.cpp">
+      <Filter>Quelldateien\imnode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imnode\src\show_node.cpp">
+      <Filter>Quelldateien\imnode</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

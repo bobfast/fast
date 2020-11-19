@@ -2,9 +2,7 @@
 #include <Psapi.h>
 
 
-void CompareCode(int pid, int caller_pid, Form1^ form);
-BOOL calcMD5(byte* data, LPSTR md5);
-DWORD64 GetModuleAddress(const char* moduleName, int pid);
+
 
 void exDumpIt() {
 
@@ -20,29 +18,33 @@ void exDumpIt() {
 	WaitForSingleObject(stShellInfo.hProcess, INFINITE);
 }
 
-void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags ) {
-	std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >> v = { std::make_tuple(ret, dwSize, caller_pid, flags) };
+void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path) {
+	std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string >> v = { std::make_tuple(ret, dwSize, caller_pid, flags,caller_path) };
 	auto rwxItem = rwxList.find(callee_pid);
 	if (rwxItem != rwxList.end()) {
 		rwxItem->second.push_back(v);
 	}
 	else {
-		std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>> ls = {v };
+		std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string >>> ls = { v };
 		rwxList.insert(std::make_pair(callee_pid, ls));
 	}
 }
 
-BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags) {
+
+BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path) {
 	auto item = rwxList.find(callee_pid);
 	if (item != rwxList.end()) {
 
-		for (auto i : item->second) {
+		for (auto& i : item->second) {
 			if (std::get<0>(i[0]) <= target && (std::get<0>(i[0]) + (DWORD64)(std::get<1>(i[0])) > target)) {
-				std::tuple<DWORD64, DWORD, std::string, UCHAR > tp = { std::make_tuple(target, dwSize, caller_pid, flags) };
+				std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string > tp = { std::make_tuple(target, dwSize, caller_pid, flags,caller_path) };
 				i.push_back(tp);
+
 				std::get<3>(i[0]) |= flags;
-				Form1^ form = (Form1^)Application::OpenForms[0];
-				form->show_detection(callee_pid, i);
+				if (flags != FLAG_WriteProcessMemory) {
+					Form1^ form = (Form1^)Application::OpenForms[0];
+					form->show_detection(callee_pid, i);
+				}
 				return TRUE;
 			}
 
@@ -66,7 +68,40 @@ int fileExists(TCHAR* file)
 	return found;
 }
 
-void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list)
+void exGhidraHeadless(LPCSTR filename)
+{
+	BOOL bShellExecute = FALSE;
+	SHELLEXECUTEINFO stShellInfo = { sizeof(SHELLEXECUTEINFO) };
+
+	if (ghidraDirectory == "") {
+		return;
+	}
+
+	std::string analyzeHeadless_bat = ghidraDirectory + "\\support\\analyzeHeadless.bat";
+
+	if (!fileExists((TCHAR*)(analyzeHeadless_bat.c_str()))) {
+		MessageBoxA(NULL, (analyzeHeadless_bat + " not found.").c_str(), "Ghidra Failed.!", MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	stShellInfo.lpVerb = TEXT("open");
+	stShellInfo.lpFile = TEXT("cmd");
+	stShellInfo.lpParameters = TEXT(
+		(std::string("/c \"") + analyzeHeadless_bat + "\" . GhidraMemdmpProject -import "
+			+ filename).c_str()
+	);
+	stShellInfo.nShow = SW_SHOWNORMAL;
+	bShellExecute = ShellExecuteEx(&stShellInfo);
+
+	if (!bShellExecute) {
+		MessageBoxA(NULL, "Executing Ghidra Headless Failed!", "Ghidra Failed.!", MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	WaitForSingleObject(stShellInfo.hProcess, INFINITE);
+}
+
+void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list)
 {
 	if (list.find(std::to_string(pid)) == list.end()) {
 		MessageBoxA(NULL, "Cannot dump memory region...", "Error", MB_OK | MB_ICONERROR);
@@ -76,10 +111,11 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 	auto recentAlloc = list[std::to_string(pid)].back();
 	DWORD recentWrittenBufferSize = std::get<1>(recentAlloc[0]);
 	LPVOID recentWrittenBaseAddress = (LPVOID)(std::get<0>(recentAlloc[0]));
-	FILE* f = NULL;
-	char* buf = NULL, filenameWithBaseAddr[261] = "";
+	FILE* f = NULL, * disasm_f = NULL;
+	char* buf = NULL, basefilename_memdmp[261] = "", basefilename_disasm[261] = "";
 	SIZE_T buflen = 0;
 	HANDLE hProcess = NULL;
+	std::string filename_memdmp, filename_disasm;
 
 	do {
 		buf = new char[recentWrittenBufferSize];
@@ -92,17 +128,25 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 		int i = 0;
 
 		while (1) {
-			if (i == 0) sprintf_s(filenameWithBaseAddr, "%s_%p.bin", filename, recentWrittenBaseAddress);
-			else sprintf_s(filenameWithBaseAddr, "%s_%p_%d.bin", filename, recentWrittenBaseAddress, i);
+			if (i == 0) {
+				sprintf_s(basefilename_memdmp, "%d_%s_%p", pid, name, recentWrittenBaseAddress);
+				sprintf_s(basefilename_disasm, "%d_%s_%p_%p", pid, name, recentWrittenBaseAddress, entryPoint);
+			}
+			else {
+				sprintf_s(basefilename_memdmp, "%d_%s_%p_(%d)", pid, name, recentWrittenBaseAddress, i);
+				sprintf_s(basefilename_disasm, "%d_%s_%p_%p_(%d)", pid, name, recentWrittenBaseAddress, entryPoint, i);
+			}
 
-			if (!fileExists(filenameWithBaseAddr)) {
+			filename_memdmp = std::string("[memdmp]") + std::string(basefilename_memdmp) + std::string(".bin");
+
+			if (!fileExists((TCHAR*)(filename_memdmp.c_str()))) {
 				break;
 			}
 
 			i++;
 		}
 
-		fopen_s(&f, filenameWithBaseAddr, "wb");
+		fopen_s(&f, filename_memdmp.c_str(), "wb");
 
 		if (f == NULL) {
 			printf("Error: cannot create file.\n");
@@ -122,12 +166,61 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 
 		fwrite(buf, 1, buflen, f);
 
+		// capstone disassembling code
+		do {
+			if (entryPoint == NULL) break;
+
+			csh cshandle;
+			cs_insn* insn;
+			size_t entryoffset, count;
+
+			entryoffset = (size_t)((DWORD64)entryPoint - (DWORD64)recentWrittenBaseAddress);
+
+			if (entryoffset >= recentWrittenBufferSize) {
+				// not valid entryoffset -> disasm ignored
+				break;
+			}
+
+			filename_disasm = std::string("[disasm]") + std::string(basefilename_disasm) + std::string(".txt");
+			fopen_s(&disasm_f, filename_disasm.c_str(), "wt");
+
+			if (disasm_f == NULL) {
+				// file cannot create -> disasm ignored
+				break;
+			}
+
+			if (cs_open(CS_ARCH_X86, CS_MODE_64, &cshandle) != CS_ERR_OK) {
+				// capstone cannot open -> disasm ignored
+				break;
+			}
+
+			count = cs_disasm(cshandle, (uint8_t*)buf + entryoffset, recentWrittenBufferSize - entryoffset - 1, (uint64_t)entryPoint, 0, &insn);
+			if (count > 0) {
+				// disassembling
+				size_t j;
+				for (j = 0; j < count; j++) {
+					fprintf(disasm_f, "0x%" PRIx64 ":\t%s\t\t%s\n", insn[j].address, insn[j].mnemonic,
+						insn[j].op_str);
+				}
+
+				cs_free(insn, count);
+			}
+
+			cs_close(&cshandle);
+
+			break;
+		} while (1);
+
+		if (disasm_f != NULL) fclose(disasm_f);
+
 		break;
 	} while (1);
 
 	if (buf != NULL) delete[] buf;
 	if (hProcess != NULL) CloseHandle(hProcess);
-	if (f != NULL) fclose(f);
+	if (f != NULL) {
+		fclose(f);
+	}
 }
 
 
@@ -154,8 +247,9 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
-	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx );
+	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx ,caller_path);
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
@@ -192,12 +286,22 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
 
-	std::string pid(strtok_s(cp, ":", &cp_context));
 
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	DWORD64 lpbaseaddress = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+	
+	if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path))
+		form->logging(caller_pid + " : " + callee_pid + " : WriteProcessMemory called on Executable Memory.\r\n");
 
-	std::string buf(pid);
-	buf.append(":CallWriteProcessMemory:Response Sended!");
-	memcpy(monMMF, buf.c_str(), buf.size());
+	//CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+
+	memset(monMMF, 0, MSG_SIZE);
+	char buf[MSG_SIZE] = "";
+	sprintf_s(buf, "%s:%016llx:%08lx:CallWriteProcessMemory:Response Sended!", callee_pid.c_str(), lpbaseaddress, dwSize);
+	memcpy(monMMF, buf, strlen(buf));
 }
 
 void CallCreateRemoteThread(LPVOID monMMF) {
@@ -217,6 +321,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 	std::string addr(strtok_s(NULL, ":", &cp_context));
 	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
 	DWORD64 lpParameter = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
@@ -240,8 +345,8 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 			}
 			
 			form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n");
-			form->logging("DLL File: " + std::string(buf) + "\r\n\r\n");
-			CompareCode(std::stoi(callee_pid), std::stoi(caller_pid), form);
+			form->logging("DLL File: " + std::string(buf) + "\r\n");
+			CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 			sprintf_s(messagePrint, "CreateRemoteThread DLL Injection with LoadLibrary Detected!\nDLL File: %s", buf);
 			MessageBoxA(NULL, messagePrint, "Detection Alert!", MB_OK | MB_ICONQUESTION);
@@ -252,17 +357,19 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
-	else if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_CreateRemoteThread)) {
+	else if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_CreateRemoteThread, caller_path)) {
 
 		sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
 
 		form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> Code Injection Detected! Addr:"+ addr+"\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid), form);
+		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
+
+		memory_region_dump(std::stoi(callee_pid), "CodeInjection", (LPVOID)lpStartAddress, rwxList);
 		if (MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
 			exDumpIt();
 		}
-		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection", rwxList);
+
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
@@ -291,8 +398,9 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
-	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_NtMapViewOfSection);
+	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_NtMapViewOfSection, caller_path);
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
@@ -348,14 +456,17 @@ void CallSetThreadContext(LPVOID monMMF) {
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 	std::string addr(strtok_s(NULL, ":", &cp_context));
 	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
-	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext)) {
+	CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+
+	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
-		form->logging(callee_pid+" : "+ caller_pid +" : SetThreadContext -> Thread Hijacking Detected! Addr: "+ addr+"\r\n\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid), form);
+		form->logging(callee_pid+" : "+ caller_pid +" : SetThreadContext -> Thread Hijacking Detected! Addr: "+ addr+"\r\n");
+
 
 		MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 		memcpy(monMMF, buf, strlen(buf));
@@ -378,6 +489,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 	std::string apc_routine(strtok_s(NULL, ":", &cp_context));
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
@@ -386,7 +498,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 		sprintf_s(buf, "%s:Detected:GlobalGetAtomNameA:CallNtQueueApcThread", callee_pid.c_str());
 
 		form->logging(" : NtQueueApcThread -> GlobalGetAtomNameA Detected!\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid), form);
+		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 		//MessageBoxA(NULL, "NtQueueApcThread - GlobalGetAtomNameA Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 		//memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread_GlobalGetAtomNameA", rwxList);
@@ -395,14 +507,18 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 	}
 	else {
 		DWORD64 target = (DWORD64)strtoll(apc_routine.c_str(), NULL, 16);
-		if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread )) {
+		if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread, caller_path)) {
 					sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
 
 					form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n");
-					CompareCode(std::stoi(callee_pid), std::stoi(caller_pid), form);
+					CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
-					MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-					memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
+
+					memory_region_dump(std::stoi(callee_pid), "NtQueueApcThread", (LPVOID)target, rwxList);
+					if (MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+						exDumpIt();
+					}
+
 					memcpy(monMMF, buf, strlen(buf));
 					return;
 			
@@ -428,18 +544,22 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 	std::string addr(strtok_s(NULL, ":", &cp_context));
 	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
 
-	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA)) {
+	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA, caller_path)) {
 				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
 				form->logging(caller_pid+" : "+ callee_pid +" : SetWindowLongPtrA -> Code Injection Detected! Addr: "+ addr +"\r\n");
-				CompareCode(std::stoi(callee_pid), std::stoi(caller_pid), form);
+				CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
-				MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-				memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
+				memory_region_dump(std::stoi(callee_pid), "SetWindowLongPtrA", (LPVOID)lpStartAddress, rwxList);
+				if (MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+					exDumpIt();
+				}
+
 				memcpy(monMMF, buf, strlen(buf));
 				return;
 			
@@ -466,18 +586,23 @@ void CallSetPropA(LPVOID monMMF) {
 
 	std::string addr(strtok_s(NULL, ":", &cp_context));
 	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
 
 
-	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA)) {
+	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA, caller_path)) {
 				sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
 				form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n");
-				CompareCode(std::stoi(callee_pid), std::stoi(caller_pid), form);
+				CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
-				MessageBoxA(NULL, "CallSetPropA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+				memory_region_dump(std::stoi(callee_pid), "CallSetPropA", (LPVOID)lpStartAddress, rwxList);
+				if (MessageBoxA(NULL, "CallSetPropA Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+					exDumpIt();
+				}
+
 				memcpy(monMMF, buf, strlen(buf));
 				return;
 	}
@@ -503,9 +628,9 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
-
-	insertList(callee_pid, ret, dwSize, caller_pid, (UCHAR)0b00000100);
+	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualProtectEx, caller_path);
 
 
 	memset(monMMF, 0, MSG_SIZE);
@@ -543,7 +668,11 @@ void CallSleepEx(LPVOID monMMF) {
 //////////////////////
 
 
-void CompareCode(int pid, int caller_pid, Form1^ form) {
+BOOLEAN CompareCode(int pid, int caller_pid) {
+
+	Form1^ form = (Form1^)Application::OpenForms[0];
+	form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Checking Code Section.\r\n");
+
 
 	PIMAGE_DOS_HEADER pDH = NULL;
 	PIMAGE_NT_HEADERS pNTH = NULL;
@@ -551,18 +680,19 @@ void CompareCode(int pid, int caller_pid, Form1^ form) {
 	PIMAGE_SECTION_HEADER pSH = NULL;
 	HANDLE hProcessSnap;
 
+
 	char filePath[256] = { 0, };
 	char fileName[256] = { 0, };
 
 	HANDLE hp = OpenProcess(PROCESS_ALL_ACCESS, 0, pid);
 	if (!hp) {
-		printf("FAILED OPENPROCESS\n");
-		return;
+		form->logging("FAILED OPENPROCESS\r\n");
+		return FALSE;
 	}
-	else {
-		GetModuleFileNameEx(hp, NULL, filePath, 256);
-		GetFileTitle(filePath, fileName, 256);
-	}
+	
+	GetModuleFileNameEx(hp, NULL, filePath, 256);
+	GetFileTitle(filePath, fileName, 256);
+	
 
 	void* lpBaseAddress = (void*)GetModuleAddress(fileName, pid);
 
@@ -581,18 +711,18 @@ void CompareCode(int pid, int caller_pid, Form1^ form) {
 	if (ReadProcessMemory(hp, lpBaseAddress, &buf, sizeof(buf), NULL)) {
 		pDH = (PIMAGE_DOS_HEADER)buf;
 		if (pDH->e_magic != IMAGE_DOS_SIGNATURE) {
-			printf("Could not get IMAGE_DOS_HEADER\n");
+			form->logging("Could not get IMAGE_DOS_HEADER\n");
 			CloseHandle(hp);
-			return;
+			return FALSE;
 		}
 		else
 			//form->logging("OK IMAGE_DOS_HEADER\n");
 
 			pNTH = (PIMAGE_NT_HEADERS)((PBYTE)pDH + pDH->e_lfanew);
 		if (pNTH->Signature != IMAGE_NT_SIGNATURE) {
-			printf("Could not get IMAGE_NT_HEADER\n");
+			form->logging("Could not get IMAGE_NT_HEADER\n");
 			CloseHandle(hp);
-			return;
+			return FALSE;
 		}
 		else
 			//form->logging("OK IMAGE_NT_HEADER\n");
@@ -617,9 +747,9 @@ void CompareCode(int pid, int caller_pid, Form1^ form) {
 		}
 	}
 	else {
-		form->logging("ReadProcessMemory error!");
+		form->logging("1st ReadProcessMemory error!"+ std::to_string(GetLastError()) +"\r\n");
 		CloseHandle(hp);
-		return;
+		return FALSE;
 	}
 
 	/// <summary>
@@ -636,12 +766,10 @@ void CompareCode(int pid, int caller_pid, Form1^ form) {
 
 	FILE* pFile = fopen(filePath, "rb");
 	if (!pFile) {
-		printf("FAILED FILE OPEN : %s\n", filePath);
+		form->logging("FAILED FILE OPEN : "+ std::string(filePath)+"\r\n");
 		CloseHandle(hp);
 		exit(1);
 	}
-	else
-		//->logging("OK Open FILE\n");
 
 	fseek(pFile, 0, SEEK_END);
 	lSize = ftell(pFile);
@@ -661,22 +789,25 @@ void CompareCode(int pid, int caller_pid, Form1^ form) {
 
 	pDH = (PIMAGE_DOS_HEADER)buffer;
 	if (pDH->e_magic != IMAGE_DOS_SIGNATURE) {
-		printf("Could not get IMAGE_DOS_HEADER\n");
+		form->logging("Could not get IMAGE_DOS_HEADER\n");
 		CloseHandle(hp);
 		fclose(pFile);
 		free(buffer);
-		return;
+		return FALSE;
 	}
+	else
+		//form->logging("OK IMAGE_DOS_HEADER\n");
 
 		pNTH = (PIMAGE_NT_HEADERS)((PBYTE)pDH + pDH->e_lfanew);
 	if (pNTH->Signature != IMAGE_NT_SIGNATURE) {
-		printf("Could not get IMAGE_NT_HEADER\n");
+		form->logging("Could not get IMAGE_NT_HEADER\n");
 		CloseHandle(hp);
 		fclose(pFile);
 		free(buffer);
-		return;
+		return FALSE;
 	}
-
+	else
+		//form->logging("OK IMAGE_NT_HEADER\n");
 
 		pFH = &pNTH->FileHeader;
 	pSH = IMAGE_FIRST_SECTION(pNTH);
@@ -706,68 +837,102 @@ void CompareCode(int pid, int caller_pid, Form1^ form) {
 	/// <param name="argv"></param>
 	/// <returns></returns>
 	BYTE textSection[512] = { 0, };
-	int HashNum = (((textSize / 512) + 1) > ((ftextSize / 512) + 1)) ? (textSize / 512) + 1 : (ftextSize / 512) + 1;
+	int HashNum = (((textSize / 512) + 1) < ((ftextSize / 512) + 1)) ? (textSize / 512) + 1 : (ftextSize / 512) + 1;
 	char md5[33];
 	char fmd5[33];
 	BYTE temp[512] = { 0, };
-	BOOL resultPrint = false;
-	int MinIntegrity = 0;
-	int MaxIntegrity = 0;
+	BOOL resultPrint = FALSE;
+	unsigned int MinIntegrity = 0;
+	unsigned int MaxIntegrity = 4294967295;
+
+	BYTE* textAddrTmp = textAddr;
 
 	for (int i = 0; i < HashNum; i++) {
-		if (ReadProcessMemory(hp, textAddr, &textSection, sizeof(textSection), NULL)) {
+		if (ReadProcessMemory(hp, textAddrTmp, &textSection, sizeof(textSection), NULL)) {
 
 			memcpy(temp, &ftextAddr[i * 512], 512);
 
 			if (calcMD5(textSection, md5) && calcMD5(temp, fmd5)) {
-				//printf("%s  %s\n", md5, fmd5);           /////////////////////////////////
+				//form->logging("%s  %s\n", md5, fmd5);           /////////////////////////////////
 				if (strcmp(md5, fmd5)) {
 
 					for (int j = 0; j < 512; j++) {
-						if ((textSection[j] != temp[j]) && (resultPrint == false)) {
+						if ((textSection[j] != temp[j]) && (resultPrint == FALSE)) {
 							MinIntegrity = (i * 512) + j;
 							char printTemp[50];
-							sprintf(printTemp,"Code Section is changed (0x%p)", textAddr + MinIntegrity);
+							sprintf_s(printTemp, "Code Section is changed (0x%p)", textAddr + MinIntegrity);
 							std::string str(printTemp);
-							form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : " + str + "\r\n\r\n");
+							form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : " + str + "\r\n");
 							resultPrint = true;
 						}
-						//else if ((textSection[j] == temp[j]) && (resultPrint == true)){
-						//	MaxIntegrity = (i * 512) + j;
-						//}
+						else if ((textSection[j] == temp[j]) && (resultPrint == true)) {
+							if (MaxIntegrity < (i * 512) + j) {
+								MaxIntegrity = (i * 512) + j;
+							}
+						}
 					}
 				}
 			}
 			else
-				printf("MD5 calculation failed.\n");
+				form->logging("MD5 calculation failed.\n");
 
-			textAddr += 512;
-			//printf("\n\n\n\n\n");
+			textAddrTmp += 512;
+			//form->logging("\n\n\n\n\n");
 		}
 		else {
-			printf("ReadProcessMemory error code : %d\n", GetLastError());
+			form->logging("2nd ReadProcessMemory error code : "+ std::to_string(GetLastError())+"\r\n");
 			fclose(pFile);
 			free(buffer);
 			CloseHandle(hp);
-			return;
+			return FALSE;
 		}
 	}
 
-	if (resultPrint == false) {
-		//std::string stdpid((char*)pid);
-		form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Code Section is OK(not changed)\r\n\r\n");
-		//printf("%d : : Code Section is OK(not changed)\n", pid);
+	char hex[6];
+	if (resultPrint == FALSE) {
+		form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Code Section is OK(not changed)\r\n");
+	}
+	else {
+		unsigned int changeSize = MaxIntegrity - MinIntegrity;
+		form->logging("Before : ");
+		for (int i = MinIntegrity; i <= MinIntegrity + 100; i++) {
+			sprintf_s(hex, "%02X ", ftextAddr[i]);
+			form->logging(hex);
+		}
+		form->logging("\n");
+		form->logging("After : ");
+		BYTE* changedCode = (BYTE*)malloc(sizeof(BYTE) * 512);
+		if (ReadProcessMemory(hp, textAddr + MinIntegrity, changedCode, 512, NULL)) {
+			for (int i = 0; i < 100; i++) {
+				sprintf_s(hex, "%02X ",changedCode[i]);
+				form->logging(hex);
+			}
+			form->logging("\n\n");
+			free(changedCode);
+		}
+		else {
+			form->logging("FAILED 3rd ReadProcessMemory : changedCode\n");
+			fclose(pFile);
+			free(changedCode);
+			free(buffer);
+			CloseHandle(hp);
+			return 0;
+		}
 	}
 
 	fclose(pFile);
 	free(buffer);
 	CloseHandle(hp);
+	return 0;
 }
 
 
 //BYTE buff[512];
 BOOL calcMD5(byte* data, LPSTR md5)
 {
+
+	Form1^ form = (Form1^)Application::OpenForms[0];
+
 	HCRYPTPROV hProv = 0;
 	HCRYPTHASH hHash = 0;
 	BYTE rgbHash[16];
@@ -777,14 +942,14 @@ BOOL calcMD5(byte* data, LPSTR md5)
 	// Get handle to the crypto provider
 	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
 	{
-		printf("ERROR: Couldn't acquire crypto context!\n");
+		form->logging("ERROR: Couldn't acquire crypto context!\n");
 		return FALSE;
 	}
 
 	if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
 	{
 		CryptReleaseContext(hProv, 0);
-		printf("ERROR: Couldn't create crypto stream!\n");
+		form->logging("ERROR: Couldn't create crypto stream!\n");
 		return FALSE;
 	}
 
@@ -792,7 +957,7 @@ BOOL calcMD5(byte* data, LPSTR md5)
 	{
 		CryptReleaseContext(hProv, 0);
 		CryptDestroyHash(hHash);
-		printf("ERROR: CryptHashData failed!\n");
+		form->logging("ERROR: CryptHashData failed!\n");
 		return FALSE;
 	}
 
@@ -810,7 +975,7 @@ BOOL calcMD5(byte* data, LPSTR md5)
 	}
 	else
 	{
-		printf("ERROR: CryptHashData failed!\n");
+		form->logging("ERROR: CryptHashData failed!\n");
 		CryptDestroyHash(hHash);
 		CryptReleaseContext(hProv, 0);
 		return FALSE;

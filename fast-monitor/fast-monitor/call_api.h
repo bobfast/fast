@@ -1,19 +1,33 @@
 #pragma once
 #include "Form1.h"
+#include <inttypes.h>
+#include <capstone/capstone/capstone.h>
+#include "node_editor.h"
+#include <imgui.h>
+#include <imgui_impl_sdl.h>
+#include <imgui_impl_opengl3.h>
+#include <imnodes.h>
+#include <SDL.h>
+#include <GL/gl3w.h>
+
+
 using namespace CppCLRWinformsProjekt;
 #define MSG_SIZE 256
 
-static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>>>> rwxList;
+static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>> rwxList;
 extern FILE* pFile;
 
-void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags);
-BOOL checkList(std::string pid, DWORD64 target ,  DWORD dwSize, std::string caller_pid, UCHAR flags);
+void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path);
+BOOL checkList(std::string pid, DWORD64 target ,  DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path);
 
 int fileExists(TCHAR* file);
-void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list);
+void exGhidraHeadless(LPCSTR filename);
+void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list);
 
 
-
+BOOLEAN CompareCode(int pid, int caller_pid);
+BOOL calcMD5(byte* data, LPSTR md5);
+DWORD64 GetModuleAddress(const char* moduleName, int pid);
 
 
 
@@ -101,3 +115,5 @@ ULONG PadToPage(ULONG Size);
 BOOL GetSections(HANDLE hp, PBYTE pbBase);
 BOOL DumpProcess(HANDLE hp);
 //######################################################
+
+

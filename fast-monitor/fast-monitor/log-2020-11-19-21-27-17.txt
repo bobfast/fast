@@ -1,0 +1,33 @@
+log-2020-11-19-21-27-17.txt
+#####Monitor Turned on.
+Hook DLLs!
+3896:3896:00007FF8A194DF80:\Device\HarddiskVolume3\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\ServiceHub\Hosts\ServiceHub.Host.CLR.AnyCPU\ServiceHub.TestWindowStoreHost.exe:CallNtQueueApcThread:IPC Successful!
+10520:4204:00007ff791790000:00000154:\Device\HarddiskVolume3\Windows\explorer.exe:MyWriteProcessMemory:IPC Successful!
+10520:4204:00007ff791760000:00000040:\Device\HarddiskVolume3\Windows\explorer.exe:MyWriteProcessMemory:IPC Successful!
+10520:4204:00007ff791760108:00000108:\Device\HarddiskVolume3\Windows\explorer.exe:MyWriteProcessMemory:IPC Successful!
+10520:4204:00007ff791767400:00000014:\Device\HarddiskVolume3\Windows\explorer.exe:MyWriteProcessMemory:IPC Successful!
+10520:4204:00000242eae60000:00000040:\Device\HarddiskVolume3\Windows\explorer.exe:MyWriteProcessMemory:IPC Successful!
+10520:4204:00000242eae60040:00000108:\Device\HarddiskVolume3\Windows\explorer.exe:MyWriteProcessMemory:IPC Successful!
+10520:4204:00000242eae60148:00000028:\Device\HarddiskVolume3\Windows\explorer.exe:MyWriteProcessMemory:IPC Successful!
+10520:4204:00000242eae60170:00000040:\Device\HarddiskVolume3\Windows\explorer.exe:MyWriteProcessMemory:IPC Successful!
+10520:4204:00000242eae601b0:00000018:\Device\HarddiskVolume3\Windows\explorer.exe:MyWriteProcessMemory:IPC Successful!
+10520:4204:00000242eae601c8:00000688:\Device\HarddiskVolume3\Windows\explorer.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:00007ff6606b0000:00000154:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:00007ff6606a0000:00000040:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:00007ff6606a0100:00000108:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:000001c43d410000:00000040:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:000001c43d410040:00000108:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:000001c43d410148:00000028:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:000001c43d410170:00000040:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:000001c43d4101b0:00000018:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:000001c43d4101c8:00000688:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:000001c43ee30000:00002e00:00000040:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:CallVirtualAllocEx:IPC Successful!
+4204:7100:000001c43ee30000:00002e00:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:MyWriteProcessMemory:IPC Successful!
+4204:7100:000001C43EE30460:0000000000000000:\Device\HarddiskVolume3\Users\fhdj4\OneDrive\Desktop\fast-attack_tool.exe:CallCreateRemoteThread:IPC Successful!     
+3896:3896:00007FF8A194DF80:\Device\HarddiskVolume3\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\ServiceHub\Hosts\ServiceHub.Host.CLR.AnyCPU\ServiceHub.TestWindowStoreHost.exe:CallNtQueueApcThread:IPC Successful!
+3896:3896:00007FF8A194DF80:\Device\HarddiskVolume3\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\ServiceHub\Hosts\ServiceHub.Host.CLR.AnyCPU\ServiceHub.TestWindowStoreHost.exe:CallNtQueueApcThread:IPC Successful!
+3896:3896:00007FF8A194DF80:\Device\HarddiskVolume3\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\ServiceHub\Hosts\ServiceHub.Host.CLR.AnyCPU\ServiceHub.TestWindowStoreHost.exe:CallNtQueueApcThread:IPC Successful!
+3896:3896:00007FF8A194DF80:\Device\HarddiskVolume3\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\ServiceHub\Hosts\ServiceHub.Host.CLR.AnyCPU\ServiceHub.TestWindowStoreHost.exe:CallNtQueueApcThread:IPC Successful!
+3896:3896:00007FF8A194DF80:\Device\HarddiskVolume3\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\ServiceHub\Hosts\ServiceHub.Host.CLR.AnyCPU\ServiceHub.TestWindowStoreHost.exe:CallNtQueueApcThread:IPC Successful!
+3896:3896:00007FF8A194DF80:\Device\HarddiskVolume3\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\ServiceHub\Hosts\ServiceHub.Host.CLR.AnyCPU\ServiceHub.TestWindowStoreHost.exe:CallNtQueueApcThread:IPC Successful!
+UnHook DLLs!

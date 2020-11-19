@@ -1,0 +1,6 @@
+log-2020-11-19-21-13-38.txt
+#####Monitor Turned on.
+UnHook DLLs!
+UnHook DLLs!
+UnHook DLLs!
+UnHook DLLs!
