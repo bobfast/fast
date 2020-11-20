@@ -148,10 +148,18 @@ void exiting() {
 }
 
 
-void vol(char* path) {
+void vol(char* path, int op) {
 
-	char cmd[MSG_SIZE] = "";
-	sprintf_s(cmd, "/C vol.exe -f %s --profile=Win10x64 malfind  -D . ", path);
+	std::string str;
+	if (op == 0)
+		str = "windows.malfind.Malfind";
+	if (op == 1)
+		str = "yarascan.YaraScan";
+
+	char cmd[512] = "";
+	sprintf_s(cmd, "/C vol.exe -f %s  %s", path, str.c_str());
+	Form1^ form = (Form1^)Application::OpenForms[0];
+	form->logging(std::string(cmd)+"\r\n");
 
 	HANDLE vh = ShellExecute(NULL, "open", "cmd.exe", cmd, ".", SW_NORMAL);
 	if (!vh)

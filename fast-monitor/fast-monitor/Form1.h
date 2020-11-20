@@ -36,7 +36,7 @@
 void init();
 int mon(int isFree_);
 void exiting();
-void vol(char* path);
+void vol(char* path, int op);
 
 
 
@@ -116,6 +116,7 @@ namespace CppCLRWinformsProjekt {
 	private: System::Windows::Forms::ToolStripMenuItem^ ghidraToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ runGhidraToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ setGhidraPathToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ yarascanToolStripMenuItem;
 
 	protected:
 
@@ -157,6 +158,7 @@ namespace CppCLRWinformsProjekt {
 			this->callee_pid = (gcnew System::Windows::Forms::ColumnHeader());
 			this->attack_num = (gcnew System::Windows::Forms::ColumnHeader());
 			this->timestamp = (gcnew System::Windows::Forms::ColumnHeader());
+			this->yarascanToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->menuStrip1->SuspendLayout();
 			this->SuspendLayout();
 			// 
@@ -196,6 +198,7 @@ namespace CppCLRWinformsProjekt {
 				static_cast<System::Int32>(static_cast<System::Byte>(83)));
 			this->menuStrip1->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(129)));
+			this->menuStrip1->GripMargin = System::Windows::Forms::Padding(2, 2, 0, 2);
 			this->menuStrip1->ImageScalingSize = System::Drawing::Size(32, 32);
 			this->menuStrip1->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(3) {
 				this->monitoringToolStripMenuItem,
@@ -225,14 +228,14 @@ namespace CppCLRWinformsProjekt {
 			// startToolStripMenuItem
 			// 
 			this->startToolStripMenuItem->Name = L"startToolStripMenuItem";
-			this->startToolStripMenuItem->Size = System::Drawing::Size(359, 44);
+			this->startToolStripMenuItem->Size = System::Drawing::Size(218, 44);
 			this->startToolStripMenuItem->Text = L"Start";
 			this->startToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::startToolStripMenuItem_Click);
 			// 
 			// stopToolStripMenuItem
 			// 
 			this->stopToolStripMenuItem->Name = L"stopToolStripMenuItem";
-			this->stopToolStripMenuItem->Size = System::Drawing::Size(359, 44);
+			this->stopToolStripMenuItem->Size = System::Drawing::Size(218, 44);
 			this->stopToolStripMenuItem->Text = L"Stop";
 			this->stopToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::stopToolStripMenuItem_Click);
 			// 
@@ -240,7 +243,10 @@ namespace CppCLRWinformsProjekt {
 			// 
 			this->volatilityexeToolStripMenuItem->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(235)),
 				static_cast<System::Int32>(static_cast<System::Byte>(42)), static_cast<System::Int32>(static_cast<System::Byte>(83)));
-			this->volatilityexeToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(1) { this->browserawToolStripMenuItem });
+			this->volatilityexeToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
+				this->browserawToolStripMenuItem,
+					this->yarascanToolStripMenuItem
+			});
 			this->volatilityexeToolStripMenuItem->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Bold));
 			this->volatilityexeToolStripMenuItem->ForeColor = System::Drawing::Color::LightGray;
 			this->volatilityexeToolStripMenuItem->Name = L"volatilityexeToolStripMenuItem";
@@ -251,7 +257,7 @@ namespace CppCLRWinformsProjekt {
 			// 
 			this->browserawToolStripMenuItem->Name = L"browserawToolStripMenuItem";
 			this->browserawToolStripMenuItem->Size = System::Drawing::Size(359, 44);
-			this->browserawToolStripMenuItem->Text = L"Browse .raw";
+			this->browserawToolStripMenuItem->Text = L"malfind";
 			this->browserawToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::browserawToolStripMenuItem_Click);
 			// 
 			// ghidraToolStripMenuItem
@@ -269,14 +275,14 @@ namespace CppCLRWinformsProjekt {
 			// setGhidraPathToolStripMenuItem
 			// 
 			this->setGhidraPathToolStripMenuItem->Name = L"setGhidraPathToolStripMenuItem";
-			this->setGhidraPathToolStripMenuItem->Size = System::Drawing::Size(550, 44);
+			this->setGhidraPathToolStripMenuItem->Size = System::Drawing::Size(543, 44);
 			this->setGhidraPathToolStripMenuItem->Text = L"Set Ghidra Directory Path";
 			this->setGhidraPathToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::setGhidraPathToolStripMenuItem_Click);
 			// 
 			// runGhidraToolStripMenuItem
 			// 
 			this->runGhidraToolStripMenuItem->Name = L"runGhidraToolStripMenuItem";
-			this->runGhidraToolStripMenuItem->Size = System::Drawing::Size(550, 44);
+			this->runGhidraToolStripMenuItem->Size = System::Drawing::Size(543, 44);
 			this->runGhidraToolStripMenuItem->Text = L"Run Ghidra and Open Project";
 			this->runGhidraToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::runGhidraToolStripMenuItem_Click);
 			// 
@@ -367,6 +373,13 @@ namespace CppCLRWinformsProjekt {
 			this->timestamp->Text = L"timestamp";
 			this->timestamp->Width = 175;
 			// 
+			// yarascanToolStripMenuItem
+			// 
+			this->yarascanToolStripMenuItem->Name = L"yarascanToolStripMenuItem";
+			this->yarascanToolStripMenuItem->Size = System::Drawing::Size(359, 44);
+			this->yarascanToolStripMenuItem->Text = L"yarascan";
+			this->yarascanToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::yarascanToolStripMenuItem_Click);
+			// 
 			// Form1
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(16, 27);
@@ -446,11 +459,19 @@ namespace CppCLRWinformsProjekt {
 
 		if (System::Windows::Forms::DialogResult::OK == dr) {
 			char* path = (char*)(void*)Marshal::StringToHGlobalAnsi(this->openFileDialog1->FileName);
-			vol(path);
+			vol(path, 0);
 			Marshal::FreeHGlobal((System::IntPtr)path);
 		}
 	}
+	private: System::Void yarascanToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+		System::Windows::Forms::DialogResult dr = this->openFileDialog1->ShowDialog();
 
+		if (System::Windows::Forms::DialogResult::OK == dr) {
+			char* path = (char*)(void*)Marshal::StringToHGlobalAnsi(this->openFileDialog1->FileName);
+			vol(path, 1);
+			Marshal::FreeHGlobal((System::IntPtr)path);
+		}
+	}
 
 	private: System::Void detected_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
 
@@ -516,6 +537,7 @@ namespace CppCLRWinformsProjekt {
 			return std::string("SetPropA");
 
 	}
+
 	};
 
 }
