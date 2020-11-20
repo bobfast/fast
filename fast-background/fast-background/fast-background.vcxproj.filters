@@ -35,5 +35,11 @@
     <ClInclude Include="hook.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="json-forwards.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="json.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

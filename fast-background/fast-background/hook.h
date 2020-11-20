@@ -30,8 +30,8 @@
 
 
 void init();
-int mon(int isFree_);
-void exiting();
+int mon(int isFree_, unsigned int t_pid);
+void exiting(unsigned int t_pid);
 void vol(char* path);
 
 static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>>> decectionInfo;
