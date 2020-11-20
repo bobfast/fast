@@ -673,7 +673,7 @@ BOOLEAN CompareCode(int pid, int caller_pid) {
 	PIMAGE_NT_HEADERS pNTH = NULL;
 	PIMAGE_FILE_HEADER pFH = NULL;
 	PIMAGE_SECTION_HEADER pSH = NULL;
-	HANDLE hProcessSnap;
+	//HANDLE hProcessSnap;
 
 
 	char filePath[256] = { 0, };
@@ -995,4 +995,6 @@ DWORD64 GetModuleAddress(const char* moduleName, int pid)
 	} while (Module32Next(snapshot, &moduleEntry));
 
 	CloseHandle(snapshot);
+
+	return 0;
 }

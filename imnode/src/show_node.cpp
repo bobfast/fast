@@ -48,6 +48,7 @@ namespace Show_node
                 if (flags == FLAG_SetPropA)
                     return std::string("SetPropA");
 
+                return std::string("");
             }
 
             void listing(int current, int attribute, int index ,std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string> tp) {

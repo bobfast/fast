@@ -113,11 +113,6 @@ namespace CppCLRWinformsProjekt {
 	private: System::Windows::Forms::ToolStripMenuItem^ ghidraToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ runGhidraToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ setGhidraPathToolStripMenuItem;
-	private: System::Windows::Forms::ToolStripMenuItem^ createNewGhidraProjectAndImportbinFilesToolStripMenuItem;
-
-	private: System::Windows::Forms::ToolStripMenuItem^ ghidraToolStripMenuItem;
-	private: System::Windows::Forms::ToolStripMenuItem^ runGhidraToolStripMenuItem;
-	private: System::Windows::Forms::ToolStripMenuItem^ setGhidraPathToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ yarascanToolStripMenuItem;
 
 	protected:
@@ -538,6 +533,7 @@ namespace CppCLRWinformsProjekt {
 		if (flags == FLAG_SetPropA)
 			return std::string("SetPropA");
 
+		return std::string("");
 	}
 
 	};
