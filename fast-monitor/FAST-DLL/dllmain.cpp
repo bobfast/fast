@@ -192,6 +192,12 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		char buf[MSG_SIZE] = "";
 		HANDLE hMonThread = NULL;
 
+		TCHAR szImagePath[MAX_PATH] = { 0, };
+		DWORD dwLen = 0;
+		ZeroMemory(szImagePath, sizeof(szImagePath));
+		dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+		QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+
 
 		if (Win32Protect == (PAGE_EXECUTE_READWRITE )) {
 
@@ -248,6 +254,11 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
 
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
 	if (lpStartAddress == (LPTHREAD_START_ROUTINE)LoadLibraryA) {
 
@@ -272,7 +283,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 		//sprintf_s(buf, "%lu:%016x:%016x:CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess), lpStartAddress, lpParameter);
-		sprintf_s(buf, "%lu:%lu:%p:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess), lpStartAddress, lpParameter);
+		sprintf_s(buf, "%lu:%lu:%p:%p:%s:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess), lpStartAddress, lpParameter, szImagePath);
 	}
 
 	memcpy(dllMMF, buf, strlen(buf));
@@ -317,7 +328,11 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
 
-
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
 	if (flProtect == (PAGE_EXECUTE_READWRITE)) {
 
@@ -329,7 +344,7 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 			flProtect
 		);
 
-		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize, flProtect);
+		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:%s:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize, flProtect, szImagePath);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
 		WaitForSingleObject(hMonThread, INFINITE);
@@ -361,37 +376,14 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
 
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
-	//pDbgPrint("FAST-DLL: PID=%d, WriteProcessMemory is hooked!\n", GetCurrentProcessId());
-	//pDbgPrint("              nSize=%u\n", nSize);
-	//pDbgPrint("              Buffer(first 30) = ");
+	sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%s:MyWriteProcessMemory:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpBaseAddress, (DWORD)nSize, szImagePath);
 
-	//sprintf_s(buf, "%d:CallWriteProcessMemory:IPC Successful!     ", GetCurrentProcessId());
-
-	//if (writtenBuffer != NULL) {
-	//	free(writtenBuffer);
-	//	writtenBuffer = NULL;
-	//	writtenBufferLen = 0;
-	//}
-	//
-	//writtenBufferLen = nSize < 64 ? nSize : 64;
-	//writtenBuffer = (unsigned char*) malloc((size_t)writtenBufferLen + 1);
-
-	//if (writtenBuffer != NULL) {
-	//	memcpy(writtenBuffer, lpBuffer, writtenBufferLen);
-	//	writtenBuffer[writtenBufferLen] = '\0';
-	//	for (ULONG i = 0; i < 30 && i < nSize; i++) {
-	//		pDbgPrint("%02x ", writtenBuffer[i]);
-	//	}
-	//}
-	//else {
-	//	pDbgPrint("(memory allocation failed)");
-	//}
-
-	//pDbgPrint("\n");
-	//sprintf_s(buf, "%lu:MyWriteProcessMemory:IPC Successful!", GetProcessId(hProcess));
-
-	sprintf_s(buf, "%lu:MyWriteProcessMemory:IPC Successful!", GetCurrentProcessId());
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallWriteProcessMemory, monMMF, 0, NULL);
 	WaitForSingleObject(hMonThread, INFINITE);
@@ -477,13 +469,17 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	DWORD target_pid = GetProcessIdOfThread(ThreadHandle);
 	HANDLE hThread = NULL;
 	char buf[MSG_SIZE] = "";
-	//sprintf_s(buf, "%d:CallNtQueueApcThread:IPC Successful!", pid);
+
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
 	if (ApcRoutine == GlobalGetAtomNameA)
-		sprintf_s(buf, "%lu:%lu:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid);
+		sprintf_s(buf, "%lu:%lu:%s:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, szImagePath);
 	else
-		sprintf_s(buf, "%lu:%lu:%p:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, ApcRoutine);
-
+		sprintf_s(buf, "%lu:%lu:%p:%s:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, ApcRoutine, szImagePath);
 
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtQueueApcThread, monMMF, 0, NULL);
@@ -511,6 +507,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 
 //#####################################
 
+
 static BOOL(WINAPI* TrueSetThreadContext)(
 	HANDLE        hThread,
 	const CONTEXT* lpContext
@@ -526,10 +523,17 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread= NULL;
 
-	//DebugBreak();
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
 	//GetProcessIdOfThread(hThread) failed.
-	sprintf_s(buf, "%lu:%lu:%016llx:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rip);
+	if (lpContext->Rip == 0) 
+		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rax, szImagePath);
+	else
+		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rip, szImagePath);
 
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetThreadContext, monMMF, 0, NULL);
@@ -573,6 +577,13 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	HANDLE hThread = NULL;
 	DWORD dwpid = NULL;
 	GetWindowThreadProcessId(hWnd, &dwpid);
+
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+
 	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwpid);
 	if (!hProcess)
 	{
@@ -596,7 +607,7 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	CloseHandle(hProcess);
 
 	printf("%016llx\n", dwNewLong);
-	sprintf_s(buf, "%lu:%lu:%016llx:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), dwpid, p2);
+	sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), dwpid, p2, szImagePath);
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetWindowLongPtrA, monMMF, 0, NULL);
 	WaitForSingleObject(hThread, INFINITE);
@@ -637,6 +648,14 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 	HANDLE hThread = NULL;
 	DWORD dwpid = NULL;
 	GetWindowThreadProcessId(hWnd, &dwpid);
+
+
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+
 	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwpid);
 	if (!hProcess)
 	{
@@ -653,7 +672,7 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 	}
 
 
-	sprintf_s(buf, "%lu:%lu:%016llx:CallSetPropA:IPC Successful!", GetCurrentProcessId(),dwpid, ptr);
+	sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetPropA:IPC Successful!", GetCurrentProcessId(), dwpid, ptr, szImagePath);
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetPropA, monMMF, 0, NULL);
 	WaitForSingleObject(hThread, INFINITE);
@@ -697,10 +716,16 @@ PDWORD lpflOldProtect)
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
 
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+
 
 	if ( flNewProtect == (PAGE_EXECUTE_READWRITE ) ) {
 
-		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:MyVirtualProtectEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpAddress, (DWORD)dwSize, flNewProtect);
+		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:%s:MyVirtualProtectEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpAddress, (DWORD)dwSize, flNewProtect, szImagePath);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualProtectEx, monMMF, 0, NULL);
 		WaitForSingleObject(hMonThread, INFINITE);
@@ -870,7 +895,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourAttach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
 		DetourAttach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
 		//DetourAttach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
-		//DetourAttach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
+		DetourAttach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
 		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
@@ -906,7 +931,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourDetach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
 		DetourDetach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
 		//DetourDetach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
-		//DetourDetach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
+		DetourDetach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
 		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);

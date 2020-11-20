@@ -1,5 +1,6 @@
 #include "call_api.h"
 
+
 FILE* pFile;
 std::string ghidraDirectory = "";
 static UINT32 hook_cnt = 0;
@@ -134,7 +135,7 @@ void init() {
 }
 
 void exiting() {
-	
+
 	//UnHooking All.
 	for (int i = 0; i < hook_cnt; i++)
 		mon(1);
@@ -147,18 +148,148 @@ void exiting() {
 }
 
 
-void vol(char * path) {
+void vol(char* path, int op) {
 
-	char cmd[MSG_SIZE] = "";
-	sprintf_s(cmd , "/C vol.exe -f %s --profile=Win10x64 malfind  -D . ", path);
-	
-	HANDLE vh = ShellExecute(NULL, "open", "cmd.exe",  cmd, ".", SW_NORMAL);
+	std::string str;
+	if (op == 0)
+		str = "windows.malfind.Malfind";
+	if (op == 1)
+		str = "yarascan.YaraScan";
+
+	char cmd[512] = "";
+	sprintf_s(cmd, "/C vol.exe -f %s  %s", path, str.c_str());
+	Form1^ form = (Form1^)Application::OpenForms[0];
+	form->logging(std::string(cmd)+"\r\n");
+
+	HANDLE vh = ShellExecute(NULL, "open", "cmd.exe", cmd, ".", SW_NORMAL);
 	if (!vh)
 		MessageBoxA(NULL, "Executing Volatility.exe Failed!", "Volatility.exe Failed.!", MB_OK | MB_ICONQUESTION);
 
 
 }
 
+
+
+
+void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v)
+{
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
+	{
+		printf("Error: %s\n", SDL_GetError());
+		return;
+	}
+
+#if __APPLE__
+	// GL 3.2 Core + GLSL 150
+	const char* glsl_version = "#version 150";
+	SDL_GL_SetAttribute(
+		SDL_GL_CONTEXT_FLAGS,
+		SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG); // Always required on Mac
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+#else
+	// GL 3.0 + GLSL 130
+	const char* glsl_version = "#version 130";
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+#endif
+
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+	SDL_DisplayMode current;
+	SDL_GetCurrentDisplayMode(0, &current);
+	SDL_Window* window = SDL_CreateWindow(
+		"Injection flow",
+		SDL_WINDOWPOS_CENTERED,
+		SDL_WINDOWPOS_CENTERED,
+		1280,
+		720,
+		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+	SDL_GLContext gl_context = SDL_GL_CreateContext(window);
+	SDL_GL_MakeCurrent(window, gl_context);
+	SDL_GL_SetSwapInterval(1); // Enable vsync
+
+	if (gl3wInit())
+	{
+		fprintf(stderr, "Failed to initialize OpenGL loader!\n");
+		return;
+	}
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+
+	ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
+	ImGui_ImplOpenGL3_Init(glsl_version);
+
+	imnodes::Initialize();
+
+	// Setup style
+	ImGui::StyleColorsDark();
+	imnodes::StyleColorsDark();
+
+	bool done = false;
+	bool initialized = false;
+
+	{
+		const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+	}
+
+	while (!done)
+	{
+		SDL_Event event;
+		while (SDL_PollEvent(&event))
+		{
+			ImGui_ImplSDL2_ProcessEvent(&event);
+			if (event.type == SDL_QUIT)
+				done = true;
+			if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE &&
+				event.window.windowID == SDL_GetWindowID(window))
+				done = true;
+		}
+
+		// Start the Dear ImGui frame
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplSDL2_NewFrame(window);
+		ImGui::NewFrame();
+
+		if (!initialized)
+		{
+			initialized = true;
+			Show_node::NodeEditorInitialize(v.size());
+		}
+
+		Show_node::NodeEditorShow(v);
+
+		// Rendering
+		ImGui::Render();
+
+		int fb_width, fb_height;
+		SDL_GL_GetDrawableSize(window, &fb_width, &fb_height);
+		glViewport(0, 0, fb_width, fb_height);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		SDL_GL_SwapWindow(window);
+	}
+
+	Show_node::NodeEditorShutdown();
+	imnodes::Shutdown();
+
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplSDL2_Shutdown();
+	ImGui::DestroyContext();
+
+	SDL_GL_DeleteContext(gl_context);
+	SDL_DestroyWindow(window);
+	SDL_Quit();
+
+	return;
+}
 
 
 // Find injected 'FAST-DLL.dll' handle from monitored process.
@@ -295,6 +426,7 @@ int CDECL mon(int isFree_)
 			hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
 			if (!hThread)
 			{
+				CloseHandle(hProcess);
 				continue;
 			}
 		}
@@ -306,6 +438,7 @@ int CDECL mon(int isFree_)
 				hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
 				if (!hThread)
 				{
+					CloseHandle(hProcess);
 					continue;
 				}
 			}
@@ -325,7 +458,7 @@ int CDECL mon(int isFree_)
 }
 
 
-System::Void Form1::createNewGhidraProjectAndImportbinFilesToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+System::Void Form1::runGhidraToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 	if (ghidraDirectory == "") {
 		MessageBox::Show("You must set your Ghidra directory", "New Ghidra Project Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
 		return;
@@ -352,16 +485,12 @@ System::Void Form1::createNewGhidraProjectAndImportbinFilesToolStripMenuItem_Cli
 		}
 	}
 
-	if (thereIsBinFile)
-		Diagnostics::Process::Start(analyzeHeadless_bat, args);  // RUN analyzeHeadless.bat with arguments
-	else
+	if (thereIsBinFile) {
+		Diagnostics::Process^ proc = Diagnostics::Process::Start(analyzeHeadless_bat, args);  // RUN analyzeHeadless.bat with arguments
+		proc->WaitForExit();
+	}
+	else {
 		MessageBox::Show("There is no dumped *.bin file.", "New Ghidra Project Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
-}
-
-
-System::Void Form1::runGhidraToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
-	if (ghidraDirectory == "") {
-		MessageBox::Show("You must set your Ghidra directory", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
 		return;
 	}
 
