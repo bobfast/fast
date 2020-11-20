@@ -185,6 +185,20 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 	return NULL;
 }
 
+typedef NTSTATUS(NTAPI* pfnNtCreateThreadEx)
+(
+	OUT PHANDLE hThread,
+	IN ACCESS_MASK DesiredAccess,
+	IN PVOID ObjectAttributes,
+	IN HANDLE ProcessHandle,
+	IN PVOID lpStartAddress,
+	IN PVOID lpParameter,
+	IN ULONG Flags,
+	IN SIZE_T StackZeroBits,
+	IN SIZE_T SizeOfStackCommit,
+	IN SIZE_T SizeOfStackReserve,
+	OUT PVOID lpBytesBuffer);
+
 typedef struct _CLIENT_ID {
 	HANDLE UniqueProcess;
 	HANDLE UniqueThread;
@@ -317,14 +331,15 @@ int CDECL mon(int isFree_)
 		PNtMapViewOfSection(fm, hProcess, &lpMap, 0, dwBufSize,
 			nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
 
-
-		pfnRtlCreateUserThread RtlCreateUserThread = (pfnRtlCreateUserThread)GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlCreateUserThread");
+		pfnNtCreateThreadEx NtCreateThreadEx = (pfnNtCreateThreadEx)GetProcAddress(GetModuleHandle("ntdll.dll"), "NtCreateThreadEx");
+		//pfnRtlCreateUserThread RtlCreateUserThread = (pfnRtlCreateUserThread)GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlCreateUserThread");
 
 
 		if (!isFree)
 		{
+			NTSTATUS Status = NtCreateThreadEx(&hThread, 0x1FFFFF, NULL, hProcess, (LPTHREAD_START_ROUTINE)pThreadProc, lpMap, FALSE, NULL, NULL, NULL, NULL);
 
-			NTSTATUS Status = RtlCreateUserThread(hProcess, NULL, FALSE, 0, 0, 0, pThreadProc, lpMap, &hThread, NULL);
+			//NTSTATUS Status = RtlCreateUserThread(hProcess, NULL, FALSE, 0, 0, 0, pThreadProc, lpMap, &hThread, NULL);
 			if (!NT_SUCCESS(Status) || hThread == NULL)
 			{
 				printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
@@ -337,8 +352,8 @@ int CDECL mon(int isFree_)
 			HMODULE fdllpath = findRemoteHModule(entry.th32ProcessID, (const char*)rpszDllsOut);
 			if (fdllpath != NULL)
 			{
-
-				NTSTATUS Status = RtlCreateUserThread(hProcess, NULL, FALSE, 0, 0, 0, pThreadProc, fdllpath, &hThread, NULL);
+				NTSTATUS Status = NtCreateThreadEx(&hThread, 0x1FFFFF, NULL, hProcess, (LPTHREAD_START_ROUTINE)pThreadProc, fdllpath, FALSE, NULL, NULL, NULL, NULL);
+				//NTSTATUS Status = RtlCreateUserThread(hProcess, NULL, FALSE, 0, 0, 0, pThreadProc, fdllpath, &hThread, NULL);
 				if (!NT_SUCCESS(Status) || hThread == NULL)
 				{
 					printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
@@ -350,8 +365,9 @@ int CDECL mon(int isFree_)
 		printf("CreateRemoteThread(%ld) Success!!! \n", entry.th32ProcessID);
 
 		CloseHandle(hThread);
+		hThread = NULL;
 		CloseHandle(hProcess);
-
+		hProcess = NULL;
 	} while (Process32Next(hSnap, &entry));
 
 	CloseHandle(hSnap);

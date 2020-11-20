@@ -6,19 +6,7 @@ void CompareCode(int pid, int caller_pid);
 BOOL calcMD5(byte* data, LPSTR md5);
 DWORD64 GetModuleAddress(const char* moduleName, int pid);
 
-void exDumpIt() {
 
-	BOOL bShellExecute = FALSE;
-	SHELLEXECUTEINFO stShellInfo = { sizeof(SHELLEXECUTEINFO) };
-	stShellInfo.lpVerb = TEXT("runas");
-	stShellInfo.lpFile = TEXT("DumpIt.exe");
-	stShellInfo.nShow = SW_SHOWNORMAL;
-	bShellExecute = ShellExecuteEx(&stShellInfo);
-	if (!bShellExecute)
-		MessageBoxA(NULL, "Executing DumpIt.exe Failed!", "DumpIt.exe Failed.!", MB_OK | MB_ICONQUESTION);
-
-	WaitForSingleObject(stShellInfo.hProcess, INFINITE);
-}
 
 void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags ) {
 	std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >> v = { std::make_tuple(ret, dwSize, caller_pid, flags) };
@@ -85,7 +73,7 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 		buf = new char[recentWrittenBufferSize];
 
 		if (buf == NULL) {
-			printf("Error: cannot allocate buffer for memory region dump.\n");
+			//printf("Error: cannot allocate buffer for memory region dump.\n");
 			break;
 		}
 
@@ -105,18 +93,18 @@ void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std:
 		fopen_s(&f, filenameWithBaseAddr, "wb");
 
 		if (f == NULL) {
-			printf("Error: cannot create file.\n");
+			//printf("Error: cannot create file.\n");
 			break;
 		}
 
 		hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 		if (!hProcess) {
-			printf("Error: failed to open target process.\n");
+			//printf("Error: failed to open target process.\n");
 			break;
 		}
 
 		if (!ReadProcessMemory(hProcess, recentWrittenBaseAddress, buf, recentWrittenBufferSize, &buflen)) {
-			printf("Error: cannot read target process memory for dump.\n");
+			//printf("Error: cannot read target process memory for dump.\n");
 			break;
 		}
 
@@ -149,7 +137,7 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
-	//form->logging(caller_pid+" : "+ callee_pid+ " : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
+	//printf("%s :  %s : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n", caller_pid, callee_pid);
 
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
@@ -159,8 +147,8 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
-	sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualAllocEx:Response Sended!", callee_pid.c_str(), ret, dwSize);
-	memcpy(monMMF, buf, strlen(buf));
+	//sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualAllocEx:Response Sended!", callee_pid.c_str(), ret, dwSize);
+	//memcpy(monMMF, buf, strlen(buf));
 }
 
 void CallQueueUserAPC(LPVOID monMMF) {
@@ -223,24 +211,24 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 
 
 	if (strncmp(addr.c_str(), "LoadLibraryA", 12) == 0) {
-		sprintf_s(buf, "%s:Detected:LoadLibraryA:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpParameter);
+		//sprintf_s(buf, "%s:Detected:LoadLibraryA:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpParameter);
 		do {
 			char buf[256] = "", messagePrint[356] = "";
 			SIZE_T buflen = 0;
 
 			HANDLE hTargetProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, std::stoi(callee_pid));
 			if (!hTargetProcess) {
-				printf("Error: failed to open target process.\n");
+				//printf("Error: failed to open target process.\n");
 				break;
 			}
 
 			if (!ReadProcessMemory(hTargetProcess, (LPCVOID)lpParameter, buf, 256, &buflen)) {
-				printf("Error: cannot read target process memory for dump.\n");
+				//printf("Error: cannot read target process memory for dump.\n");
 				break;
 			}
 			
-			//form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n");
-			//form->logging("DLL File: " + std::string(buf) + "\r\n\r\n");
+			//printf("%s :  %s : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n", callee_pid , caller_pid);
+			//printf("DLL File: %s\r\n\r\n", std::string(buf) );
 			CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 			sprintf_s(messagePrint, "CreateRemoteThread DLL Injection with LoadLibrary Detected!\nDLL File: %s", buf);
@@ -249,26 +237,23 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 			break;
 		} while (1);
 
-		memcpy(monMMF, buf, strlen(buf));
+		//memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
 	else if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_CreateRemoteThread)) {
 
-		sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
+		//sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
 
-		//form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> Code Injection Detected! Addr:"+ addr+"\r\n");
+		//printf("%s :  %s : CreateRemoteThread -> Code Injection Detected! Addr:%s\r\n", callee_pid, caller_pid, addr);
 		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
-		if (MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
-			exDumpIt();
-		}
 		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection", rwxList);
-		memcpy(monMMF, buf, strlen(buf));
+		//memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
 
-	sprintf_s(buf, "%s:%016llx:%016llx:CallCreateRemoteThread:Clean", callee_pid.c_str(), lpStartAddress, lpParameter);
-	memcpy(monMMF, buf, strlen(buf));
+	//sprintf_s(buf, "%s:%016llx:%016llx:CallCreateRemoteThread:Clean", callee_pid.c_str(), lpStartAddress, lpParameter);
+	//memcpy(monMMF, buf, strlen(buf));
 
 }
 
@@ -286,7 +271,7 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
 
-	//form->logging(caller_pid + " : " + callee_pid + " : NtMapViewOfSection ->Protection : PAGE_EXECUTE_READWRITE\r\n");
+	//printf("%s :  %s : NtMapViewOfSection ->Protection : PAGE_EXECUTE_READWRITE\r\n" ,callee_pid, caller_pid);
 
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
@@ -296,8 +281,8 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
-	sprintf_s(buf, "%s:%016llx:%08lx:CallNtMapViewOfSection:Response Sended!", callee_pid.c_str(), ret, dwSize);
-	memcpy(monMMF, buf, strlen(buf));
+	//sprintf_s(buf, "%s:%016llx:%08lx:CallNtMapViewOfSection:Response Sended!", callee_pid.c_str(), ret, dwSize);
+	//memcpy(monMMF, buf, strlen(buf));
 }
 
 void CallCreateFileMappingA(LPVOID monMMF) {
@@ -353,17 +338,17 @@ void CallSetThreadContext(LPVOID monMMF) {
 	memset(monMMF, 0, MSG_SIZE);
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext)) {
-		sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
-		//form->logging(callee_pid+" : "+ caller_pid +" : SetThreadContext -> Thread Hijacking Detected! Addr: "+ addr+"\r\n\r\n");
+		//sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
+		//printf("%s :  %s : SetThreadContext -> Thread Hijacking Detected! Addr: %s\r\n",callee_pid, caller_pid, addr);
 		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 		MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-		memcpy(monMMF, buf, strlen(buf));
+		//memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
 
-	sprintf_s(buf, "%s:%016llx:CallSetThreadContext:Clean", callee_pid.c_str(), lpStartAddress);
-	memcpy(monMMF, buf, strlen(buf));
+	//sprintf_s(buf, "%s:%016llx:CallSetThreadContext:Clean", callee_pid.c_str(), lpStartAddress);
+	//memcpy(monMMF, buf, strlen(buf));
 }
 
 void CallNtQueueApcThread(LPVOID monMMF) {
@@ -383,34 +368,34 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 	memset(monMMF, 0, MSG_SIZE);
 
 	if (apc_routine.compare("GlobalGetAtomNameA") == 0) {
-		sprintf_s(buf, "%s:Detected:GlobalGetAtomNameA:CallNtQueueApcThread", callee_pid.c_str());
+		//sprintf_s(buf, "%s:Detected:GlobalGetAtomNameA:CallNtQueueApcThread", callee_pid.c_str());
 
-		//form->logging(" : NtQueueApcThread -> GlobalGetAtomNameA Detected!\r\n");
+		//printf(" : NtQueueApcThread -> GlobalGetAtomNameA Detected!\r\n");
 		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 		//MessageBoxA(NULL, "NtQueueApcThread - GlobalGetAtomNameA Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 		//memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread_GlobalGetAtomNameA", rwxList);
-		memcpy(monMMF, buf, strlen(buf));
+		//memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
 	else {
 		DWORD64 target = (DWORD64)strtoll(apc_routine.c_str(), NULL, 16);
 		if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread )) {
-					sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
+					//sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
 
-					//form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n");
+					//printf(" : NtQueueApcThread -> Code Injection Detected!\r\n");
 					CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 					MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 					memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread", rwxList);
-					memcpy(monMMF, buf, strlen(buf));
+					//memcpy(monMMF, buf, strlen(buf));
 					return;
 			
 		}
 	}
 
-	sprintf_s(buf, "%s:%s:CallNtQueueApcThread:Clean", callee_pid.c_str(), apc_routine.c_str());
-	memcpy(monMMF, buf, strlen(buf));
+	//sprintf_s(buf, "%s:%s:CallNtQueueApcThread:Clean", callee_pid.c_str(), apc_routine.c_str());
+	//memcpy(monMMF, buf, strlen(buf));
 }
 
 void CallSetWindowLongPtrA(LPVOID monMMF) {
@@ -434,19 +419,19 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
-				//form->logging(caller_pid+" : "+ callee_pid +" : SetWindowLongPtrA -> Code Injection Detected! Addr: "+ addr +"\r\n");
+				//sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
+				//printf("%s :  %s : SetWindowLongPtrA -> Code Injection Detected! Addr: %s\r\n", callee_pid, caller_pid, addr);
 				CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 				MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 				memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_SetWindowLongPtrA", rwxList);
-				memcpy(monMMF, buf, strlen(buf));
+				//memcpy(monMMF, buf, strlen(buf));
 				return;
 			
 	}
 
-	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", callee_pid.c_str(), lpStartAddress);
-	memcpy(monMMF, buf, strlen(buf));
+	//sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", callee_pid.c_str(), lpStartAddress);
+	//memcpy(monMMF, buf, strlen(buf));
 
 }
 
@@ -473,17 +458,17 @@ void CallSetPropA(LPVOID monMMF) {
 
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
-				//form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n");
+				//sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
+				//printf("%s :  %s : SetPropA -> Code Injection Detected! Addr: %s\r\n", callee_pid, caller_pid, addr);
 				CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 				MessageBoxA(NULL, "CallSetPropA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-				memcpy(monMMF, buf, strlen(buf));
+				//memcpy(monMMF, buf, strlen(buf));
 				return;
 	}
 
-	sprintf_s(buf, "%s:%016llx:CallSetPropA:Clean", callee_pid.c_str(), lpStartAddress);
-	memcpy(monMMF, buf, strlen(buf));
+	//sprintf_s(buf, "%s:%016llx:CallSetPropA:Clean", callee_pid.c_str(), lpStartAddress);
+	//memcpy(monMMF, buf, strlen(buf));
 }
 
 void CallVirtualProtectEx(LPVOID monMMF) {
@@ -498,7 +483,7 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
-	//form->logging(caller_pid + " : " + callee_pid + " : VirtualProtectEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
+	//printf("%s :  %s : VirtualProtectEx ->Protection : PAGE_EXECUTE_READWRITE\r\n", caller_pid, callee_pid);
 
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
@@ -510,8 +495,8 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
-	sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualProtectEx:Response Sended!", callee_pid.c_str(), ret, dwSize);
-	memcpy(monMMF, buf, strlen(buf));
+	//sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualProtectEx:Response Sended!", callee_pid.c_str(), ret, dwSize);
+	//memcpy(monMMF, buf, strlen(buf));
 }
 
 
@@ -556,7 +541,7 @@ void CompareCode(int pid, int caller_pid) {
 
 	HANDLE hp = OpenProcess(PROCESS_ALL_ACCESS, 0, pid);
 	if (!hp) {
-		printf("FAILED OPENPROCESS\n");
+		//printf("FAILED OPENPROCESS\n");
 		return;
 	}
 	else {
@@ -581,21 +566,21 @@ void CompareCode(int pid, int caller_pid) {
 	if (ReadProcessMemory(hp, lpBaseAddress, &buf, sizeof(buf), NULL)) {
 		pDH = (PIMAGE_DOS_HEADER)buf;
 		if (pDH->e_magic != IMAGE_DOS_SIGNATURE) {
-			printf("Could not get IMAGE_DOS_HEADER\n");
+			//printf("Could not get IMAGE_DOS_HEADER\n");
 			CloseHandle(hp);
 			return;
 		}
 		else
-			//form->logging("OK IMAGE_DOS_HEADER\n");
+			//printf("OK IMAGE_DOS_HEADER\n");
 
 			pNTH = (PIMAGE_NT_HEADERS)((PBYTE)pDH + pDH->e_lfanew);
 		if (pNTH->Signature != IMAGE_NT_SIGNATURE) {
-			printf("Could not get IMAGE_NT_HEADER\n");
+			//printf("Could not get IMAGE_NT_HEADER\n");
 			CloseHandle(hp);
 			return;
 		}
 		else
-			//form->logging("OK IMAGE_NT_HEADER\n");
+			//printf("OK IMAGE_NT_HEADER\n");
 
 			pFH = &pNTH->FileHeader;
 		pSH = IMAGE_FIRST_SECTION(pNTH);
@@ -617,7 +602,7 @@ void CompareCode(int pid, int caller_pid) {
 		}
 	}
 	else {
-		//form->logging("ReadProcessMemory error!");
+		//printf("ReadProcessMemory error!");
 		CloseHandle(hp);
 		return;
 	}
@@ -637,7 +622,7 @@ void CompareCode(int pid, int caller_pid) {
 	FILE* peFile;
 	fopen_s(&peFile, filePath, "rb");
 	if (!peFile) {
-		printf("FAILED FILE OPEN : %s\n", filePath);
+		//printf("FAILED FILE OPEN : %s\n", filePath);
 		CloseHandle(hp);
 		exit(1);
 	}
@@ -662,7 +647,7 @@ void CompareCode(int pid, int caller_pid) {
 
 	pDH = (PIMAGE_DOS_HEADER)buffer;
 	if (pDH->e_magic != IMAGE_DOS_SIGNATURE) {
-		printf("Could not get IMAGE_DOS_HEADER\n");
+		//printf("Could not get IMAGE_DOS_HEADER\n");
 		CloseHandle(hp);
 		fclose(peFile);
 		free(buffer);
@@ -671,7 +656,7 @@ void CompareCode(int pid, int caller_pid) {
 
 		pNTH = (PIMAGE_NT_HEADERS)((PBYTE)pDH + pDH->e_lfanew);
 	if (pNTH->Signature != IMAGE_NT_SIGNATURE) {
-		printf("Could not get IMAGE_NT_HEADER\n");
+		//printf("Could not get IMAGE_NT_HEADER\n");
 		CloseHandle(hp);
 		fclose(peFile);
 		free(buffer);
@@ -730,7 +715,7 @@ void CompareCode(int pid, int caller_pid) {
 							char printTemp[50];
 							sprintf_s(printTemp,"Code Section is changed (0x%p)", textAddr + MinIntegrity);
 							std::string str(printTemp);
-							//form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : " + str + "\r\n\r\n");
+							//printf("%s : %s : %s\r\n", caller_pid, pid, printTemp);
 							resultPrint = true;
 						}
 						//else if ((textSection[j] == temp[j]) && (resultPrint == true)){
@@ -740,13 +725,13 @@ void CompareCode(int pid, int caller_pid) {
 				}
 			}
 			else
-				printf("MD5 calculation failed.\n");
+				//printf("MD5 calculation failed.\n");
 
 			textAddr += 512;
 			//printf("\n\n\n\n\n");
 		}
 		else {
-			printf("ReadProcessMemory error code : %d\n", GetLastError());
+			//printf("ReadProcessMemory error code : %d\n", GetLastError());
 			fclose(peFile);
 			free(buffer);
 			CloseHandle(hp);
@@ -756,7 +741,7 @@ void CompareCode(int pid, int caller_pid) {
 
 	if (resultPrint == false) {
 		//std::string stdpid((char*)pid);
-		//form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Code Section is OK(not changed)\r\n\r\n");
+		//printf("%s : %s : Code Section is OK(not changed)\r\n", caller_pid, pid);
 		//printf("%d : : Code Section is OK(not changed)\n", pid);
 	}
 
@@ -778,14 +763,14 @@ BOOL calcMD5(byte* data, LPSTR md5)
 	// Get handle to the crypto provider
 	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
 	{
-		printf("ERROR: Couldn't acquire crypto context!\n");
+		//printf("ERROR: Couldn't acquire crypto context!\n");
 		return FALSE;
 	}
 
 	if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
 	{
 		CryptReleaseContext(hProv, 0);
-		printf("ERROR: Couldn't create crypto stream!\n");
+		//printf("ERROR: Couldn't create crypto stream!\n");
 		return FALSE;
 	}
 
@@ -793,7 +778,7 @@ BOOL calcMD5(byte* data, LPSTR md5)
 	{
 		CryptReleaseContext(hProv, 0);
 		CryptDestroyHash(hHash);
-		printf("ERROR: CryptHashData failed!\n");
+		//printf("ERROR: CryptHashData failed!\n");
 		return FALSE;
 	}
 
@@ -811,7 +796,7 @@ BOOL calcMD5(byte* data, LPSTR md5)
 	}
 	else
 	{
-		printf("ERROR: CryptHashData failed!\n");
+		//printf("ERROR: CryptHashData failed!\n");
 		CryptDestroyHash(hHash);
 		CryptReleaseContext(hProv, 0);
 		return FALSE;

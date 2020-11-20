@@ -15,7 +15,7 @@ int CDECL main(int argc, char** argv)
 	printf("Initializing fast-background...\n");
 	init();
 
-	atexit(terminating);
+	//atexit(terminating);
 
 	printf("fast-background starts global hooking.\n");
 	mon(0);
