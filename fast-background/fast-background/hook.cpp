@@ -134,11 +134,11 @@ void init() {
 
 }
 
-void exiting() {
+void exiting(unsigned int t_pid) {
 
 	//UnHooking All.
 	for (int i = 0; i < hook_cnt; i++)
-		mon(1);
+		mon(1, t_pid);
 
 
 	//Close Everything.
@@ -147,17 +147,59 @@ void exiting() {
 	fclose(pFile);
 }
 
+DWORD findPidByName(const char* pname)
+{
+	HANDLE h;
+	PROCESSENTRY32 procSnapshot;
+	h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	procSnapshot.dwSize = sizeof(PROCESSENTRY32);
 
-void vol(char* path) {
+	do
+	{
+		if (!strcmp((const char*)procSnapshot.szExeFile, pname))
+		{
+			DWORD pid = procSnapshot.th32ProcessID;
+			CloseHandle(h);
+			return pid;
+		}
+	} while (Process32Next(h, &procSnapshot));
+
+	CloseHandle(h);
+	return 0;
+}
+
+
+
+void exe(char op , unsigned int t_pid) {
 
 	char cmd[MSG_SIZE] = "";
-	sprintf_s(cmd, "/C vol.exe -f %s --profile=Win10x64 malfind  -D . ", path);
 
+
+	sprintf_s(cmd, "/C InjDll64.exe %ud  -%c FAST-DLL.dll", t_pid, op);
+	printf("%s\n", cmd);
 	HANDLE vh = ShellExecute(NULL, "open", "cmd.exe", cmd, ".", SW_NORMAL);
-	if (!vh)
-		MessageBoxA(NULL, "Executing Volatility.exe Failed!", "Volatility.exe Failed.!", MB_OK | MB_ICONQUESTION);
+
+	//DWORD dwProcessId = findPidByName("explorer.exe");
+	//sprintf_s(cmd, "/C InjDll64.exe %ud  -%c FAST-DLL.dll", dwProcessId, op);
+	//printf("%s\n", cmd);
+	// vh = ShellExecute(NULL, "open", "cmd.exe", cmd, ".", SW_NORMAL);
 
 
+	//sprintf_s(cmd, "/C InjDll64.exe *  -%c FAST-DLL.dll", op);
+	//printf("%s\n", cmd);
+	//vh = ShellExecute(NULL, "open", "cmd.exe", cmd, ".", SW_NORMAL);
+
+	Sleep(500);
+
+	//BOOL bShellExecute = FALSE;
+	//SHELLEXECUTEINFO stShellInfo = { sizeof(SHELLEXECUTEINFO) };
+	//stShellInfo.lpVerb = TEXT("runas");
+	//stShellInfo.lpFile = TEXT("cmd.exe");
+	//stShellInfo.lpParameters = TEXT(cmd);
+	//stShellInfo.nShow = SW_SHOWNORMAL;
+	//bShellExecute = ShellExecuteEx(&stShellInfo);
+
+	//WaitForSingleObject(stShellInfo.hProcess, INFINITE);
 }
 
 
@@ -216,9 +258,10 @@ typedef NTSTATUS(NTAPI* pfnRtlCreateUserThread)(
 	OUT PHANDLE ThreadHandle OPTIONAL,
 	OUT PCLIENT_ID ClientId OPTIONAL);
 
+
 // main.
 //
-int CDECL mon(int isFree_)
+int CDECL mon(int isFree_, unsigned int t_pid)
 {
 	// Hook/Unhook flag 
 	BOOLEAN isFree = (BOOLEAN)isFree_;
@@ -250,59 +293,59 @@ int CDECL mon(int isFree_)
 
 
 
-	HANDLE hProcess = NULL, hThread = NULL;
-	HMODULE hMod = NULL;
+	//HANDLE hProcess = NULL, hThread = NULL;
+	//HMODULE hMod = NULL;
 
 
-	LPTHREAD_START_ROUTINE pThreadProc = NULL;
+	//LPTHREAD_START_ROUTINE pThreadProc = NULL;
 
 
-	LPVOID lpMap = 0;
-	SIZE_T viewsize = 0;
+	//LPVOID lpMap = 0;
+	//SIZE_T viewsize = 0;
 
-	PNtMapViewOfSection = (NTSTATUS(*)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID * BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect)) GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtMapViewOfSection");
-	if (!PNtMapViewOfSection)
-	{
-		printf("GetProcAddress(%ld) PNtMapViewOfSection  failed!!! \n", GetLastError());
-		return 1;
-	}
-
-
-	hMod = GetModuleHandleA("kernel32.dll");
-	if (!hMod)
-	{
-		printf("GetModuleHandleA(%ld) failed!!! \n", GetLastError());
-		return 1;
-	}
+	//PNtMapViewOfSection = (NTSTATUS(*)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID * BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect)) GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtMapViewOfSection");
+	//if (!PNtMapViewOfSection)
+	//{
+	//	printf("GetProcAddress(%ld) PNtMapViewOfSection  failed!!! \n", GetLastError());
+	//	return 1;
+	//}
 
 
+	//hMod = GetModuleHandleA("kernel32.dll");
+	//if (!hMod)
+	//{
+	//	printf("GetModuleHandleA(%ld) failed!!! \n", GetLastError());
+	//	return 1;
+	//}
 
 
-	if (!isFree)
-	{
-		hook_cnt++;
-		fprintf(pFile, "Hook DLLs!\n");
-		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
-		if (!pThreadProc)
-		{
-			printf("GetProcAddress(%ld) LoadLibraryA  failed!!! \n", GetLastError());
-			return 1;
-		}
 
-	}
-	else
-	{
-		if (hook_cnt > 0)
-			hook_cnt--;
-		fprintf(pFile, "UnHook DLLs!\n");
-		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "FreeLibrary");
-		if (!pThreadProc)
-		{
-			printf("GetProcAddress(%ld) FreeLibrary  failed!!! \n", GetLastError());
-			return 1;
-		}
 
-	}
+	//if (!isFree)
+	//{
+	//	hook_cnt++;
+	//	fprintf(pFile, "Hook DLLs!\n");
+	//	pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
+	//	if (!pThreadProc)
+	//	{
+	//		printf("GetProcAddress(%ld) LoadLibraryA  failed!!! \n", GetLastError());
+	//		return 1;
+	//	}
+
+	//}
+	//else
+	//{
+	//	if (hook_cnt > 0)
+	//		hook_cnt--;
+	//	fprintf(pFile, "UnHook DLLs!\n");
+	//	pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "FreeLibrary");
+	//	if (!pThreadProc)
+	//	{
+	//		printf("GetProcAddress(%ld) FreeLibrary  failed!!! \n", GetLastError());
+	//		return 1;
+	//	}
+
+	//}
 
 
 
@@ -311,67 +354,76 @@ int CDECL mon(int isFree_)
 
 	/////////////////////////////////////////////////////////
 	// Traversing the process list, inject the dll to processes. 
-	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	PROCESSENTRY32 entry = { sizeof(PROCESSENTRY32) };
-	Process32First(hSnap, &entry);
-	do
-	{
+	//HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	//PROCESSENTRY32 entry = { sizeof(PROCESSENTRY32) };
+	//Process32First(hSnap, &entry);
+	//do
+	//{
 
-		if (thispid == entry.th32ProcessID)
-			continue;
-		hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, entry.th32ProcessID);
-		if (!(hProcess))
-		{
-			printf("OpenProcess(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
-			continue;
-		}
-		printf("OpenProcess(%ld) Success!!! \n", entry.th32ProcessID);
-
-
-		PNtMapViewOfSection(fm, hProcess, &lpMap, 0, dwBufSize,
-			nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
-
-		pfnNtCreateThreadEx NtCreateThreadEx = (pfnNtCreateThreadEx)GetProcAddress(GetModuleHandle("ntdll.dll"), "NtCreateThreadEx");
-		//pfnRtlCreateUserThread RtlCreateUserThread = (pfnRtlCreateUserThread)GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlCreateUserThread");
+	//	if (thispid == entry.th32ProcessID)
+	//		continue;
+	//	hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, entry.th32ProcessID);
+	//	if (!(hProcess))
+	//	{
+	//		printf("OpenProcess(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
+	//		continue;
+	//	}
+	//	printf("OpenProcess(%ld) Success!!! \n", entry.th32ProcessID);
 
 
-		if (!isFree)
-		{
-			NTSTATUS Status = NtCreateThreadEx(&hThread, 0x1FFFFF, NULL, hProcess, (LPTHREAD_START_ROUTINE)pThreadProc, lpMap, FALSE, NULL, NULL, NULL, NULL);
+	//	PNtMapViewOfSection(fm, hProcess, &lpMap, 0, dwBufSize,
+	//		nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
 
-			//NTSTATUS Status = RtlCreateUserThread(hProcess, NULL, FALSE, 0, 0, 0, pThreadProc, lpMap, &hThread, NULL);
-			if (!NT_SUCCESS(Status) || hThread == NULL)
-			{
-				printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
-				CloseHandle(hProcess);
-				continue;
-			}
-		}
-		else
-		{
-			HMODULE fdllpath = findRemoteHModule(entry.th32ProcessID, (const char*)rpszDllsOut);
-			if (fdllpath != NULL)
-			{
-				NTSTATUS Status = NtCreateThreadEx(&hThread, 0x1FFFFF, NULL, hProcess, (LPTHREAD_START_ROUTINE)pThreadProc, fdllpath, FALSE, NULL, NULL, NULL, NULL);
-				//NTSTATUS Status = RtlCreateUserThread(hProcess, NULL, FALSE, 0, 0, 0, pThreadProc, fdllpath, &hThread, NULL);
-				if (!NT_SUCCESS(Status) || hThread == NULL)
-				{
-					printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
-					CloseHandle(hProcess);
-					continue;
-				}
-			}
-		}
-		printf("CreateRemoteThread(%ld) Success!!! \n", entry.th32ProcessID);
+	//	pfnNtCreateThreadEx NtCreateThreadEx = (pfnNtCreateThreadEx)GetProcAddress(GetModuleHandle("ntdll.dll"), "NtCreateThreadEx");
+	//	//pfnRtlCreateUserThread RtlCreateUserThread = (pfnRtlCreateUserThread)GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlCreateUserThread");
 
-		CloseHandle(hThread);
-		hThread = NULL;
-		CloseHandle(hProcess);
-		hProcess = NULL;
-	} while (Process32Next(hSnap, &entry));
 
-	CloseHandle(hSnap);
+	//	if (!isFree)
+	//	{
+	//		NTSTATUS Status = NtCreateThreadEx(&hThread, 0x1FFFFF, NULL, hProcess, (LPTHREAD_START_ROUTINE)pThreadProc, lpMap, FALSE, NULL, NULL, NULL, NULL);
 
+	//		//NTSTATUS Status = RtlCreateUserThread(hProcess, NULL, FALSE, 0, 0, 0, pThreadProc, lpMap, &hThread, NULL);
+	//		if (!NT_SUCCESS(Status) || hThread == NULL)
+	//		{
+	//			printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
+	//			CloseHandle(hProcess);
+	//			continue;
+	//		}
+	//	}
+	//	else
+	//	{
+	//		HMODULE fdllpath = findRemoteHModule(entry.th32ProcessID, (const char*)rpszDllsOut);
+	//		if (fdllpath != NULL)
+	//		{
+	//			NTSTATUS Status = NtCreateThreadEx(&hThread, 0x1FFFFF, NULL, hProcess, (LPTHREAD_START_ROUTINE)pThreadProc, fdllpath, FALSE, NULL, NULL, NULL, NULL);
+	//			//NTSTATUS Status = RtlCreateUserThread(hProcess, NULL, FALSE, 0, 0, 0, pThreadProc, fdllpath, &hThread, NULL);
+	//			if (!NT_SUCCESS(Status) || hThread == NULL)
+	//			{
+	//				printf("CreateRemoteThread(%ld) failed!!! [%ld]\n", entry.th32ProcessID, GetLastError());
+	//				CloseHandle(hProcess);
+	//				continue;
+	//			}
+	//		}
+	//	}
+	//	printf("CreateRemoteThread(%ld) Success!!! \n", entry.th32ProcessID);
+
+	//	CloseHandle(hThread);
+	//	hThread = NULL;
+	//	CloseHandle(hProcess);
+	//	hProcess = NULL;
+	//} while (Process32Next(hSnap, &entry));
+
+	//CloseHandle(hSnap);
+
+
+
+
+	if (!isFree) {
+		exe('i', t_pid);
+	}
+	else {
+		exe('e', t_pid);
+	}
 
 	return 0;
 }

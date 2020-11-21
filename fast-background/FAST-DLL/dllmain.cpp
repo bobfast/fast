@@ -159,7 +159,7 @@ DLLBASIC_API BOOL WINAPI MyQueueUserAPC(
 
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallQueueUserAPC, monMMF, 0, NULL);
-	//WaitForSingleObject(hMonThread, INFINITE);
+	WaitForSingleObject(hMonThread, INFINITE);
 	CloseHandle(hMonThread);
 	//printf("%s\n", (char*)dllMMF);
 	return TrueQueueUserAPC(
@@ -211,7 +211,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 			sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallNtMapViewOfSection:IPC Successful!", GetCurrentProcessId(), GetProcessId(ProcessHandle), (DWORD64)BaseAddress, (DWORD)CommitSize, Win32Protect);
 			memcpy(dllMMF, buf, strlen(buf));
 			hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallNtMapViewOfSection, monMMF, 0, NULL);
-			//WaitForSingleObject(hMonThread, INFINITE);
+			WaitForSingleObject(hMonThread, INFINITE);
 			CloseHandle(hMonThread);
 			//printf("%s\n", (char*)dllMMF);
 			return res;
@@ -233,7 +233,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 
 
 //#####################################
-// My CreateRemoteThread Hooking Function
+// My CreateReCreateRemoteThread Hooking Function
 DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	HANDLE                 hProcess,
 	LPSECURITY_ATTRIBUTES  lpThreadAttributes,
@@ -277,7 +277,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallCreateRemoteThread, monMMF, 0, NULL);
-	//WaitForSingleObject(hMonThread, INFINITE);
+	WaitForSingleObject(hMonThread, INFINITE);
 	CloseHandle(hMonThread);
 	//printf("%s\n", (char*)dllMMF);
 
@@ -332,7 +332,7 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize, flProtect);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
-		//WaitForSingleObject(hMonThread, INFINITE);
+		WaitForSingleObject(hMonThread, INFINITE);
 		CloseHandle(hMonThread);
 		//printf("%s\n", (char*)dllMMF);
 		return ret;
@@ -394,7 +394,7 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 	sprintf_s(buf, "%lu:MyWriteProcessMemory:IPC Successful!", GetCurrentProcessId());
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallWriteProcessMemory, monMMF, 0, NULL);
-	//WaitForSingleObject(hMonThread, INFINITE);
+	WaitForSingleObject(hMonThread, INFINITE);
 	CloseHandle(hMonThread);
 	//printf("%s\n", (char*)dllMMF);
 
@@ -440,7 +440,7 @@ DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
 		sprintf_s(buf, "%lu:CallCreateFileMappingA:IPC Successful!     ", GetCurrentProcessId());
 		memcpy(dllMMF, buf, strlen(buf));
 		hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallCreateFileMappingA, monMMF, 0, NULL);
-		//WaitForSingleObject(hThread, INFINITE);
+		WaitForSingleObject(hThread, INFINITE);
 		CloseHandle(hThread);
 		//printf("%s\n", (char*)dllMMF);  //#####
 	}
@@ -487,7 +487,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtQueueApcThread, monMMF, 0, NULL);
-	//WaitForSingleObject(hThread, INFINITE);
+	WaitForSingleObject(hThread, INFINITE);
 	CloseHandle(hThread);
 	//printf("%s\n", (char*)dllMMF);
 
@@ -531,7 +531,7 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetThreadContext, monMMF, 0, NULL);
-	//WaitForSingleObject(hMonThread, INFINITE);
+	WaitForSingleObject(hMonThread, INFINITE);
 	CloseHandle(hMonThread);
 	//printf("%s\n", (char*)dllMMF);
 
@@ -597,7 +597,7 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	sprintf_s(buf, "%lu:%lu:%016llx:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), dwpid, p2);
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetWindowLongPtrA, monMMF, 0, NULL);
-	//WaitForSingleObject(hThread, INFINITE);
+	WaitForSingleObject(hThread, INFINITE);
 	CloseHandle(hThread);
 	//printf("%s\n", (char*)dllMMF);
 
@@ -654,7 +654,7 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 	sprintf_s(buf, "%lu:%lu:%016llx:CallSetPropA:IPC Successful!", GetCurrentProcessId(),dwpid, ptr);
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetPropA, monMMF, 0, NULL);
-	//WaitForSingleObject(hThread, INFINITE);
+	WaitForSingleObject(hThread, INFINITE);
 	CloseHandle(hThread);
 	//printf("%s\n", (char*)dllMMF);
 
@@ -701,7 +701,7 @@ PDWORD lpflOldProtect)
 		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:MyVirtualProtectEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpAddress, (DWORD)dwSize, flNewProtect);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualProtectEx, monMMF, 0, NULL);
-		//WaitForSingleObject(hMonThread, INFINITE);
+		WaitForSingleObject(hMonThread, INFINITE);
 		CloseHandle(hMonThread);
 		//printf("%s\n", (char*)dllMMF);
 	}
@@ -734,7 +734,7 @@ DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 	sprintf_s(buf, "%lu:CallSleepEx:IPC Successful!     ", GetCurrentProcessId());
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallSleepEx, monMMF, 0, NULL);
-	//WaitForSingleObject(hThread, INFINITE);
+	WaitForSingleObject(hThread, INFINITE);
 	CloseHandle(hThread);
 	//printf("%s\n", (char*)dllMMF);
 
