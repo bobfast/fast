@@ -139,7 +139,8 @@
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>..\..\imnode\include\GL;..\..\imnode\include;..\..\SDL2-devel-2.0.12-VC\SDL2-2.0.12\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\imnode\src;..\..\imnode\include\GL;..\..\imnode\include;..\..\SDL2-devel-2.0.12-VC\SDL2-2.0.12\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <AdditionalDependencies>SDL2.lib;SDL2main.lib;opengl32.lib;detours.lib;capstone.lib;%(AdditionalDependencies)</AdditionalDependencies>
