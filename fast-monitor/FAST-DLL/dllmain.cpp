@@ -519,6 +519,10 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 ) {
 	memset(dllMMF, 0, MSG_SIZE);
 
+	// GetProcessIdOfThread(hThread) failed, maybe...
+	// because THREAD_SET_CONTEXT exists
+	// but THREAD_QUERY_(LIMITED)_INFORMATION doesn't exist in hThread.
+	// If failed, target_pid can be 0.
 	DWORD target_pid = GetProcessIdOfThread(hThread);
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread= NULL;
@@ -529,11 +533,12 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
 	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
-	//GetProcessIdOfThread(hThread) failed.
-	if (lpContext->Rip == 0) 
+	if (lpContext->Rip == 0) {
 		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rax, szImagePath);
-	else
+	}
+	else {
 		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rip, szImagePath);
+	}
 
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetThreadContext, monMMF, 0, NULL);
@@ -899,7 +904,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
-		//DetourAttach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
+		DetourAttach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
 		DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
 		DetourAttach(&(PVOID&)TrueSetPropA, MySetPropA);
 		DetourAttach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);
@@ -935,7 +940,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
 		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
 		DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
-		//DetourDetach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
+		DetourDetach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
 		DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
 		DetourDetach(&(PVOID&)TrueSetPropA, MySetPropA);
 		DetourDetach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);

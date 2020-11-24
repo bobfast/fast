@@ -532,6 +532,8 @@ namespace CppCLRWinformsProjekt {
 			return std::string("SetWindowLongPtrA");
 		if (flags == FLAG_SetPropA)
 			return std::string("SetPropA");
+		if (flags == FLAG_SetThreadContext)
+			return std::string("SetThreadContext");
 
 		return std::string("");
 	}

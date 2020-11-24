@@ -28,8 +28,27 @@ void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string c
 }
 
 
+std::string getProcessIdUsingTargetAddress(DWORD64 target) {
+	for (auto& item : rwxList) {
+		for (auto& i : item.second) {
+			if (std::get<0>(i[0]) <= target && (std::get<0>(i[0]) + (DWORD64)(std::get<1>(i[0])) > target)) {
+				return item.first;
+			}
+		}
+	}
+	return "0";
+}
+
+
 BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path) {
-	auto item = rwxList.find(callee_pid);
+	std::string _callee_pid;
+	
+	if (callee_pid == "0")
+		_callee_pid = getProcessIdUsingTargetAddress(target);
+	else
+		_callee_pid = callee_pid;
+
+	auto item = rwxList.find(_callee_pid);
 	if (item != rwxList.end()) {
 
 		for (auto& i : item->second) {
@@ -40,7 +59,7 @@ BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string
 				std::get<3>(i[0]) |= flags;
 				if (flags != FLAG_WriteProcessMemory) {
 					Form1^ form = (Form1^)Application::OpenForms[0];
-					form->show_detection(callee_pid, i);
+					form->show_detection(_callee_pid, i);
 				}
 				return TRUE;
 			}
@@ -458,14 +477,21 @@ void CallSetThreadContext(LPVOID monMMF) {
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
-	CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+	// If no THREAD_QUERY(_LIMITED)_INFORMATION, callee_pid can be 0.
+	// So, the program should find a callee_pid with lpStartAddress.
+	if (callee_pid == "0") {
+		callee_pid = getProcessIdUsingTargetAddress(lpStartAddress);
+	}
 
-	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path)) {
+	if (callee_pid != "0" && checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
-		form->logging(callee_pid+" : "+ caller_pid +" : SetThreadContext -> Thread Hijacking Detected! Addr: "+ addr+"\r\n");
+		form->logging(caller_pid + " : " + callee_pid + " : SetThreadContext -> Thread Hijacking Detected! Addr: " + addr + "\r\n");
+		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
-
-		MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
+		memory_region_dump(std::stoi(callee_pid), "SetThreadContext", (LPVOID)lpStartAddress, rwxList);
+		if (MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+			exDumpIt();
+		}
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
