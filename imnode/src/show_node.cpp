@@ -106,8 +106,8 @@ namespace Show_node
       
             void show(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v)
             {
-                int index = v.size(); //������ ����� �� ���� 
-                int current = 1; //��� �߰� �� current ����
+                int index = v.size();
+                int current = 1;
                 int attribute = 2;
                 std::vector<std::pair<int, int>> links;
                 ImGui::Begin("Attack Flow");

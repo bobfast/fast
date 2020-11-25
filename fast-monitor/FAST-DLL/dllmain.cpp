@@ -187,43 +187,23 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	ULONG Win32Protect
 )
 {
-	
-		memset(dllMMF, 0, MSG_SIZE);
-		char buf[MSG_SIZE] = "";
-		HANDLE hMonThread = NULL;
+	DWORD target_pid;
+	DWORD64 realBaseAddr = (DWORD64)BaseAddress;
+	SIZE_T readbyte;
+	memset(dllMMF, 0, MSG_SIZE);
+	char buf[MSG_SIZE] = "";
+	HANDLE hMonThread = NULL;
 
-		TCHAR szImagePath[MAX_PATH] = { 0, };
-		DWORD dwLen = 0;
-		ZeroMemory(szImagePath, sizeof(szImagePath));
-		dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-		QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
+	NTSTATUS res;
 
-		if (Win32Protect == (PAGE_EXECUTE_READWRITE )) {
-
-			NTSTATUS res = (*TrueNtMapViewOfSection)(
-				SectionHandle,
-				ProcessHandle,
-				BaseAddress,
-				ZeroBits,
-				CommitSize,
-				SectionOffset,
-				ViewSize,
-				InheritDisposition,
-				AllocationType,
-				Win32Protect);
-
-			//GetProcessId(ProcessHandle) failed.
-			sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallNtMapViewOfSection:IPC Successful!", GetCurrentProcessId(), GetProcessId(ProcessHandle), (DWORD64)BaseAddress, (DWORD)CommitSize, Win32Protect);
-			memcpy(dllMMF, buf, strlen(buf));
-			hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallNtMapViewOfSection, monMMF, 0, NULL);
-			WaitForSingleObject(hMonThread, INFINITE);
-			CloseHandle(hMonThread);
-			printf("%s\n", (char*)dllMMF);
-			return res;
-		}
-	else
-		return (*TrueNtMapViewOfSection)(
+	if (Win32Protect == PAGE_EXECUTE_READWRITE) {
+		res = TrueNtMapViewOfSection(
 			SectionHandle,
 			ProcessHandle,
 			BaseAddress,
@@ -234,6 +214,41 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 			InheritDisposition,
 			AllocationType,
 			Win32Protect);
+
+		target_pid = GetProcessId(ProcessHandle);
+
+		if (target_pid == 0) {
+			printf("Error: cannot read target process ID.\n");
+		}
+		else if (!ReadProcessMemory(GetCurrentProcess(), BaseAddress, &realBaseAddr, sizeof(realBaseAddr), &readbyte)) {
+			printf("Error: cannot read target process memory to get real base address.\n");
+		}
+		else {
+			sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallNtMapViewOfSection:IPC Successful!",
+				GetCurrentProcessId(), target_pid, realBaseAddr,
+				(DWORD)CommitSize, Win32Protect);
+			memcpy(dllMMF, buf, strlen(buf));
+			hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallNtMapViewOfSection, monMMF, 0, NULL);
+			WaitForSingleObject(hMonThread, INFINITE);
+			CloseHandle(hMonThread);
+			printf("%s\n", (char*)dllMMF);
+		}
+
+		return res;
+	}
+	else {
+		return TrueNtMapViewOfSection(
+			SectionHandle,
+			ProcessHandle,
+			BaseAddress,
+			ZeroBits,
+			CommitSize,
+			SectionOffset,
+			ViewSize,
+			InheritDisposition,
+			AllocationType,
+			Win32Protect);
+	}
 }
 
 
