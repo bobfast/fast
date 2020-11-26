@@ -27,7 +27,7 @@ void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string c
 	}
 }
 
-
+/*
 std::string getProcessIdUsingTargetAddress(DWORD64 target) {
 	for (auto& item : rwxList) {
 		for (auto& i : item.second) {
@@ -38,17 +38,10 @@ std::string getProcessIdUsingTargetAddress(DWORD64 target) {
 	}
 	return "0";
 }
-
+*/
 
 BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path) {
-	std::string _callee_pid;
-	
-	if (callee_pid == "0")
-		_callee_pid = getProcessIdUsingTargetAddress(target);
-	else
-		_callee_pid = callee_pid;
-
-	auto item = rwxList.find(_callee_pid);
+	auto item = rwxList.find(callee_pid);
 	if (item != rwxList.end()) {
 
 		for (auto& i : item->second) {
@@ -59,7 +52,7 @@ BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string
 				std::get<3>(i[0]) |= flags;
 				if (flags != FLAG_WriteProcessMemory) {
 					Form1^ form = (Form1^)Application::OpenForms[0];
-					form->show_detection(_callee_pid, i);
+					form->show_detection(callee_pid, i);
 				}
 				return TRUE;
 			}
@@ -477,13 +470,7 @@ void CallSetThreadContext(LPVOID monMMF) {
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
-	// If no THREAD_QUERY(_LIMITED)_INFORMATION, callee_pid can be 0.
-	// So, the program should find a callee_pid with lpStartAddress.
-	if (callee_pid == "0") {
-		callee_pid = getProcessIdUsingTargetAddress(lpStartAddress);
-	}
-
-	if (callee_pid != "0" && checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path)) {
+	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
 		form->logging(caller_pid + " : " + callee_pid + " : SetThreadContext -> Thread Hijacking Detected! Addr: " + addr + "\r\n");
 		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));

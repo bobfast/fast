@@ -18,7 +18,7 @@ extern FILE* pFile;
 
 void exDumpIt();
 void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path);
-std::string getProcessIdUsingTargetAddress(DWORD64 target);
+//std::string getProcessIdUsingTargetAddress(DWORD64 target);
 BOOL checkList(std::string pid, DWORD64 target ,  DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path);
 
 int fileExists(TCHAR* file);

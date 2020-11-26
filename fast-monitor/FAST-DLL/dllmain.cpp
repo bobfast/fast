@@ -221,8 +221,19 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		// If failed, target_pid can be 0.
 		target_pid = GetProcessId(ProcessHandle);
 
+		// Getting PID using DuplicateHandle
+		HANDLE hProcessDuplicated = NULL;
+		DWORD duplicateHandleResult = 0;
+
 		if (target_pid == 0) {
-			printf("Error: cannot read target process ID.\n");
+			duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), ProcessHandle, GetCurrentProcess(),
+				&hProcessDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+			if (duplicateHandleResult != 0) {
+				target_pid = GetProcessId(hProcessDuplicated);
+
+				CloseHandle(hProcessDuplicated);
+			}
 		}
 		
 		if (!ReadProcessMemory(GetCurrentProcess(), BaseAddress, &realBaseAddr, sizeof(realBaseAddr), &readbyte)) {
@@ -546,6 +557,21 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	DWORD target_pid = GetProcessIdOfThread(hThread);
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread= NULL;
+
+	// Getting PID using DuplicateHandle
+	HANDLE hThreadDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hThread, GetCurrentProcess(),
+			&hThreadDuplicated, THREAD_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessIdOfThread(hThreadDuplicated);
+
+			CloseHandle(hThreadDuplicated);
+		}
+	}
 
 	TCHAR szImagePath[MAX_PATH] = { 0, };
 	DWORD dwLen = 0;
