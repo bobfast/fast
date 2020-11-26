@@ -215,12 +215,17 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 			AllocationType,
 			Win32Protect);
 
+		// GetProcessId(ProcessHandle) failed, maybe...
+		// because PROCESS_VM_READ exists
+		// but PROCESS_QUERY_(LIMITED)_INFORMATION doesn't exist in ProcessHandle.
+		// If failed, target_pid can be 0.
 		target_pid = GetProcessId(ProcessHandle);
 
 		if (target_pid == 0) {
 			printf("Error: cannot read target process ID.\n");
 		}
-		else if (!ReadProcessMemory(GetCurrentProcess(), BaseAddress, &realBaseAddr, sizeof(realBaseAddr), &readbyte)) {
+		
+		if (!ReadProcessMemory(GetCurrentProcess(), BaseAddress, &realBaseAddr, sizeof(realBaseAddr), &readbyte)) {
 			printf("Error: cannot read target process memory to get real base address.\n");
 		}
 		else {
