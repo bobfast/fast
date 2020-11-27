@@ -364,7 +364,6 @@ int CDECL mon(int isFree_)
 
 	PNtMapViewOfSection = (NTSTATUS(*)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID * BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect)) GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtMapViewOfSection");
 
-
 	hMod = GetModuleHandleA("kernel32.dll");
 	if (!hMod)
 	{
@@ -410,7 +409,7 @@ int CDECL mon(int isFree_)
 		if (thispid == entry.th32ProcessID)
 			continue;
 		hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, entry.th32ProcessID);
-		if (!(hProcess))
+		if (!hProcess)
 		{
 			continue;
 		}

@@ -508,7 +508,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
 	if (ApcRoutine == GlobalGetAtomNameA)
-		sprintf_s(buf, "%lu:%lu:%s:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, szImagePath);
+		sprintf_s(buf, "%lu:%lu:GlobalGetAtomNameA:%s:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, szImagePath);
 	else
 		sprintf_s(buf, "%lu:%lu:%p:%s:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, ApcRoutine, szImagePath);
 
