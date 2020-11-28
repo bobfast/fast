@@ -109,12 +109,13 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>..\..\imnode\src;..\..\imnode\include\GL;..\..\imnode\include;..\..\SDL2-devel-2.0.12-VC\SDL2-2.0.12\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>detours.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;opengl32.lib;detours.lib;capstone.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>main</EntryPointSymbol>
-      <AdditionalLibraryDirectories>..\..\lib.X64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\SDL2-devel-2.0.12-VC\SDL2-2.0.12\lib\x64;..\..\lib.X64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -138,18 +139,32 @@
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>..\..\imnode\include\GL;..\..\imnode\include;..\..\SDL2-devel-2.0.12-VC\SDL2-2.0.12\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>detours.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;opengl32.lib;detours.lib;capstone.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>main</EntryPointSymbol>
-      <AdditionalLibraryDirectories>..\..\lib.X64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\SDL2-devel-2.0.12-VC\SDL2-2.0.12\lib\x64;..\..\lib.X64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ResourceCompile Include="app.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\imnode\include\GL\gl3w.h" />
+    <ClInclude Include="..\..\imnode\include\GL\glcorearb.h" />
+    <ClInclude Include="..\..\imnode\include\graph.h" />
+    <ClInclude Include="..\..\imnode\include\imconfig.h" />
+    <ClInclude Include="..\..\imnode\include\imgui.h" />
+    <ClInclude Include="..\..\imnode\include\imgui_impl_opengl3.h" />
+    <ClInclude Include="..\..\imnode\include\imgui_impl_sdl.h" />
+    <ClInclude Include="..\..\imnode\include\imgui_internal.h" />
+    <ClInclude Include="..\..\imnode\include\imnodes.h" />
+    <ClInclude Include="..\..\imnode\include\imstb_rectpack.h" />
+    <ClInclude Include="..\..\imnode\include\imstb_textedit.h" />
+    <ClInclude Include="..\..\imnode\include\imstb_truetype.h" />
+    <ClInclude Include="..\..\imnode\include\node_editor.h" />
     <ClInclude Include="call_api.h" />
     <ClInclude Include="Form1.h">
       <FileType>CppForm</FileType>
@@ -157,6 +172,14 @@
     <ClInclude Include="Resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\imnode\src\gl3w.cpp" />
+    <ClCompile Include="..\..\imnode\src\imgui.cpp" />
+    <ClCompile Include="..\..\imnode\src\imgui_draw.cpp" />
+    <ClCompile Include="..\..\imnode\src\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="..\..\imnode\src\imgui_impl_sdl.cpp" />
+    <ClCompile Include="..\..\imnode\src\imgui_widgets.cpp" />
+    <ClCompile Include="..\..\imnode\src\imnodes.cpp" />
+    <ClCompile Include="..\..\imnode\src\show_node.cpp" />
     <ClCompile Include="call_api.cpp" />
     <ClCompile Include="AssemblyInfo.cpp" />
     <ClCompile Include="CppCLR_WinformsProjekt.cpp" />

@@ -1,13 +1,12 @@
-﻿  call_api.cpp
-  AssemblyInfo.cpp
-  CppCLR_WinformsProjekt.cpp
-  dumpProcess.cpp
-  Form1.cpp
-C:\Users\User\Desktop\fast\fast-monitor\fast-monitor\Form1.cpp(134,20): warning C4018: '<': signed/unsigned mismatch
-  .NETFramework,Version=v4.7.2.AssemblyAttributes.cpp
-  Generating Code...
-  call_api.obj : MSIL module encountered; incremental linking is disabled for MSIL; performing full link
-detours.lib(detours.obj) : warning LNK4099: PDB 'detours.pdb' was not found with 'detours.lib(detours.obj)' or at 'C:\Users\User\Desktop\fast\fast-monitor\x64\Debug\detours.pdb'; linking object as if no debug info
-detours.lib(modules.obj) : warning LNK4099: PDB 'detours.pdb' was not found with 'detours.lib(modules.obj)' or at 'C:\Users\User\Desktop\fast\fast-monitor\x64\Debug\detours.pdb'; linking object as if no debug info
-detours.lib(disasm.obj) : warning LNK4099: PDB 'detours.pdb' was not found with 'detours.lib(disasm.obj)' or at 'C:\Users\User\Desktop\fast\fast-monitor\x64\Debug\detours.pdb'; linking object as if no debug info
-  fast-monitor.vcxproj -> C:\Users\User\Desktop\fast\fast-monitor\x64\Debug\fast-monitor.exe
+﻿  gl3w.obj : MSIL 모듈이 발견되었습니다. MSIL에 증분 링크를 사용할 수 없습니다. 전체 링크를 수행하고 있습니다.
+gl3w.obj : warning LNK4248: 확인되지 않은 형식 정의 토큰 (01000016)이 있습니다('__GLsync'). 이미지가 실행되지 않습니다.
+gl3w.obj : warning LNK4248: 확인되지 않은 형식 정의 토큰 (01000019)이 있습니다('_cl_context'). 이미지가 실행되지 않습니다.
+gl3w.obj : warning LNK4248: 확인되지 않은 형식 정의 토큰 (0100001A)이 있습니다('_cl_event'). 이미지가 실행되지 않습니다.
+Form1.obj : warning LNK4248: 확인되지 않은 형식 정의 토큰 (0100002F)이 있습니다('SDL_Window'). 이미지가 실행되지 않습니다.
+imgui_impl_sdl.obj : warning LNK4248: 확인되지 않은 형식 정의 토큰 (01000016)이 있습니다('SDL_Window'). 이미지가 실행되지 않습니다.
+imgui_impl_sdl.obj : warning LNK4248: 확인되지 않은 형식 정의 토큰 (01000018)이 있습니다('_SDL_GameController'). 이미지가 실행되지 않습니다.
+imgui_impl_sdl.obj : warning LNK4248: 확인되지 않은 형식 정의 토큰 (01000019)이 있습니다('SDL_Cursor'). 이미지가 실행되지 않습니다.
+detours.lib(detours.obj) : warning LNK4099: 'detours.pdb' PDB를 'detours.lib(detours.obj)' 또는 'C:\Users\real1\Desktop\fast\fast-monitor\x64\Debug\detours.pdb'에서 찾을 수 없습니다. 디버그 정보가 없는 것처럼 개체를 링크합니다.
+detours.lib(modules.obj) : warning LNK4099: 'detours.pdb' PDB를 'detours.lib(modules.obj)' 또는 'C:\Users\real1\Desktop\fast\fast-monitor\x64\Debug\detours.pdb'에서 찾을 수 없습니다. 디버그 정보가 없는 것처럼 개체를 링크합니다.
+detours.lib(disasm.obj) : warning LNK4099: 'detours.pdb' PDB를 'detours.lib(disasm.obj)' 또는 'C:\Users\real1\Desktop\fast\fast-monitor\x64\Debug\detours.pdb'에서 찾을 수 없습니다. 디버그 정보가 없는 것처럼 개체를 링크합니다.
+  fast-monitor.vcxproj -> C:\Users\real1\Desktop\fast\fast-monitor\x64\Debug\fast-monitor.exe
