@@ -1,9 +1,105 @@
 ﻿// dllmain.cpp : DLL 애플리케이션의 진입점을 정의합니다.
-
 #include "framework.h"
 #include "detours.h"
 #include <string>
 
+//##################call stack
+void printStack(char buf[]) {
+	BOOL    result;
+	
+	char* sp;
+	sp = buf + strnlen_s(buf,MSG_SIZE);
+
+	HMODULE hModule;
+	HANDLE Process;
+	HANDLE Thread;
+	STACKFRAME64        stack;
+	ULONG               frame;
+	DWORD64             displacement;
+
+	DWORD disp;
+	IMAGEHLP_LINE64* line;
+	CONTEXT ctx;
+	char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+	char module[MaxNameLen];
+	PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
+
+	RtlCaptureContext(&ctx);
+	memset(&stack, 0, sizeof(STACKFRAME64));
+
+
+	displacement = 0;
+#if !defined(_M_AMD64)
+	stack.AddrPC.Offset = (*ctx).Eip;
+	stack.AddrPC.Mode = AddrModeFlat;
+	stack.AddrStack.Offset = (*ctx).Esp;
+	stack.AddrStack.Mode = AddrModeFlat;
+	stack.AddrFrame.Offset = (*ctx).Ebp;
+	stack.AddrFrame.Mode = AddrModeFlat;
+#endif
+	Process = GetCurrentProcess();
+	Thread = GetCurrentThread();
+	SymInitialize(Process, NULL, TRUE); //load symbols
+
+	for (frame = 0; ; frame++)
+	{
+		//get next call from stack
+		result = StackWalk64
+		(
+#if defined(_M_AMD64)
+			IMAGE_FILE_MACHINE_AMD64
+#else
+			IMAGE_FILE_MACHINE_I386
+#endif
+			,
+			Process,
+			Thread,
+			&stack,
+			&ctx,
+			NULL,
+			SymFunctionTableAccess64,
+			SymGetModuleBase64,
+			NULL
+		);
+
+		if (!result) break;
+
+		//get symbol name for address
+		pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+		pSymbol->MaxNameLen = MAX_SYM_NAME;
+		SymFromAddr(Process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol);
+
+		line = (IMAGEHLP_LINE64*)malloc(sizeof(IMAGEHLP_LINE64));
+		line->SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+
+	
+		//try to get line
+		if (SymGetLineFromAddr64(Process, stack.AddrPC.Offset, &disp, line))
+		{
+			sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE),"\tat %s in %s: line: %lu: address: 0x%016llx\n", pSymbol->Name, line->FileName, line->LineNumber, pSymbol->Address);
+		}
+		else {
+			
+
+			hModule = NULL;
+			lstrcpyA(module, "");
+			GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+				(LPCTSTR)(stack.AddrPC.Offset), &hModule);
+
+			//at least print module name
+			if (hModule != NULL)GetModuleFileNameA(hModule, module, MaxNameLen);
+
+			sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "in %s\n", module);
+			sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "\t base at %s, address 0x%lu\n", pSymbol->Name, pSymbol->Address);
+		}
+		sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "*");
+		free(line);
+		
+
+	}
+
+}
+//################
 static NTMAPVIEWOFSECTION pNtMapViewOfSection;
 static NTMAPVIEWOFSECTION TrueNtMapViewOfSection;
 static CREATEREMOTETHREAD pCreateRemoteThread = CreateRemoteThread;
@@ -285,7 +381,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 		//sprintf_s(buf, "%lu:%016x:%016x:CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess), lpStartAddress, lpParameter);
 		sprintf_s(buf, "%lu:%lu:%p:%p:%s:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess), lpStartAddress, lpParameter, szImagePath);
 	}
-
+	printStack(buf);
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallCreateRemoteThread, monMMF, 0, NULL);
 	WaitForSingleObject(hMonThread, INFINITE);
@@ -327,7 +423,7 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	memset(dllMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
-
+	
 	TCHAR szImagePath[MAX_PATH] = { 0, };
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
@@ -345,6 +441,8 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 		);
 
 		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:%s:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize, flProtect, szImagePath);
+		
+		printStack(buf);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
 		WaitForSingleObject(hMonThread, INFINITE);
@@ -372,24 +470,25 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 	SIZE_T* lpNumberOfBytesWritten)
 {
 	memset(dllMMF, 0, MSG_SIZE);
-
+	
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
-
+	
 	TCHAR szImagePath[MAX_PATH] = { 0, };
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
 	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
-	sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%s:MyWriteProcessMemory:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpBaseAddress, (DWORD)nSize, szImagePath);
-
+	sprintf_s(buf,"%lu:%lu:%016llx:%08lx:%s:MyWriteProcessMemory:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpBaseAddress, (DWORD)nSize, szImagePath);
+	printStack(buf);
+	
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallWriteProcessMemory, monMMF, 0, NULL);
 	WaitForSingleObject(hMonThread, INFINITE);
 	CloseHandle(hMonThread);
 	printf("%s\n", (char*)dllMMF);
-
+	
 
 	return pWriteProcessMemory(
 		hProcess,
@@ -608,6 +707,7 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 
 	printf("%016llx\n", dwNewLong);
 	sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), dwpid, p2, szImagePath);
+	printStack(buf);
 	memcpy(dllMMF, buf, strlen(buf));
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetWindowLongPtrA, monMMF, 0, NULL);
 	WaitForSingleObject(hThread, INFINITE);
@@ -726,6 +826,7 @@ PDWORD lpflOldProtect)
 	if ( flNewProtect == (PAGE_EXECUTE_READWRITE ) ) {
 
 		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:%s:MyVirtualProtectEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpAddress, (DWORD)dwSize, flNewProtect, szImagePath);
+		printStack(buf);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualProtectEx, monMMF, 0, NULL);
 		WaitForSingleObject(hMonThread, INFINITE);
