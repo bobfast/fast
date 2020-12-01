@@ -242,14 +242,14 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
-	form->logging(caller_pid+" : "+ callee_pid+ " : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
+	form->logging(caller_pid + " : " + callee_pid + " : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
-	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx ,caller_path);
+	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx, caller_path);
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
@@ -291,7 +291,7 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 	DWORD64 lpbaseaddress = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	std::string caller_path(strtok_s(NULL, ":", &cp_context));
-	
+
 	if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path)) {
 		form->logging(caller_pid + " : " + callee_pid + " : WriteProcessMemory called on Executable Memory.\r\n");
 		CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
@@ -342,10 +342,10 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 				printf("Error: cannot read target process memory for dump.\n");
 				break;
 			}
-			
+
 			form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n");
 			form->logging("DLL File: " + std::string(buf) + "\r\n");
-			CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
+			//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 			sprintf_s(messagePrint, "CreateRemoteThread DLL Injection with LoadLibrary Detected!\nDLL File: %s", buf);
 			MessageBoxA(NULL, messagePrint, "Detection Alert!", MB_OK | MB_ICONQUESTION);
@@ -360,8 +360,8 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 
 		sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
 
-		form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> Code Injection Detected! Addr:"+ addr+"\r\n");
-		CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
+		form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> Code Injection Detected! Addr:" + addr + "\r\n");
+		//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 
 		memory_region_dump(std::stoi(callee_pid), "CodeInjection", (LPVOID)lpStartAddress, rwxList);
@@ -444,7 +444,7 @@ void CallGetThreadContext(LPVOID monMMF) {
 void CallSetThreadContext(LPVOID monMMF) {
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
-	
+
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
 
@@ -460,11 +460,11 @@ void CallSetThreadContext(LPVOID monMMF) {
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
-	CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
+	//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
-		form->logging(callee_pid+" : "+ caller_pid +" : SetThreadContext -> Thread Hijacking Detected! Addr: "+ addr+"\r\n");
+		form->logging(callee_pid + " : " + caller_pid + " : SetThreadContext -> Thread Hijacking Detected! Addr: " + addr + "\r\n");
 
 
 		MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
@@ -497,7 +497,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 		sprintf_s(buf, "%s:Detected:GlobalGetAtomNameA:CallNtQueueApcThread", callee_pid.c_str());
 
 		form->logging(" : NtQueueApcThread -> GlobalGetAtomNameA Detected!\r\n");
-		CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
+		//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 		//MessageBoxA(NULL, "NtQueueApcThread - GlobalGetAtomNameA Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 		//memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread_GlobalGetAtomNameA", rwxList);
@@ -507,20 +507,20 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 	else {
 		DWORD64 target = (DWORD64)strtoll(apc_routine.c_str(), NULL, 16);
 		if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread, caller_path)) {
-					sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
+			sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
 
-					form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n");
-					CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
+			form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n");
+			//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 
-					memory_region_dump(std::stoi(callee_pid), "NtQueueApcThread", (LPVOID)target, rwxList);
-					if (MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
-						exDumpIt();
-					}
+			memory_region_dump(std::stoi(callee_pid), "NtQueueApcThread", (LPVOID)target, rwxList);
+			if (MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+				exDumpIt();
+			}
 
-					memcpy(monMMF, buf, strlen(buf));
-					return;
-			
+			memcpy(monMMF, buf, strlen(buf));
+			return;
+
 		}
 	}
 
@@ -550,18 +550,18 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA, caller_path)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
-				form->logging(caller_pid+" : "+ callee_pid +" : SetWindowLongPtrA -> Code Injection Detected! Addr: "+ addr +"\r\n");
-				CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
+		sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
+		form->logging(caller_pid + " : " + callee_pid + " : SetWindowLongPtrA -> Code Injection Detected! Addr: " + addr + "\r\n");
+		//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
-				memory_region_dump(std::stoi(callee_pid), "SetWindowLongPtrA", (LPVOID)lpStartAddress, rwxList);
-				if (MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
-					exDumpIt();
-				}
+		memory_region_dump(std::stoi(callee_pid), "SetWindowLongPtrA", (LPVOID)lpStartAddress, rwxList);
+		if (MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+			exDumpIt();
+		}
 
-				memcpy(monMMF, buf, strlen(buf));
-				return;
-			
+		memcpy(monMMF, buf, strlen(buf));
+		return;
+
 	}
 
 	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", callee_pid.c_str(), lpStartAddress);
@@ -593,17 +593,17 @@ void CallSetPropA(LPVOID monMMF) {
 
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA, caller_path)) {
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
-				form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n");
-				CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
+		sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
+		form->logging(caller_pid + " : " + callee_pid + " : SetPropA -> Code Injection Detected! Addr: " + addr + "\r\n");
+		//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
-				memory_region_dump(std::stoi(callee_pid), "CallSetPropA", (LPVOID)lpStartAddress, rwxList);
-				if (MessageBoxA(NULL, "CallSetPropA Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
-					exDumpIt();
-				}
+		memory_region_dump(std::stoi(callee_pid), "CallSetPropA", (LPVOID)lpStartAddress, rwxList);
+		if (MessageBoxA(NULL, "CallSetPropA Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+			exDumpIt();
+		}
 
-				memcpy(monMMF, buf, strlen(buf));
-				return;
+		memcpy(monMMF, buf, strlen(buf));
+		return;
 	}
 
 	sprintf_s(buf, "%s:%016llx:CallSetPropA:Clean", callee_pid.c_str(), lpStartAddress);
@@ -723,10 +723,10 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 	PIMAGE_NT_HEADERS pNTH = NULL;
 	PIMAGE_FILE_HEADER pFH = NULL;
 	PIMAGE_SECTION_HEADER pSH = NULL;
-	
+
 	void* lpBaseAddress = (void*)GetModuleAddress(fileName, pid);
 	if (!lpBaseAddress) {
-		form->logging("FAILED GETMODULEADDRESS\r\n"); 
+		form->logging("FAILED GETMODULEADDRESS\r\n");
 		return FALSE;
 	}
 
@@ -778,7 +778,7 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 		}
 	}
 	else {
-		form->logging("1st ReadProcessMemory error!"+ std::to_string(GetLastError()) +"\r\n");
+		form->logging("1st ReadProcessMemory error!" + std::to_string(GetLastError()) + "\r\n");
 		return FALSE;
 	}
 
@@ -796,7 +796,7 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 
 	FILE* pFile = fopen(filePath, "rb");
 	if (!pFile) {
-		form->logging("FAILED FILE OPEN : "+ std::string(filePath)+"\r\n");
+		form->logging("FAILED FILE OPEN : " + std::string(filePath) + "\r\n");
 		exit(1);
 	}
 
@@ -854,7 +854,7 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 		}
 		pSH++;
 	}
-	
+
 
 
 	/// <summary>
@@ -907,7 +907,7 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 			//form->logging("\n\n\n\n\n");
 		}
 		else {
-			form->logging("2nd ReadProcessMemory error code : "+ std::to_string(GetLastError())+"\r\n");
+			form->logging("2nd ReadProcessMemory error code : " + std::to_string(GetLastError()) + "\r\n");
 			fclose(pFile);
 			free(buffer);
 			return FALSE;
@@ -920,7 +920,7 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 	}
 	/*
 	else {
-		
+
 		unsigned int changeSize = MaxIntegrity - MinIntegrity;
 		form->logging("Before : ");
 		for (int i = MinIntegrity; i <= MinIntegrity + 100; i++) {
