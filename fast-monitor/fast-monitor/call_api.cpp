@@ -247,17 +247,37 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	std::string caller_pid(strtok_s(cp, ":", &cp_context));
-	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_pid(chk);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string callee_pid(chk);
+
 	form->logging(caller_pid+" : "+ callee_pid+ " : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
-	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD64 ret = (DWORD64)strtoll(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD dwSize = (DWORD)strtol(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD protect = (DWORD)strtol(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_path(chk);
 
 	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx ,caller_path);
 
@@ -273,12 +293,15 @@ void CallQueueUserAPC(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
 
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-
-	std::string pid(strtok_s(cp, ":", &cp_context));
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string pid(chk);
 
 	std::string buf(pid);
 	buf.append(":CallQueueUserAPC:Response Sended!");
@@ -291,17 +314,31 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
 
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_pid(chk);
 
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string callee_pid(chk);
 
-	std::string caller_pid(strtok_s(cp, ":", &cp_context));
-	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
-	DWORD64 lpbaseaddress = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD64 lpbaseaddress = (DWORD64)strtoll(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD dwSize = (DWORD)strtol(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_path(chk);
 	
 	if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path))
 		form->logging(caller_pid + " : " + callee_pid + " : WriteProcessMemory called on Executable Memory.\r\n");
@@ -320,18 +357,32 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_pid(chk);
 
-	std::string caller_pid(strtok_s(cp, ":", &cp_context));
-	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string callee_pid(chk);
 
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string addr(chk);
+	DWORD64 lpStartAddress = (DWORD64)strtoll(chk, NULL, 16);
 
-	std::string addr(strtok_s(NULL, ":", &cp_context));
-	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
-	DWORD64 lpParameter = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD64 lpParameter = (DWORD64)strtoll(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_path(chk);
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
@@ -395,19 +446,37 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	std::string caller_pid(strtok_s(cp, ":", &cp_context));
-	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_pid(chk);
 
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string callee_pid(chk);
 
 	form->logging(caller_pid + " : " + callee_pid + " : NtMapViewOfSection ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
-	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD64 ret = (DWORD64)strtoll(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD dwSize = (DWORD)strtol(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD protect = (DWORD)strtol(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_path(chk);
 
 	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_NtMapViewOfSection, caller_path);
 
@@ -422,12 +491,15 @@ void CallCreateFileMappingA(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-
-	std::string pid(strtok_s(cp, ":", &cp_context));
-
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string pid(chk);
 
 	std::string buf(pid);
 	buf.append(":CallCreateFileMappingA:Response Sended!");
@@ -439,12 +511,15 @@ void CallGetThreadContext(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-
-	std::string pid(strtok_s(cp, ":", &cp_context));
-
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string pid(chk);
 
 	std::string buf(pid);
 	buf.append(":CallGetThreadContext:Response Sended!");
@@ -457,15 +532,28 @@ void CallSetThreadContext(LPVOID monMMF) {
 	
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_pid(chk);
 
-	std::string caller_pid(strtok_s(cp, ":", &cp_context));
-	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
-	std::string addr(strtok_s(NULL, ":", &cp_context));
-	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
-	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string callee_pid(chk);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string addr(chk);
+	DWORD64 lpStartAddress = (DWORD64)strtoll(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_path(chk);
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
@@ -493,13 +581,27 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	std::string caller_pid(strtok_s(cp, ":", &cp_context));
-	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
-	std::string apc_routine(strtok_s(NULL, ":", &cp_context));
-	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_pid(chk);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string callee_pid(chk);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string apc_routine(chk);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_path(chk);
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
@@ -544,16 +646,28 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_pid(chk);
 
-	std::string caller_pid(strtok_s(cp, ":", &cp_context));
-	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string callee_pid(chk);
 
-	std::string addr(strtok_s(NULL, ":", &cp_context));
-	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
-	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string addr(chk);
+	DWORD64 lpStartAddress = (DWORD64)strtoll(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_path(chk);
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
@@ -585,21 +699,31 @@ void CallSetPropA(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_pid(chk);
 
-	std::string caller_pid(strtok_s(cp, ":", &cp_context));
-	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string callee_pid(chk);
 
-	std::string addr(strtok_s(NULL, ":", &cp_context));
-	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
-	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string addr(chk);
+	DWORD64 lpStartAddress = (DWORD64)strtoll(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_path(chk);
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
-
-
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
@@ -625,18 +749,37 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	std::string caller_pid(strtok_s(cp, ":", &cp_context));
-	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_pid(chk);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string callee_pid(chk);
 
 	form->logging(caller_pid + " : " + callee_pid + " : VirtualProtectEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
-	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD64 ret = (DWORD64)strtoll(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD dwSize = (DWORD)strtol(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD protect = (DWORD)strtol(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_path(chk);
 
 	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualProtectEx, caller_path);
 
@@ -654,11 +797,15 @@ void CallSleepEx(LPVOID monMMF) {
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
+	char* chk;
+
+	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-
-	std::string pid(strtok_s(cp, ":", &cp_context));
+	chk = strtok_s(cp, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string pid(chk);
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", (char*)monMMF);
 	std::string buf(pid);

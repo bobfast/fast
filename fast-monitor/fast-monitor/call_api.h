@@ -11,7 +11,7 @@
 #include <GL/gl3w.h>
 
 using namespace CppCLRWinformsProjekt;
-#define MSG_SIZE 256
+#define MSG_SIZE 384
 
 static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>> rwxList;
 extern FILE* pFile;

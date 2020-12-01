@@ -306,11 +306,11 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	else {
 
 
-		//printf("target : %lu\n", GetProcessId(hProcess));
+		//MessageBoxA(NULL, (std::string("target : ") + std::to_string(GetProcessId(hProcess))).c_str(), "test", MB_OK);
 		if (!(GetProcessId(hProcess)))
 		{
 
-			//printf("GetProcessId(%ld) failed!!! [%ld]\n", GetProcessId(hProcess), GetLastError());
+			printf("GetProcessId(%ld) failed!!! [%ld]\n", GetProcessId(hProcess), GetLastError());
 
 		}
 		//sprintf_s(buf, "%lu:%016x:%016x:CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess), lpStartAddress, lpParameter);
@@ -834,7 +834,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 	HANDLE fm = NULL;
 	char* map_addr = nullptr;
-
+	NTSTATUS mapview_stat;
 	LPVOID lpMap = 0;
 	SIZE_T viewsize = 0;
 
@@ -905,10 +905,22 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 			return 1;
 		}
 		map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+		if (!map_addr) {
+			printf("Cannot map view of a file. Error code = %d\n", GetLastError());
+			return FALSE;
+		}
 
 		hMonProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD, FALSE, *(DWORD*)((char*)pMemoryMap + sz));
+		if (!hMonProcess) {
+			printf("Cannot open monitor process. Error code = %d\n", GetLastError());
+			return FALSE;
+		}
 
-		(*pNtMapViewOfSection)(fm, hMonProcess, &lpMap, 0, MSG_SIZE, nullptr, &viewsize, SECTION_INHERIT::ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
+		mapview_stat = pNtMapViewOfSection(fm, hMonProcess, &lpMap, 0, MSG_SIZE, nullptr, &viewsize, SECTION_INHERIT::ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
+		if (!NT_SUCCESS(mapview_stat)) {
+			printf("Cannot get map view of section of monitor process.\n");
+			return FALSE;
+		}
 
 		monMMF = (LPVOID)lpMap;
 		dllMMF = (LPVOID)map_addr;
