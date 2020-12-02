@@ -137,7 +137,7 @@ void init() {
 void exiting() {
 
 	//UnHooking All.
-	for (int i = 0; i < hook_cnt; i++)
+	for (UINT32 i = 0; i < hook_cnt; i++)
 		mon(1);
 
 
@@ -173,9 +173,11 @@ void vol(char* path, int op) {
 
 void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v)
 {
+	Form1^ form = (Form1^)Application::OpenForms[0];
+
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
 	{
-		printf("Error: %s\n", SDL_GetError());
+		form->logging("ImGui Error: " + std::string(SDL_GetError()) + "\n");
 		return;
 	}
 
@@ -260,7 +262,7 @@ void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::strin
 		if (!initialized)
 		{
 			initialized = true;
-			Show_node::NodeEditorInitialize(v.size());
+			Show_node::NodeEditorInitialize((unsigned int)v.size());
 		}
 
 		Show_node::NodeEditorShow(v);
@@ -416,9 +418,6 @@ int CDECL mon(int isFree_)
 
 		PNtMapViewOfSection(fm, hProcess, &lpMap, 0, dwBufSize,
 			nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
-
-
-
 
 		if (!isFree)
 		{

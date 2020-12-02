@@ -112,6 +112,8 @@ void exGhidraHeadless(LPCSTR filename)
 
 void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list)
 {
+	Form1^ form = (Form1^)Application::OpenForms[0];
+
 	if (list.find(std::to_string(pid)) == list.end()) {
 		MessageBoxA(NULL, "Cannot dump memory region...", "Error", MB_OK | MB_ICONERROR);
 		return;
@@ -130,7 +132,7 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 		buf = new char[recentWrittenBufferSize];
 
 		if (buf == NULL) {
-			printf("Error: cannot allocate buffer for memory region dump.\n");
+			form->logging("Memory region dump: Error: cannot allocate buffer for memory region dump.\n");
 			break;
 		}
 
@@ -158,18 +160,18 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 		fopen_s(&f, filename_memdmp.c_str(), "wb");
 
 		if (f == NULL) {
-			printf("Error: cannot create file.\n");
+			form->logging("Memory region dump: Error: cannot create file.\n");
 			break;
 		}
 
 		hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 		if (!hProcess) {
-			printf("Error: failed to open target process.\n");
+			form->logging("Memory region dump: Error: failed to open target process.\n");
 			break;
 		}
 
 		if (!ReadProcessMemory(hProcess, recentWrittenBaseAddress, buf, recentWrittenBufferSize, &buflen)) {
-			printf("Error: cannot read target process memory for dump.\n");
+			form->logging("Memory region dump: Error: cannot read target process memory for dump.\n");
 			break;
 		}
 
@@ -396,12 +398,12 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 
 			HANDLE hTargetProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, std::stoi(callee_pid));
 			if (!hTargetProcess) {
-				printf("Error: failed to open target process.\n");
+				form->logging("LoadLibraryA attack detected, but failed to open target process.\n");
 				break;
 			}
 
 			if (!ReadProcessMemory(hTargetProcess, (LPCVOID)lpParameter, buf, 256, &buflen)) {
-				printf("Error: cannot read target process memory for dump.\n");
+				form->logging("LoadLibraryA attack detected, but cannot read target process memory for dump.\n");
 				break;
 			}
 			
