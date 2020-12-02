@@ -25,7 +25,7 @@ void exGhidraHeadless(LPCSTR filename);
 void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list);
 
 BOOLEAN CodeSectionCheck(int pid, int caller_pid);
-BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[]);
+BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum);
 BOOL calcMD5(byte* data, LPSTR md5);
 DWORD64 GetModuleAddress(const char* moduleName, int pid);
 

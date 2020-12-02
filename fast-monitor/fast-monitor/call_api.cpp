@@ -294,8 +294,9 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 
 	if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path)) {
 		form->logging(caller_pid + " : " + callee_pid + " : WriteProcessMemory called on Executable Memory.\r\n");
-		CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 	}
+
+	CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
@@ -693,9 +694,12 @@ BOOLEAN CodeSectionCheck(int pid, int caller_pid) {
 				// Print the module name and handle value. 
 				//_tprintf(TEXT("\t%s (0x%08X)\n"), szModName, hMods[i]);
 				GetFileTitle(filePath, fileName, sizeof(fileName));
-				std::string str(fileName);
-				form->logging("checking file : " + str + "\r\n");
-				CompareCode(pid, caller_pid, hp, filePath, fileName);
+				CompareCode(pid, caller_pid, hp, filePath, fileName, i);
+
+				if (!strcmp(fileName, "Explorer.EXE")) {
+					break;
+				}
+
 				/*if (!CompareCode(pid, caller_pid, hp, filePath, fileName)) {
 					form->logging("FAILED COMPARECODE FUNCTION\r\n");
 					CloseHandle(hp);
@@ -714,7 +718,7 @@ BOOLEAN CodeSectionCheck(int pid, int caller_pid) {
 //////////////////////
 //////////////////////
 
-BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[]) {
+BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum) {
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
 	//form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Checking Code Section.\r\n");
@@ -915,8 +919,9 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 	}
 
 	char hex[6];
-	if (resultPrint == FALSE) {
-		form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Code Section is OK(not changed)\r\n");
+	if ((resultPrint == FALSE) && (checkNum == 0)) {
+		std::string str(fileName);
+		form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : \"" + str + "\" Code Section is OK(not changed)\r\n");
 	}
 	/*
 	else {
