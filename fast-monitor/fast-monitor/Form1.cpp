@@ -1,9 +1,7 @@
 #include "call_api.h"
 
-
 FILE* pFile;
 std::string ghidraDirectory = "";
-static UINT32 hook_cnt = 0;
 static 	HANDLE fm = NULL;
 static char* map_addr;
 static DWORD dwBufSize = 0;
@@ -135,12 +133,6 @@ void init() {
 }
 
 void exiting() {
-
-	//UnHooking All.
-	for (UINT32 i = 0; i < hook_cnt; i++)
-		mon(1);
-
-
 	//Close Everything.
 	UnmapViewOfFile(map_addr);
 	CloseHandle(fm);
@@ -315,144 +307,6 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 		}
 	}
 	return NULL;
-}
-
-
-
-
-// main.
-//
-int CDECL mon(int isFree_)
-{
-	// Hook/Unhook flag 
-	BOOLEAN isFree = (BOOLEAN)isFree_;
-
-
-
-	///////////////////////////////////////////////////////// Validate DLLs. (get the full path name.)
-
-	HMODULE hDll = LoadLibraryExA(rpszDllsOut, NULL, DONT_RESOLVE_DLL_REFERENCES);
-	if (hDll == NULL)
-	{
-		return 1;
-	}
-
-	ExportContext ec;
-	ec.fHasOrdinal1 = FALSE;
-	ec.nExports = 0;
-	DetourEnumerateExports(hDll, &ec, ExportCallback);
-	FreeLibrary(hDll);
-
-	if (!ec.fHasOrdinal1)
-	{
-		return 1;
-	}
-
-
-	/////////////////////////////////////////////////////////
-
-
-
-
-	HANDLE hProcess = NULL, hThread = NULL;
-	HMODULE hMod = NULL;
-
-
-	LPTHREAD_START_ROUTINE pThreadProc = NULL;
-
-
-	LPVOID lpMap = 0;
-	SIZE_T viewsize = 0;
-
-	PNtMapViewOfSection = (NTSTATUS(*)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID * BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect)) GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtMapViewOfSection");
-
-	hMod = GetModuleHandleA("kernel32.dll");
-	if (!hMod)
-	{
-		return 1;
-	}
-
-
-
-
-	if (!isFree)
-	{
-		hook_cnt++;
-		fprintf(pFile, "Hook DLLs!\n");
-		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
-
-
-	}
-	else
-	{
-		if (hook_cnt > 0)
-			hook_cnt--;
-		fprintf(pFile, "UnHook DLLs!\n");
-		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "FreeLibrary");
-
-	}
-
-	if (!pThreadProc)
-	{
-		return 1;
-	}
-
-
-
-
-	/////////////////////////////////////////////////////////
-	// Traversing the process list, inject the dll to processes. 
-	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	PROCESSENTRY32 entry = { sizeof(PROCESSENTRY32) };
-	Process32First(hSnap, &entry);
-	do
-	{
-
-		if (thispid == entry.th32ProcessID)
-			continue;
-		hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, entry.th32ProcessID);
-		if (!hProcess)
-		{
-			continue;
-		}
-
-		PNtMapViewOfSection(fm, hProcess, &lpMap, 0, dwBufSize,
-			nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
-
-		if (!isFree)
-		{
-			hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
-			if (!hThread)
-			{
-				CloseHandle(hProcess);
-				continue;
-			}
-		}
-		else
-		{
-			HMODULE fdllpath = findRemoteHModule(entry.th32ProcessID, (const char*)rpszDllsOut);
-			if (fdllpath != NULL)
-			{
-				hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
-				if (!hThread)
-				{
-					CloseHandle(hProcess);
-					continue;
-				}
-			}
-		}
-
-		CloseHandle(hThread);
-		hThread = NULL;
-		CloseHandle(hProcess);
-		hProcess = NULL;
-
-	} while (Process32Next(hSnap, &entry));
-
-	CloseHandle(hSnap);
-
-
-	return 0;
 }
 
 

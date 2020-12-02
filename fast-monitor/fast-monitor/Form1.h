@@ -30,21 +30,15 @@
 #define FLAG_NtQueueApcThread 0b10000000 
 #define FLAG_WriteProcessMemory 0b10000000 
 
-
 #define indexof( datum, data ) ( &datum - &*data.begin() )
 
 void init();
-int mon(int isFree_);
 void exiting();
 void vol(char* path, int op);
-
-
-
 
 void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v);
 static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>> detectionInfo;
 extern std::string ghidraDirectory;
-
 
 namespace CppCLRWinformsProjekt {
 
@@ -400,6 +394,7 @@ namespace CppCLRWinformsProjekt {
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 			this->Text = L"FAST-Monitor";
 			this->Load += gcnew System::EventHandler(this, &Form1::Form1_Load);
+			this->FormClosing += gcnew System::Windows::Forms::FormClosingEventHandler(this, &Form1::Form1_Closing);
 			this->menuStrip1->ResumeLayout(false);
 			this->menuStrip1->PerformLayout();
 			this->ResumeLayout(false);
@@ -442,13 +437,19 @@ namespace CppCLRWinformsProjekt {
 	}
 	private: System::Void Form1_Load(System::Object^ sender, System::EventArgs^ e) {
 	}
+	private: System::Void Form1_Closing(System::Object^ sender, System::Windows::Forms::FormClosingEventArgs^ e) {
+		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "off");
+		proc->WaitForExit();
+	}
 	private: System::Void startToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		this->logBox->AppendText("Hook DLLs!\r\n\r\n");
-		mon(0);
+		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "on");
+		proc->WaitForExit();
 	}
 	private: System::Void stopToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		this->logBox->AppendText("Unhook DLLs!\r\n\r\n");
-		mon(1);
+		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "off");
+		proc->WaitForExit();
 	}
 	private: System::Void browserawToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 

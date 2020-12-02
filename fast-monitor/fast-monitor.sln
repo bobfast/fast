@@ -9,6 +9,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FAST-DLL", "FAST-DLL\FAST-DLL.vcxproj", "{194CD7AD-9989-47FB-A650-899AE6478E94}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hook-dll", "hook-dll\hook-dll.vcxproj", "{CD284EFC-C719-4420-B901-4A7DC8292DAC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -33,6 +35,14 @@ Global
 		{194CD7AD-9989-47FB-A650-899AE6478E94}.Release|x64.Build.0 = Release|x64
 		{194CD7AD-9989-47FB-A650-899AE6478E94}.Release|x86.ActiveCfg = Release|Win32
 		{194CD7AD-9989-47FB-A650-899AE6478E94}.Release|x86.Build.0 = Release|Win32
+		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Debug|x64.ActiveCfg = Debug|x64
+		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Debug|x64.Build.0 = Debug|x64
+		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Debug|x86.ActiveCfg = Debug|Win32
+		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Debug|x86.Build.0 = Debug|Win32
+		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Release|x64.ActiveCfg = Release|x64
+		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Release|x64.Build.0 = Release|x64
+		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Release|x86.ActiveCfg = Release|Win32
+		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

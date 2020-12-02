@@ -245,7 +245,7 @@ extern FILE* pFile;
 
 void CallVirtualAllocEx(LPVOID monMMF) {
 
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form;
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -263,6 +263,7 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 	if (chk == NULL) return;
 	std::string callee_pid(chk);
 
+	form = (Form1^)Application::OpenForms[0];
 	form->logging(caller_pid+" : "+ callee_pid+ " : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
 	chk = strtok_s(NULL, ":", &cp_context);
@@ -291,7 +292,7 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 
 void CallQueueUserAPC(LPVOID monMMF) {
 
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	//Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -311,8 +312,7 @@ void CallQueueUserAPC(LPVOID monMMF) {
 }
 
 void CallWriteProcessMemory(LPVOID monMMF) {
-
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form;
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -342,8 +342,10 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 	if (chk == NULL) return;
 	std::string caller_path(chk);
 	
-	if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path))
+	if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path)) {
+		form = (Form1^)Application::OpenForms[0];
 		form->logging(caller_pid + " : " + callee_pid + " : WriteProcessMemory called on Executable Memory.\r\n");
+	}
 
 	//CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
@@ -355,7 +357,7 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 
 void CallCreateRemoteThread(LPVOID monMMF) {
 
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form;
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -389,9 +391,11 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
+	form = (Form1^)Application::OpenForms[0];
 
 	if (strncmp(addr.c_str(), "LoadLibraryA", 12) == 0) {
 		sprintf_s(buf, "%s:Detected:LoadLibraryA:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpParameter);
+
 		do {
 			char buf[256] = "", messagePrint[356] = "";
 			SIZE_T buflen = 0;
@@ -443,8 +447,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 
 void CallNtMapViewOfSection(LPVOID monMMF) {
 
-
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form;
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -462,8 +465,6 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 	if (chk == NULL) return;
 	std::string callee_pid(chk);
 
-	form->logging(caller_pid + " : " + callee_pid + " : NtMapViewOfSection ->Protection : PAGE_EXECUTE_READWRITE\r\n");
-
 	chk = strtok_s(NULL, ":", &cp_context);
 	if (chk == NULL) return;
 	DWORD64 ret = (DWORD64)strtoll(chk, NULL, 16);
@@ -480,6 +481,9 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 	if (chk == NULL) return;
 	std::string caller_path(chk);
 
+	form = (Form1^)Application::OpenForms[0];
+	form->logging(caller_pid + " : " + callee_pid + " : NtMapViewOfSection ->Protection : PAGE_EXECUTE_READWRITE\r\n");
+
 	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_NtMapViewOfSection, caller_path);
 
 	memset(monMMF, 0, MSG_SIZE);
@@ -489,7 +493,7 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 }
 
 void CallCreateFileMappingA(LPVOID monMMF) {
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	//Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -509,7 +513,7 @@ void CallCreateFileMappingA(LPVOID monMMF) {
 }
 
 void CallGetThreadContext(LPVOID monMMF) {
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	//Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -530,7 +534,7 @@ void CallGetThreadContext(LPVOID monMMF) {
 
 void CallSetThreadContext(LPVOID monMMF) {
 
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form;
 	
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -560,6 +564,7 @@ void CallSetThreadContext(LPVOID monMMF) {
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
+	form = (Form1^)Application::OpenForms[0];
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
 		form->logging(caller_pid + " : " + callee_pid + " : SetThreadContext -> Thread Hijacking Detected! Addr: " + addr + "\r\n");
@@ -579,7 +584,7 @@ void CallSetThreadContext(LPVOID monMMF) {
 
 void CallNtQueueApcThread(LPVOID monMMF) {
 
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form;
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -607,6 +612,8 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
+
+	form = (Form1^)Application::OpenForms[0];
 
 	if (apc_routine.compare("GlobalGetAtomNameA") == 0) {
 		sprintf_s(buf, "%s:Detected:GlobalGetAtomNameA:CallNtQueueApcThread", callee_pid.c_str());
@@ -644,7 +651,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 
 void CallSetWindowLongPtrA(LPVOID monMMF) {
 
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form;
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -674,6 +681,7 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
+	form = (Form1^)Application::OpenForms[0];
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
@@ -697,7 +705,7 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 void CallSetPropA(LPVOID monMMF) {
 
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form;
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -727,6 +735,8 @@ void CallSetPropA(LPVOID monMMF) {
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
+	form = (Form1^)Application::OpenForms[0];
+
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
 		form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n");
@@ -747,7 +757,7 @@ void CallSetPropA(LPVOID monMMF) {
 
 void CallVirtualProtectEx(LPVOID monMMF) {
 
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form;
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -765,8 +775,6 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 	if (chk == NULL) return;
 	std::string callee_pid(chk);
 
-	form->logging(caller_pid + " : " + callee_pid + " : VirtualProtectEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
-
 	chk = strtok_s(NULL, ":", &cp_context);
 	if (chk == NULL) return;
 	DWORD64 ret = (DWORD64)strtoll(chk, NULL, 16);
@@ -783,8 +791,10 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 	if (chk == NULL) return;
 	std::string caller_path(chk);
 
-	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualProtectEx, caller_path);
+	form = (Form1^)Application::OpenForms[0];
+	form->logging(caller_pid + " : " + callee_pid + " : VirtualProtectEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
+	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualProtectEx, caller_path);
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
@@ -795,7 +805,7 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 
 void CallSleepEx(LPVOID monMMF) {
 
-	Form1^ form = (Form1^)Application::OpenForms[0];
+	//Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
