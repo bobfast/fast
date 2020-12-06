@@ -38,6 +38,7 @@ void vol(char* path, int op);
 
 void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v);
 static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>> detectionInfo;
+static bool hooked = false;
 extern std::string ghidraDirectory;
 
 namespace CppCLRWinformsProjekt {
@@ -438,18 +439,22 @@ namespace CppCLRWinformsProjekt {
 	private: System::Void Form1_Load(System::Object^ sender, System::EventArgs^ e) {
 	}
 	private: System::Void Form1_Closing(System::Object^ sender, System::Windows::Forms::FormClosingEventArgs^ e) {
-		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "off");
-		proc->WaitForExit();
+		if (hooked) {
+			Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "off");
+			proc->WaitForExit();
+		}
 	}
 	private: System::Void startToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		this->logBox->AppendText("Hook DLLs!\r\n\r\n");
 		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "on");
 		proc->WaitForExit();
+		hooked = true;
 	}
 	private: System::Void stopToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		this->logBox->AppendText("Unhook DLLs!\r\n\r\n");
 		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "off");
 		proc->WaitForExit();
+		hooked = false;
 	}
 	private: System::Void browserawToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 

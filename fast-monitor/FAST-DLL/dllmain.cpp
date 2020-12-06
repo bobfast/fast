@@ -12,7 +12,6 @@ static WRITEPROCESSMEMORY pWriteProcessMemory = WriteProcessMemory;
 static DBGPRINT pDbgPrint;  // for debug printing 
 HMODULE hMod = NULL;
 
-HANDLE eventLog = RegisterEventSourceA(NULL, "FAST-DLLLog");
 bool isDetectedRWXPageWhenInitializing = false;
 
 // For detection in WriteProcessMemory
@@ -70,7 +69,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessA(
 	char* pValue2 = NULL;
 	size_t len = NULL;
 	_dupenv_s(&pValue2, &len, "expHDll");
-	return DetourCreateProcessWithDllA(lpApplicationName,
+	return DetourCreateProcessWithDllExA(lpApplicationName,
 		lpCommandLine,
 		lpProcessAttributes,
 		lpThreadAttributes,
@@ -118,7 +117,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessW(
 	size_t len = NULL;
 	_dupenv_s(&pValue2, &len, "expHDll");
 
-	return DetourCreateProcessWithDllW(lpApplicationName,
+	return DetourCreateProcessWithDllExW(lpApplicationName,
 		lpCommandLine,
 		lpProcessAttributes,
 		lpThreadAttributes,
@@ -579,12 +578,22 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
 	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
+#ifdef _X86_
+	if (lpContext->Eip == 0) {
+		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, (ULONGLONG)lpContext->Eax, szImagePath);
+	}
+	else {
+		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, (ULONGLONG)lpContext->Eip, szImagePath);
+	}
+#endif
+#ifdef _AMD64_
 	if (lpContext->Rip == 0) {
 		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rax, szImagePath);
-	}
+}
 	else {
 		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rip, szImagePath);
 	}
+#endif
 
 	memcpy(dllMMF, buf, strlen(buf));
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetThreadContext, monMMF, 0, NULL);
@@ -837,16 +846,25 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 	NTSTATUS mapview_stat;
 	LPVOID lpMap = 0;
 	SIZE_T viewsize = 0;
-
 	size_t sz;
 
 	switch (dwReason)
 	{
 	case DLL_PROCESS_ATTACH:
 
+		if (DetourIsHelperProcess()) {
+			OutputDebugStringA("FAST-DLL: It is helper process. Quit.\n");
+			return TRUE;
+		}
+
 		//#############################
 
-		hMemoryMap = OpenFileMapping(FILE_MAP_READ, FALSE, (LPCSTR)"shared");
+#ifdef _X86_
+		hMemoryMap = OpenFileMapping(FILE_MAP_READ, FALSE, (LPCSTR)"shared32");
+#endif
+#ifdef _AMD64_
+		hMemoryMap = OpenFileMapping(FILE_MAP_READ, FALSE, (LPCSTR)"shared64");
+#endif
 
 		pMemoryMap = (BYTE*)MapViewOfFile(
 			hMemoryMap, FILE_MAP_READ,
@@ -854,11 +872,9 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		);
 		if (!pMemoryMap)
 		{
-
 			CloseHandle(hMemoryMap);
-			printf("MapViewOfFile Failed.\n");
+			OutputDebugStringA("FAST-DLL: MapViewOfFile Failed.");
 			return FALSE;
-
 		}
 
 		sz = strlen((char*)pMemoryMap) + 1;
@@ -871,61 +887,60 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		// get ntdll module
 		hMod = GetModuleHandleA("ntdll.dll");
 		if (hMod == NULL) {
-			printf("FAST-DLL: Error - cannot get ntdll.dll module.\n");
+			OutputDebugStringA("FAST-DLL: Error - cannot get ntdll.dll module.");
 			return 1;
 		}
 
 		// get functions in ntdll
 		TrueNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
 		if (TrueNtMapViewOfSection == NULL) {
-			printf("Failed to get NtMapViewOfSection\n");
+			OutputDebugStringA("FAST-DLL: Failed to get NtMapViewOfSection.");
 			return 1;
 		}
 		pNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
 		if (pNtMapViewOfSection == NULL) {
-			printf("FAST-DLL: Error - cannot get NtMapViewOfSection's address.\n");
+			OutputDebugStringA("FAST-DLL: Error - cannot get NtMapViewOfSection's address.");
 			return 1;
 		}
 
 		NtQueueApcThread = (pNtQueueApcThread)GetProcAddress(hMod, "NtQueueApcThread");
 		if (NtQueueApcThread == NULL) {
-			printf("GetProcAddress NtQueueApcThread  Failed.\n");
+			OutputDebugStringA("FAST-DLL: GetProcAddress NtQueueApcThread Failed.");
 			return 1;
 		}
 
 		pDbgPrint = (DBGPRINT)GetProcAddress(hMod, "DbgPrint");
 		if (pDbgPrint == NULL) {
-			printf("FAST-DLL: Error - cannot get DbgPrint's address.\n");
+			OutputDebugStringA("FAST-DLL: Error - cannot get DbgPrint's address.");
 			return 1;
 		}
 
 		fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, MSG_SIZE, NULL);
 		if (fm == NULL) {
-			printf("FAST-DLL: Error - cannot create file mapping.\n");
+			OutputDebugStringA("FAST-DLL: Error - cannot create file mapping.");
 			return 1;
 		}
 		map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 		if (!map_addr) {
-			printf("Cannot map view of a file. Error code = %d\n", GetLastError());
+			OutputDebugStringA((std::string("FAST-DLL: Cannot map view of a file. Error code = ") + std::to_string(GetLastError())).c_str());
 			return FALSE;
 		}
 
 		hMonProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD, FALSE, *(DWORD*)((char*)pMemoryMap + sz));
+
 		if (!hMonProcess) {
-			printf("Cannot open monitor process. Error code = %d\n", GetLastError());
+			OutputDebugStringA((std::string("FAST-DLL: Cannot open monitor process. Error code = ") + std::to_string(GetLastError())).c_str());
 			return FALSE;
 		}
 
 		mapview_stat = pNtMapViewOfSection(fm, hMonProcess, &lpMap, 0, MSG_SIZE, nullptr, &viewsize, SECTION_INHERIT::ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
 		if (!NT_SUCCESS(mapview_stat)) {
-			printf("Cannot get map view of section of monitor process.\n");
+			OutputDebugStringA("FAST-DLL: Cannot get map view of section of monitor process.");
 			return FALSE;
 		}
 
 		monMMF = (LPVOID)lpMap;
 		dllMMF = (LPVOID)map_addr;
-
-
 
 		CallVirtualAllocEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
 		CallQueueUserAPC = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + sizeof(DWORD64)));
@@ -949,6 +964,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		//#############################
 
 		DetourRestoreAfterWith();
+		DisableThreadLibraryCalls(hinst);
+
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 

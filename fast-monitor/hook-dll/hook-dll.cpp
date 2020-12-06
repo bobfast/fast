@@ -1,5 +1,6 @@
 #include "hook-dll.h"
 
+
 // Find injected 'FAST-DLL.dll' handle from monitored process.
 HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 {
@@ -24,6 +25,52 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 }
 
 
+PVOID getRVA(PVOID Base, ULONG_PTR BaseAddress, PCSTR Name)
+{
+	if (PIMAGE_NT_HEADERS32 pinth = (PIMAGE_NT_HEADERS32)PRtlImageNtHeader(Base))
+	{
+		BaseAddress -= pinth->OptionalHeader.AddressOfEntryPoint;
+
+		DWORD Size, exportRVA;
+		if (PIMAGE_EXPORT_DIRECTORY pied = (PIMAGE_EXPORT_DIRECTORY)
+			PRtlImageDirectoryEntryToData(Base, TRUE, IMAGE_DIRECTORY_ENTRY_EXPORT, &Size))
+		{
+			exportRVA = RtlPointerToOffset(Base, pied);
+
+			DWORD NumberOfFunctions = pied->NumberOfFunctions;
+			DWORD NumberOfNames = pied->NumberOfNames;
+
+			if (0 < NumberOfNames && NumberOfNames <= NumberOfFunctions)
+			{
+				PDWORD AddressOfFunctions = (PDWORD)RtlOffsetToPointer(Base, pied->AddressOfFunctions);
+				PDWORD AddressOfNames = (PDWORD)RtlOffsetToPointer(Base, pied->AddressOfNames);
+				PWORD AddressOfNameOrdinals = (PWORD)RtlOffsetToPointer(Base, pied->AddressOfNameOrdinals);
+
+				DWORD a = 0, b = NumberOfNames, o;
+
+				do
+				{
+					o = (a + b) >> 1;
+
+					int i = strcmp(RtlOffsetToPointer(Base, AddressOfNames[o]), Name);
+
+					if (!i)
+					{
+						DWORD Rva = AddressOfFunctions[AddressOfNameOrdinals[o]];
+						return (ULONG_PTR)Rva - (ULONG_PTR)exportRVA < Size ? 0 : RtlOffsetToPointer(BaseAddress, Rva);
+					}
+
+					0 > i ? a = o + 1 : b = o;
+
+				} while (a < b);
+			}
+		}
+	}
+
+	return 0;
+}
+
+
 void init() {
 	// Turn on the SeDebugPrivilege.
 
@@ -43,11 +90,63 @@ void init() {
 	}
 	CloseHandle(hToken);
 
+	// Load NTDLL
+	HMODULE hModNtDll = GetModuleHandleA("ntdll.dll");
+	if (!hModNtDll)
+	{
+		printf("Error: ntdll.dll load error.\n");
+		return;
+	}
 
+	PNtMapViewOfSection = (NTSTATUS(*)(
+		HANDLE SectionHandle, HANDLE ProcessHandle, PVOID * BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize,
+		PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect))
+		GetProcAddress(hModNtDll, "NtMapViewOfSection");
+
+	/*
+	PRtlImageNtHeader = (PIMAGE_NT_HEADERS(*)(PVOID ModuleAddress)) GetProcAddress(hModNtDll, "RtlImageNtHeader");
+
+	PRtlImageDirectoryEntryToData = (PVOID(*)(
+		PVOID BaseAddress,
+		BOOLEAN MappedAsImage,
+		USHORT Directory,
+		PULONG Size))
+		GetProcAddress(hModNtDll, "RtlImageDirectoryEntryToData");
+
+	PNtOpenSection = (NTSTATUS(*)(
+		PHANDLE SectionHandle,
+		ACCESS_MASK DesiredAccess,
+		POBJECT_ATTRIBUTES ObjectAttributes))
+		GetProcAddress(hModNtDll, "NtOpenSection");
+
+	PNtQuerySection = (NTSTATUS(*)(
+		HANDLE               SectionHandle,
+		SECTION_INFORMATION_CLASS InformationClass,
+		PVOID                InformationBuffer,
+		ULONG                InformationBufferSize,
+		PULONG               ResultLength))
+		GetProcAddress(hModNtDll, "NtQuerySection");
+
+	PNtUnmapViewOfSection = (NTSTATUS(*)(
+		HANDLE               ProcessHandle,
+		PVOID                BaseAddress))
+		GetProcAddress(hModNtDll, "NtUnmapViewOfSection");
+
+	PNtClose = (NTSTATUS(*)(
+		HANDLE               ObjectHandle))
+		GetProcAddress(hModNtDll, "NtClose");
+
+	*/
 	/////////////////////////////////////////////////////////
 	// Getting the DLL's full path.
 
-	LPCSTR rpszDllsRaw = (LPCSTR)"FAST-DLL.dll";
+	LPCSTR rpszDllsRaw;
+#ifdef _X86_
+	rpszDllsRaw = (LPCSTR)"FAST-DLL-32.dll";
+#endif
+#ifdef _AMD64_
+	rpszDllsRaw = (LPCSTR)"FAST-DLL-64.dll";
+#endif
 
 	CHAR szDllPath[1024];
 	PCHAR pszFilePart = NULL;
@@ -64,6 +163,7 @@ void init() {
 	rpszDllsOut = psz;
 
 	dwBufSize = (DWORD)(strlen(rpszDllsOut) + 1) * sizeof(char);
+
 	fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, dwBufSize, NULL);
 
 	if (!fm) {
@@ -118,19 +218,16 @@ int mon(int isFree_)
 
 	/////////////////////////////////////////////////////////
 	HANDLE hProcess = NULL, hThread = NULL;
-	HMODULE hMod = NULL;
+	HMODULE hModKernel32 = NULL;
 
-
-	LPTHREAD_START_ROUTINE pThreadProc = NULL;
+	LPTHREAD_START_ROUTINE pThreadProc;
 
 
 	LPVOID lpMap = 0;
 	SIZE_T viewsize = 0;
 
-	PNtMapViewOfSection = (NTSTATUS(*)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID * BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect)) GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtMapViewOfSection");
-
-	hMod = GetModuleHandleA("kernel32.dll");
-	if (!hMod)
+	hModKernel32 = GetModuleHandleA("kernel32.dll");
+	if (!hModKernel32)
 	{
 		printf("Error: kernel32.dll load error.\n");
 		return 1;
@@ -139,18 +236,18 @@ int mon(int isFree_)
 	if (!isFree)
 	{
 		hook_cnt++;
-		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
+		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hModKernel32, "LoadLibraryA");
 	}
 	else
 	{
 		if (hook_cnt > 0)
 			hook_cnt--;
-		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "FreeLibrary");
+		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hModKernel32, "FreeLibrary");
 	}
 
 	if (!pThreadProc)
 	{
-		printf("Error: WinAPI load error.\n");
+		printf("Error: WinAPI (64bit) load error.\n");
 		return 1;
 	}
 
@@ -158,7 +255,10 @@ int mon(int isFree_)
 	// Traversing the process list, inject the dll to processes. 
 	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	PROCESSENTRY32 entry = { sizeof(PROCESSENTRY32) };
+	//BOOL wow64;
+
 	Process32First(hSnap, &entry);
+	
 	do
 	{
 
@@ -168,8 +268,22 @@ int mon(int isFree_)
 
 		if (!hProcess)
 		{
+			printf("Open PID=%d failed.\n", entry.th32ProcessID);
 			continue;
 		}
+
+		printf("Open PID=%d succeeded.\n", entry.th32ProcessID);
+
+		/*
+		IsWow64Process(hProcess, &wow64);
+
+		if (wow64) {
+			continue;
+		}
+		else {
+			
+		}
+		*/
 
 		PNtMapViewOfSection(fm, hProcess, &lpMap, 0, dwBufSize,
 			nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
@@ -179,6 +293,7 @@ int mon(int isFree_)
 			hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
 			if (!hThread)
 			{
+				printf("CreateRemoteThread failed.\n");
 				CloseHandle(hProcess);
 				continue;
 			}
@@ -209,7 +324,6 @@ int mon(int isFree_)
 
 	return 0;
 }
-
 
 int main(int argc, char *argv[])
 {
