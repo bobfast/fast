@@ -1,10 +1,20 @@
 ﻿#pragma once
 #include <Windows.h>
 #include <stdio.h>
+//######### callstack
+#include <stdlib.h>
+#include <locale.h>
+#include <tchar.h>
+#include <process.h>
+#include "dbghelp.h"
+#pragma comment(lib,"Dbghelp.lib")
+const int MaxNameLen = 256;
 
+using namespace std;
+
+//##################
 #define DLLBASIC_API extern "C" __declspec(dllexport)
 #define MSG_SIZE 384
-
 #define NT_SUCCESS(status) (((NTSTATUS)(status)) >= 0)
 
 // Enumeration type for NtMapViewOfSection

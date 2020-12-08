@@ -36,8 +36,8 @@ void init();
 void exiting();
 void vol(char* path, int op);
 
-void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v);
-static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>> detectionInfo;
+void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>> v);
+static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>>> detectionInfo;
 static bool hooked = false;
 extern std::string ghidraDirectory;
 
@@ -414,7 +414,7 @@ namespace CppCLRWinformsProjekt {
 	}
 
 
-	public: Void show_detection(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v) {
+	public: Void show_detection(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v) {
 
 		System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(callee_pid.c_str()));
 		item->SubItems->Add(gcnew String(std::get<3>(v[0]).ToString()));
@@ -480,14 +480,14 @@ namespace CppCLRWinformsProjekt {
 
 		this->api_list->Items->Clear();
 
-		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v = detectionInfo.at(this->detected->FocusedItem->Index);
+		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v = detectionInfo.at(this->detected->FocusedItem->Index);
 
 		for (auto tp : v) {
 			mon_listing(tp);
 		}
 	}
 
-	private: Void mon_listing(std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string> tp) {
+	private: Void mon_listing(std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string> tp) {
 
 
 		System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(std::get<2>(tp).c_str()));
@@ -514,7 +514,7 @@ namespace CppCLRWinformsProjekt {
 
 
 	private: System::Void detected_MouseDoubleClick(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e) {
-		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v = detectionInfo.at(this->detected->FocusedItem->Index);
+		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v = detectionInfo.at(this->detected->FocusedItem->Index);
 		imgui(v);
 
 	}
