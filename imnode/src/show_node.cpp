@@ -28,8 +28,6 @@ namespace Show_node
         {
 
         public:
-            bool callstack_view = false;
-
             std::string getAPI(UCHAR flags) {
 
                 if (flags & FLAG_VirtualAllocEx)
@@ -55,7 +53,7 @@ namespace Show_node
                 return std::string("");
             }
 
-            void listing(int current, int attribute, int index ,std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string> tp) {
+            void listing(int current, int attribute, int index ,std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string> tp) {
                 if (current == 1) {
                     imnodes::PushColorStyle(
                         imnodes::ColorStyle_TitleBar, IM_COL32(37, 142, 63, 255));
@@ -100,25 +98,13 @@ namespace Show_node
                     imnodes::BeginOutputAttribute(attribute + 1); // ex attribute 3
                     imnodes::EndOutputAttribute();
                 }
-                if (ImGui::Button("View Callstack"))
-                    if (callstack_view == false)
-                        callstack_view = true;
-                    else
-                        callstack_view = false;
-
                 imnodes::EndNode();
                 imnodes::PopColorStyle();
                 imnodes::PopColorStyle();
                 imnodes::PopColorStyle();
-                if (callstack_view)
-                {
-                    ImGui::Begin("View Callstack", &callstack_view);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-                    ImGui::Text("%s call stack :\n %s", getAPI(std::get<3>(tp)).c_str(),std::get<5>(tp).c_str());
-                    ImGui::End();
-                }
             }
       
-            void show(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v)
+            void show(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v)
             {
                 int index = v.size();
                 int current = 1;
@@ -148,8 +134,6 @@ namespace Show_node
                 imnodes::EndNodeEditor();
 
                 ImGui::End();
-
-               
             }
         };
 
@@ -162,7 +146,7 @@ namespace Show_node
         }
     }
 
-    void NodeEditorShow(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v) { editor.show(v); }
+    void NodeEditorShow(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v) { editor.show(v); }
 
     void NodeEditorShutdown() {}
 
