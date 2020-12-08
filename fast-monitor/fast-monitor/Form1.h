@@ -440,19 +440,19 @@ namespace CppCLRWinformsProjekt {
 	}
 	private: System::Void Form1_Closing(System::Object^ sender, System::Windows::Forms::FormClosingEventArgs^ e) {
 		if (hooked) {
-			Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll-64.exe", "off");
+			Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "off");
 			proc->WaitForExit();
 		}
 	}
 	private: System::Void startToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		this->logBox->AppendText("Hook DLLs!\r\n\r\n");
-		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll-64.exe", "on");
+		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "on");
 		proc->WaitForExit();
 		hooked = true;
 	}
 	private: System::Void stopToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		this->logBox->AppendText("Unhook DLLs!\r\n\r\n");
-		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll-64.exe", "off");
+		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "off");
 		proc->WaitForExit();
 		hooked = false;
 	}

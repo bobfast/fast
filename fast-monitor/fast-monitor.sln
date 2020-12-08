@@ -41,7 +41,6 @@ Global
 		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Release|x64.ActiveCfg = Release|x64
 		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Release|x64.Build.0 = Release|x64
 		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Release|x86.ActiveCfg = Release|Win32
-		{CD284EFC-C719-4420-B901-4A7DC8292DAC}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
