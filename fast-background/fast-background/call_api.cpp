@@ -29,10 +29,15 @@ void sendDetection(std::string callee_pid, std::vector<std::tuple<DWORD64, DWORD
 		exit(1);
 	}
 
-	for (auto tp : v) {
-		fprintf(fp, "%s : %llx : %lx : %s : %uc\r\n", callee_pid , std::get<0>(tp), std::get<1>(tp), std::get<2>(tp), std::get<3>(tp));
+	fprintf(fp, "{\"fast-monitor\":[");
 
+	for (auto tp : v) {
+		fprintf(fp, "{\"callee_pid\":\"%s\",\"address\":\"0x%llx\",\"size\":\"0x%lx\",\"caller_pid\":\"%s\",\"flag\":\"%x\"},",
+			callee_pid.c_str(), std::get<0>(tp), std::get<1>(tp), std::get<2>(tp).c_str(), std::get<3>(tp));
 	}
+
+	fprintf(fp, "]}");
+
 	fclose(fp);
 
 }
