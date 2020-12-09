@@ -248,6 +248,22 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
 
+	DWORD target_pid = GetProcessId(hProcess);
+
+	// Getting PID using DuplicateHandle
+	HANDLE hProcessDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hProcess, GetCurrentProcess(),
+			&hProcessDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessId(hProcessDuplicated);
+
+			CloseHandle(hProcessDuplicated);
+		}
+	}
 
 	if (lpStartAddress == (LPTHREAD_START_ROUTINE)LoadLibraryA) {
 
@@ -258,21 +274,12 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 
-		sprintf_s(buf, "%lu:%lu:LoadLibraryA:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess), lpParameter);
+		sprintf_s(buf, "%lu:%lu:LoadLibraryA:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), target_pid, lpParameter);
 		//sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess));
 	}
 	else {
-
-
-		//printf("target : %lu\n", GetProcessId(hProcess));
-		if (!(GetProcessId(hProcess)))
-		{
-
-			//printf("GetProcessId(%ld) failed!!! [%ld]\n", GetProcessId(hProcess), GetLastError());
-
-		}
 		//sprintf_s(buf, "%lu:%016x:%016x:CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess), lpStartAddress, lpParameter);
-		sprintf_s(buf, "%lu:%lu:%p:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess), lpStartAddress, lpParameter);
+		sprintf_s(buf, "%lu:%lu:%p:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), target_pid, lpStartAddress, lpParameter);
 	}
 
 	memcpy(dllMMF, buf, strlen(buf));
@@ -317,7 +324,22 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
 
+	DWORD target_pid = GetProcessId(hProcess);
 
+	// Getting PID using DuplicateHandle
+	HANDLE hProcessDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hProcess, GetCurrentProcess(),
+			&hProcessDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessId(hProcessDuplicated);
+
+			CloseHandle(hProcessDuplicated);
+		}
+	}
 
 	if (flProtect == (PAGE_EXECUTE_READWRITE)) {
 
@@ -329,7 +351,7 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 			flProtect
 		);
 
-		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize, flProtect);
+		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), target_pid, (DWORD64)ret, (DWORD)dwSize, flProtect);
 		memcpy(dllMMF, buf, strlen(buf));
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
 		WaitForSingleObject(hMonThread, INFINITE);

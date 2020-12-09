@@ -290,6 +290,23 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
 	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
 
+	DWORD target_pid = GetProcessId(hProcess);
+
+	// Getting PID using DuplicateHandle
+	HANDLE hProcessDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hProcess, GetCurrentProcess(),
+			&hProcessDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessId(hProcessDuplicated);
+
+			CloseHandle(hProcessDuplicated);
+		}
+	}
+
 	if (lpStartAddress == (LPTHREAD_START_ROUTINE)LoadLibraryA) {
 
 		if (!ReadProcessMemory(hProcess, lpParameter, buf, MSG_SIZE, NULL))
@@ -299,7 +316,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 
-		sprintf_s(buf, "%lu:%lu:LoadLibraryA:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess), lpParameter);
+		sprintf_s(buf, "%lu:%lu:LoadLibraryA:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), target_pid, lpParameter);
 		//sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess));
 	}
 	else {
@@ -313,7 +330,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 		//sprintf_s(buf, "%lu:%016x:%016x:CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess), lpStartAddress, lpParameter);
-		sprintf_s(buf, "%lu:%lu:%p:%p:%s:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), GetProcessId(hProcess), lpStartAddress, lpParameter, szImagePath);
+		sprintf_s(buf, "%lu:%lu:%p:%p:%s:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), target_pid, lpStartAddress, lpParameter, szImagePath);
 	}
 
 	memcpy(dllMMF, buf, strlen(buf));

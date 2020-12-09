@@ -29,11 +29,11 @@ void sendDetection(std::string callee_pid, std::vector<std::tuple<DWORD64, DWORD
 		exit(1);
 	}
 
-	fprintf(fp, "{\"fast-monitor\":[");
+	fprintf(fp, "{\"fast_monitor\":[");
 
-	for (auto tp : v) {
-		fprintf(fp, "{\"callee_pid\":\"%s\",\"address\":\"0x%llx\",\"size\":\"0x%lx\",\"caller_pid\":\"%s\",\"flag\":\"%x\"},",
-			callee_pid.c_str(), std::get<0>(tp), std::get<1>(tp), std::get<2>(tp).c_str(), std::get<3>(tp));
+	for (auto tp = v.begin(); tp != v.end(); tp++) {
+		fprintf(fp, "%s{\"callee_pid\":\"%s\",\"address\":\"0x%llx\",\"size\":\"0x%lx\",\"caller_pid\":\"%s\",\"flag\":\"0x%x\"}",
+			tp == v.begin() ? "" : ",", callee_pid.c_str(), std::get<0>(*tp), std::get<1>(*tp), std::get<2>(*tp).c_str(), std::get<3>(*tp));
 	}
 
 	fprintf(fp, "]}");
@@ -160,7 +160,7 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
-	printf("%s :  %s : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n", caller_pid, callee_pid);
+	printf("%s :  %s : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n", caller_pid.c_str(), callee_pid.c_str());
 
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
@@ -250,8 +250,8 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 				break;
 			}
 			
-			printf("%s :  %s : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n", callee_pid , caller_pid);
-			printf("DLL File: %s\r\n\r\n", std::string(buf) );
+			printf("%s :  %s : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n", callee_pid.c_str(), caller_pid.c_str());
+			printf("DLL File: %s\r\n\r\n", buf);
 			//CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 			sprintf_s(messagePrint, "CreateRemoteThread DLL Injection with LoadLibrary Detected!\nDLL File: %s", buf);
@@ -267,7 +267,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 
 		//sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
 
-		printf("%s :  %s : CreateRemoteThread -> Code Injection Detected! Addr:%s\r\n", callee_pid, caller_pid, addr);
+		printf("%s :  %s : CreateRemoteThread -> Code Injection Detected! Addr:%s\r\n", callee_pid.c_str(), caller_pid.c_str(), addr.c_str());
 		//CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection", rwxList);
@@ -294,7 +294,7 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
 
-	printf("%s :  %s : NtMapViewOfSection ->Protection : PAGE_EXECUTE_READWRITE\r\n" ,callee_pid, caller_pid);
+	printf("%s :  %s : NtMapViewOfSection ->Protection : PAGE_EXECUTE_READWRITE\r\n" ,callee_pid.c_str(), caller_pid.c_str());
 
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
@@ -362,7 +362,7 @@ void CallSetThreadContext(LPVOID monMMF) {
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext)) {
 		//sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
-		printf("%s :  %s : SetThreadContext -> Thread Hijacking Detected! Addr: %s\r\n",callee_pid, caller_pid, addr);
+		printf("%s :  %s : SetThreadContext -> Thread Hijacking Detected! Addr: %s\r\n", callee_pid.c_str(), caller_pid.c_str(), addr.c_str());
 		//CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 		MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
@@ -443,7 +443,7 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA)) {
 				//sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
-				printf("%s :  %s : SetWindowLongPtrA -> Code Injection Detected! Addr: %s\r\n", callee_pid, caller_pid, addr);
+				printf("%s :  %s : SetWindowLongPtrA -> Code Injection Detected! Addr: %s\r\n", callee_pid.c_str(), caller_pid.c_str(), addr.c_str());
 				//CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 				MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
@@ -482,7 +482,7 @@ void CallSetPropA(LPVOID monMMF) {
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA)) {
 				//sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
-				printf("%s :  %s : SetPropA -> Code Injection Detected! Addr: %s\r\n", callee_pid, caller_pid, addr);
+				printf("%s :  %s : SetPropA -> Code Injection Detected! Addr: %s\r\n", callee_pid.c_str(), caller_pid.c_str(), addr.c_str());
 				//CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 				MessageBoxA(NULL, "CallSetPropA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
@@ -506,7 +506,7 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 	std::string caller_pid(strtok_s(cp, ":", &cp_context));
 	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
-	printf("%s :  %s : VirtualProtectEx ->Protection : PAGE_EXECUTE_READWRITE\r\n", caller_pid, callee_pid);
+	printf("%s :  %s : VirtualProtectEx ->Protection : PAGE_EXECUTE_READWRITE\r\n", caller_pid.c_str(), callee_pid.c_str());
 
 	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
 	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
@@ -738,7 +738,7 @@ void CompareCode(int pid, int caller_pid) {
 							char printTemp[50];
 							sprintf_s(printTemp,"Code Section is changed (0x%p)", textAddr + MinIntegrity);
 							std::string str(printTemp);
-							printf("%s : %s : %s\r\n", caller_pid, pid, printTemp);
+							printf("%d : %d : %s\r\n", caller_pid, pid, printTemp);
 							resultPrint = true;
 						}
 						//else if ((textSection[j] == temp[j]) && (resultPrint == true)){
@@ -764,7 +764,7 @@ void CompareCode(int pid, int caller_pid) {
 
 	if (resultPrint == false) {
 		//std::string stdpid((char*)pid);
-		printf("%s : %s : Code Section is OK(not changed)\r\n", caller_pid, pid);
+		printf("%d : %d : Code Section is OK(not changed)\r\n", caller_pid, pid);
 		printf("%d : : Code Section is OK(not changed)\n", pid);
 	}
 

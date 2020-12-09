@@ -54,7 +54,7 @@ void init() {
 	/////////////////////////////////////////////////////////
 	// Getting the DLL's full path.
 
-	LPCSTR rpszDllsRaw = (LPCSTR)"FAST-DLL.dll";;
+	LPCSTR rpszDllsRaw = (LPCSTR)"FAST-DLL.dll";
 
 	CHAR szDllPath[1024];
 	PCHAR pszFilePart = NULL;
@@ -85,8 +85,6 @@ void init() {
 
 	memcpy(map_addr, rpszDllsOut, dwBufSize);
 	memcpy(map_addr + dwBufSize, &thispid, sizeof(DWORD));
-
-
 
 	LPVOID fp = CallVirtualAllocEx;
 	memcpy(map_addr + dwBufSize + sizeof(DWORD), &fp, sizeof(DWORD64));
