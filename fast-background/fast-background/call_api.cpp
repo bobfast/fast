@@ -23,7 +23,7 @@ void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string c
 void sendDetection(std::string callee_pid, std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >> v) {
 
 	FILE* fp;
-	fopen_s(&fp, "fast_log.json", "w");
+	fopen_s(&fp, "C:\\fast_log.json", "w");
 	if (fp == NULL)
 	{
 		exit(1);
