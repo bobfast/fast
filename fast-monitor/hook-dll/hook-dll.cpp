@@ -28,52 +28,64 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout, BOOL isWoW64)
 	return NULL;
 }
 
-/*
-PVOID getRVA(PVOID Base, ULONG_PTR BaseAddress, PCSTR Name)
+DWORD getRVA(LPCSTR DllName, LPCSTR FuncName)
 {
-	if (PIMAGE_NT_HEADERS32 pinth = (PIMAGE_NT_HEADERS32)PRtlImageNtHeader(Base))
-	{
-		BaseAddress -= pinth->OptionalHeader.AddressOfEntryPoint;
+	HANDLE hSrcFile = CreateFileA(DllName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	if (!hSrcFile) return NULL;
+	
+	HANDLE hMapSrcFile = CreateFileMappingA(hSrcFile, NULL, PAGE_READONLY, 0, 0, NULL);
+	if (!hMapSrcFile) return NULL;
+	
+	PBYTE pSrcFile = (PBYTE)MapViewOfFile(hMapSrcFile, FILE_MAP_READ, 0, 0, 0);
+	if (!pSrcFile) return NULL;
 
-		DWORD Size, exportRVA;
-		if (PIMAGE_EXPORT_DIRECTORY pied = (PIMAGE_EXPORT_DIRECTORY)
-			PRtlImageDirectoryEntryToData(Base, TRUE, IMAGE_DIRECTORY_ENTRY_EXPORT, &Size))
-		{
-			exportRVA = RtlPointerToOffset(Base, pied);
+	IMAGE_DOS_HEADER* pDosHeader = (IMAGE_DOS_HEADER*)pSrcFile;
+	//printf("e_lfanew = %d\n", pDosHeader->e_lfanew);
+	IMAGE_NT_HEADERS32* pNtHdr = (IMAGE_NT_HEADERS32*)
+		((PBYTE)pDosHeader + pDosHeader->e_lfanew);
+	//printf("IMAGE_NT_HEADERS = %p\n", pNtHdr);
+	IMAGE_SECTION_HEADER* pFirstSectionHeader = (IMAGE_SECTION_HEADER*)
+		((PBYTE)&pNtHdr->OptionalHeader +
+			pNtHdr->FileHeader.SizeOfOptionalHeader);
+	//printf("First Section Header = %p\n", pFirstSectionHeader);
 
-			DWORD NumberOfFunctions = pied->NumberOfFunctions;
-			DWORD NumberOfNames = pied->NumberOfNames;
+	IMAGE_EXPORT_DIRECTORY* pExportDirectory = NULL;
+	int fileOffset;
 
-			if (0 < NumberOfNames && NumberOfNames <= NumberOfFunctions)
-			{
-				PDWORD AddressOfFunctions = (PDWORD)RtlOffsetToPointer(Base, pied->AddressOfFunctions);
-				PDWORD AddressOfNames = (PDWORD)RtlOffsetToPointer(Base, pied->AddressOfNames);
-				PWORD AddressOfNameOrdinals = (PWORD)RtlOffsetToPointer(Base, pied->AddressOfNameOrdinals);
+	for (DWORD i = 0; i < (pNtHdr->FileHeader.NumberOfSections); i++) {
+		IMAGE_SECTION_HEADER* pSectionHeader = &pFirstSectionHeader[i];
+		fileOffset = pSectionHeader->PointerToRawData - pSectionHeader->VirtualAddress;
 
-				DWORD a = 0, b = NumberOfNames, o;
+		if (strcmp(".rdata", (const char *)(pSectionHeader->Name)) == 0) {
+			pExportDirectory = (IMAGE_EXPORT_DIRECTORY*)((PBYTE)pSrcFile + fileOffset +
+					pNtHdr->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
 
-				do
-				{
-					o = (a + b) >> 1;
-
-					int i = strcmp(RtlOffsetToPointer(Base, AddressOfNames[o]), Name);
-
-					if (!i)
-					{
-						DWORD Rva = AddressOfFunctions[AddressOfNameOrdinals[o]];
-						return (ULONG_PTR)Rva - (ULONG_PTR)exportRVA < Size ? 0 : RtlOffsetToPointer(BaseAddress, Rva);
-					}
-
-					0 > i ? a = o + 1 : b = o;
-
-				} while (a < b);
-			}
+			break;
 		}
 	}
 
-	return 0;
+	//printf("Export Directory = %p\n", pExportDirectory);
+
+	if (pExportDirectory) {
+		PDWORD address = (PDWORD)((PBYTE)pSrcFile + fileOffset + pExportDirectory->AddressOfFunctions);
+		PDWORD name = (PDWORD)((PBYTE)pSrcFile + fileOffset + pExportDirectory->AddressOfNames);
+		PWORD ordinal = (PWORD)((PBYTE)pSrcFile + fileOffset + pExportDirectory->AddressOfNameOrdinals);
+		//printf("number of functions = %d\n", pExportDirectory->NumberOfFunctions);
+		//printf("address = %p\n", address);
+		//printf("name = %p\n", name);
+		//printf("ordinal = %p\n", ordinal);
+
+		for (DWORD i = 0; i < (pExportDirectory->NumberOfFunctions); i++) {
+			printf("function name = %s\n", (char*)pSrcFile + fileOffset + name[i]);
+			printf("result = %d\n", address[ordinal[i]]);
+			if (strcmp(FuncName, (char*)pSrcFile + fileOffset + name[i]) == 0) {
+				return address[ordinal[i]];
+			}
+		}
+	}
+	
+	return NULL;
 }
-*/
 
 void init() {
 	// Turn on the SeDebugPrivilege.
@@ -255,7 +267,7 @@ int mon(int isFree_)
 	HMODULE hModKernel32 = NULL;
 
 	LPTHREAD_START_ROUTINE pThreadProc;
-
+	DWORD pProcRVA;
 
 	LPVOID lpMap32 = 0, lpMap64 = 0;
 	SIZE_T viewsize32 = 0, viewsize64 = 0;
@@ -271,17 +283,25 @@ int mon(int isFree_)
 	{
 		hook_cnt++;
 		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hModKernel32, "LoadLibraryA");
+		pProcRVA = getRVA("C:\\WINDOWS\\SysWOW64\\KERNEL32.DLL", "LoadLibraryA");
 	}
 	else
 	{
 		if (hook_cnt > 0)
 			hook_cnt--;
 		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hModKernel32, "FreeLibrary");
+		pProcRVA = getRVA("C:\\WINDOWS\\SysWOW64\\KERNEL32.DLL", "FreeLibrary");
 	}
 
 	if (!pThreadProc)
 	{
 		printf("Error: WinAPI (64bit) load error.\n");
+		return 1;
+	}
+
+	if (!pProcRVA)
+	{
+		printf("Error: WoW64 kernel32.dll (32bit) load error.\n");
 		return 1;
 	}
 
@@ -328,7 +348,7 @@ int mon(int isFree_)
 					continue;
 				}
 				
-				pThreadProc32 = (LPTHREAD_START_ROUTINE)((DWORD64)pThreadProc32 + 0x00020BD0); // + WoW64 LoadLibraryA RVA
+				pThreadProc32 = (LPTHREAD_START_ROUTINE)((DWORD64)pThreadProc32 + (DWORD64)pProcRVA); // + WoW64 LoadLibraryA RVA
 				printf("WoW64.LoadLibraryA = %p\n", pThreadProc32);
 				printf("32bit MapViewOfSection = %p\n", lpMap32);
 				/*
@@ -373,7 +393,7 @@ int mon(int isFree_)
 						continue;
 					}
 
-					pThreadProc32 = (LPTHREAD_START_ROUTINE)((DWORD64)pThreadProc32 + 0x00020AE0); // + WoW64 FreeLibrary RVA
+					pThreadProc32 = (LPTHREAD_START_ROUTINE)((DWORD64)pThreadProc32 + (DWORD64)pProcRVA); // + WoW64 FreeLibrary RVA
 					printf("WoW64.FreeLibrary = %p\n", pThreadProc32);
 
 					hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc32, fdllpath, 0, NULL);

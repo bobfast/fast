@@ -156,7 +156,7 @@ static DWORD dwBufSize32 = 0, dwBufSize64 = 0;
 static char* map_addr32, *map_addr64;
 
 HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout, BOOL isWoW64);
-//PVOID getRVA(PVOID Base, ULONG_PTR BaseAddress, PCSTR Name);
+DWORD getRVA(LPCSTR DllName, LPCSTR FuncName);
 void init();
 void exiting();
 int mon(int isFree_);
