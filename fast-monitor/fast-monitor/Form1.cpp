@@ -97,7 +97,7 @@ void init() {
 
 	fm32 = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
 		0,
-		(DWORD)((dwBufSize32 + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"shared32");
+		(DWORD)((dwBufSize32 + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"fast-shared32");
 
 
 	map_addr32 = (char*)MapViewOfFile(fm32, FILE_MAP_ALL_ACCESS, 0, 0, 0);
@@ -110,7 +110,7 @@ void init() {
 
 	fm64 = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
 		0,
-		(DWORD)((dwBufSize64 + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"shared64");
+		(DWORD)((dwBufSize64 + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"fast-shared64");
 
 
 	map_addr64 = (char*)MapViewOfFile(fm64, FILE_MAP_ALL_ACCESS, 0, 0, 0);
@@ -173,10 +173,11 @@ void init() {
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 12 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 
+	ghDllApiMutex = CreateMutexA(NULL, FALSE, "fast-DLL-API-mutex");
 
-	//Initial Hooking.
-	//mon(0);
-
+	if (!ghDllApiMutex) {
+		return;
+	}
 }
 
 void exiting() {
@@ -185,6 +186,7 @@ void exiting() {
 	UnmapViewOfFile(map_addr64);
 	CloseHandle(fm32);
 	CloseHandle(fm64);
+	CloseHandle(ghDllApiMutex);
 	fclose(pFile);
 }
 

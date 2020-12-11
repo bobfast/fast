@@ -14,6 +14,7 @@ using namespace CppCLRWinformsProjekt;
 #define MSG_SIZE 384
 
 static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>> rwxList;
+static HANDLE ghDllApiMutex, ghCallApiMonMutex;
 extern FILE* pFile;
 
 void exDumpIt();
@@ -21,6 +22,7 @@ void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string c
 //std::string getProcessIdUsingTargetAddress(DWORD64 target);
 BOOL checkList(std::string pid, DWORD64 target ,  DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path);
 
+DWORD WorkAfterDetection(LPVOID lpParam);
 int fileExists(TCHAR* file);
 void exGhidraHeadless(LPCSTR filename);
 void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list);
@@ -29,7 +31,13 @@ BOOLEAN CompareCode(int pid, int caller_pid);
 BOOL calcMD5(byte* data, LPSTR md5);
 DWORD64 GetModuleAddress(const char* moduleName, int pid);
 
-
+typedef struct {
+	BOOL runCompareCode, runMemoryRegionDump, runDumpIt, runMessageBox;
+	char callee_pid[10], caller_pid[10], api_name[30];
+	LPVOID entryPoint;
+	char message[100];
+	UINT message_type;
+} WorkAfterDetectionParam;
 
 //######################################################
 

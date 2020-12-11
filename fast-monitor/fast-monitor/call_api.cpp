@@ -27,6 +27,37 @@ void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string c
 	}
 }
 
+DWORD WorkAfterDetection(LPVOID lpParam) {
+	WorkAfterDetectionParam *param = (WorkAfterDetectionParam*)lpParam;
+
+	if (param->runCompareCode)
+		CompareCode(atoi(param->callee_pid), atoi(param->caller_pid));
+
+	if (param->runMemoryRegionDump)
+		memory_region_dump(atoi(param->callee_pid), param->api_name, param->entryPoint, rwxList);
+
+	if (param->runMessageBox) {
+		if (param->runDumpIt) {
+			if (MessageBoxA(NULL, param->message, "Detection Alert!", param->message_type) == IDYES) {
+				exDumpIt();
+			}
+		}
+		else {
+			MessageBoxA(NULL, param->message, "Detection Alert!", param->message_type);
+		}
+	}
+	else {
+		if (param->runDumpIt) {
+			exDumpIt();
+		}
+	}
+
+	delete param;
+
+	return TRUE;
+}
+
+
 /*
 std::string getProcessIdUsingTargetAddress(DWORD64 target) {
 	for (auto& item : rwxList) {
@@ -288,6 +319,8 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 	char buf[MSG_SIZE] = "";
 	sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualAllocEx:Response Sended!", callee_pid.c_str(), ret, dwSize);
 	memcpy(monMMF, buf, strlen(buf));
+
+	
 }
 
 void CallQueueUserAPC(LPVOID monMMF) {
@@ -309,6 +342,8 @@ void CallQueueUserAPC(LPVOID monMMF) {
 	std::string buf(pid);
 	buf.append(":CallQueueUserAPC:Response Sended!");
 	memcpy(monMMF, buf.c_str(), buf.size());
+
+	
 }
 
 void CallWriteProcessMemory(LPVOID monMMF) {
@@ -353,6 +388,8 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 	char buf[MSG_SIZE] = "";
 	sprintf_s(buf, "%s:%016llx:%08lx:CallWriteProcessMemory:Response Sended!", callee_pid.c_str(), lpbaseaddress, dwSize);
 	memcpy(monMMF, buf, strlen(buf));
+
+	
 }
 
 void CallCreateRemoteThread(LPVOID monMMF) {
@@ -413,36 +450,60 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 			
 			form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n");
 			form->logging("DLL File: " + std::string(buf) + "\r\n");
-			CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+			memcpy(monMMF, buf, strlen(buf));
 
 			sprintf_s(messagePrint, "CreateRemoteThread DLL Injection with LoadLibrary Detected!\nDLL File: %s", buf);
-			MessageBoxA(NULL, messagePrint, "Detection Alert!", MB_OK | MB_ICONQUESTION);
+
+			WorkAfterDetectionParam* param = new WorkAfterDetectionParam;
+			if (param) {
+				param->runCompareCode = TRUE;
+				param->runMemoryRegionDump = FALSE;
+				param->runDumpIt = FALSE;
+				param->runMessageBox = TRUE;
+				strcpy(param->callee_pid, callee_pid.c_str());
+				strcpy(param->caller_pid, caller_pid.c_str());
+				strcpy(param->api_name, "");
+				param->entryPoint = NULL;
+				strcpy(param->message, messagePrint);
+				param->message_type = (MB_OK | MB_ICONQUESTION);
+
+				CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
+			}
 
 			break;
 		} while (1);
 
-		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
 	else if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_CreateRemoteThread, caller_path)) {
 
 		sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
-
 		form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> Code Injection Detected! Addr:"+ addr+"\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
-
-
-		memory_region_dump(std::stoi(callee_pid), "CodeInjection", (LPVOID)lpStartAddress, rwxList);
-		if (MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
-			exDumpIt();
-		}
 		memcpy(monMMF, buf, strlen(buf));
+
+		WorkAfterDetectionParam* param = (WorkAfterDetectionParam *) malloc(sizeof(WorkAfterDetectionParam));
+		if (param) {
+			param->runCompareCode = TRUE;
+			param->runMemoryRegionDump = TRUE;
+			param->runDumpIt = TRUE;
+			param->runMessageBox = TRUE;
+			strcpy(param->callee_pid, callee_pid.c_str());
+			strcpy(param->caller_pid, caller_pid.c_str());
+			strcpy(param->api_name, "CodeInjection");
+			param->entryPoint = (LPVOID)lpStartAddress;
+			strcpy(param->message, "CreateRemoteThread Code Injection Detected! Are you want to Dumpit?");
+			param->message_type = (MB_YESNO | MB_ICONQUESTION);
+			
+			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
+		}
+
 		return;
 	}
 
 	sprintf_s(buf, "%s:%016llx:%016llx:CallCreateRemoteThread:Clean", callee_pid.c_str(), lpStartAddress, lpParameter);
 	memcpy(monMMF, buf, strlen(buf));
 
+	
 }
 
 void CallNtMapViewOfSection(LPVOID monMMF) {
@@ -510,6 +571,8 @@ void CallCreateFileMappingA(LPVOID monMMF) {
 	std::string buf(pid);
 	buf.append(":CallCreateFileMappingA:Response Sended!");
 	memcpy(monMMF, buf.c_str(), buf.size());
+
+	
 }
 
 void CallGetThreadContext(LPVOID monMMF) {
@@ -530,6 +593,8 @@ void CallGetThreadContext(LPVOID monMMF) {
 	std::string buf(pid);
 	buf.append(":CallGetThreadContext:Response Sended!");
 	memcpy(monMMF, buf.c_str(), buf.size());
+
+	
 }
 
 void CallSetThreadContext(LPVOID monMMF) {
@@ -568,18 +633,32 @@ void CallSetThreadContext(LPVOID monMMF) {
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
 		form->logging(caller_pid + " : " + callee_pid + " : SetThreadContext -> Thread Hijacking Detected! Addr: " + addr + "\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
-
-		memory_region_dump(std::stoi(callee_pid), "SetThreadContext", (LPVOID)lpStartAddress, rwxList);
-		if (MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
-			exDumpIt();
-		}
+		
 		memcpy(monMMF, buf, strlen(buf));
+		
+		WorkAfterDetectionParam* param = new WorkAfterDetectionParam;
+		if (param) {
+			param->runCompareCode = TRUE;
+			param->runMemoryRegionDump = TRUE;
+			param->runDumpIt = TRUE;
+			param->runMessageBox = TRUE;
+			strcpy(param->callee_pid, callee_pid.c_str());
+			strcpy(param->caller_pid, caller_pid.c_str());
+			strcpy(param->api_name, "SetThreadContext");
+			param->entryPoint = (LPVOID)lpStartAddress;
+			strcpy(param->message, "SetThreadContext Thread Hijacking Detected! Are you want to Dumpit?");
+			param->message_type = (MB_YESNO | MB_ICONQUESTION);
+			
+			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
+		}
+
 		return;
 	}
 
 	sprintf_s(buf, "%s:%016llx:CallSetThreadContext:Clean", callee_pid.c_str(), lpStartAddress);
 	memcpy(monMMF, buf, strlen(buf));
+
+	
 }
 
 void CallNtQueueApcThread(LPVOID monMMF) {
@@ -617,36 +696,62 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 
 	if (apc_routine.compare("GlobalGetAtomNameA") == 0) {
 		sprintf_s(buf, "%s:Detected:GlobalGetAtomNameA:CallNtQueueApcThread", callee_pid.c_str());
-
 		form->logging(" : NtQueueApcThread -> GlobalGetAtomNameA Detected!\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+
+		memcpy(monMMF, buf, strlen(buf));
+
+		WorkAfterDetectionParam* param = new WorkAfterDetectionParam;
+		if (param) {
+			param->runCompareCode = TRUE;
+			param->runMemoryRegionDump = FALSE;
+			param->runDumpIt = FALSE;
+			param->runMessageBox = FALSE;
+			strcpy(param->callee_pid, callee_pid.c_str());
+			strcpy(param->caller_pid, caller_pid.c_str());
+			strcpy(param->api_name, "");
+			param->entryPoint = NULL;
+			strcpy(param->message, "");
+			param->message_type = 0;
+			
+			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
+		}
 
 		//MessageBoxA(NULL, "NtQueueApcThread - GlobalGetAtomNameA Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 		//memory_region_dump(std::stoi(callee_pid), "NtQueueApcThread_GlobalGetAtomNameA", rwxList);
-		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
 	else {
 		DWORD64 target = (DWORD64)strtoll(apc_routine.c_str(), NULL, 16);
 		if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread, caller_path)) {
 			sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
-
 			form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n");
-			CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
-
-
-			memory_region_dump(std::stoi(callee_pid), "NtQueueApcThread", (LPVOID)target, rwxList);
-			if (MessageBoxA(NULL, "NtQueueApcThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
-				exDumpIt();
-			}
 
 			memcpy(monMMF, buf, strlen(buf));
+
+			WorkAfterDetectionParam* param = new WorkAfterDetectionParam;
+			if (param) {
+				param->runCompareCode = TRUE;
+				param->runMemoryRegionDump = TRUE;
+				param->runDumpIt = TRUE;
+				param->runMessageBox = TRUE;
+				strcpy(param->callee_pid, callee_pid.c_str());
+				strcpy(param->caller_pid, caller_pid.c_str());
+				strcpy(param->api_name, "NtQueueApcThread");
+				param->entryPoint = (LPVOID)target;
+				strcpy(param->message, "NtQueueApcThread Code Injection Detected! Are you want to Dumpit?");
+				param->message_type = (MB_YESNO | MB_ICONQUESTION);
+				
+				CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
+			}
+
 			return;
 		}
 	}
 
 	sprintf_s(buf, "%s:%s:CallNtQueueApcThread:Clean", callee_pid.c_str(), apc_routine.c_str());
 	memcpy(monMMF, buf, strlen(buf));
+
+	
 }
 
 void CallSetWindowLongPtrA(LPVOID monMMF) {
@@ -686,20 +791,31 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
 		form->logging(caller_pid+" : "+ callee_pid +" : SetWindowLongPtrA -> Code Injection Detected! Addr: "+ addr +"\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+		memcpy(monMMF, buf, strlen(buf));
 
-		memory_region_dump(std::stoi(callee_pid), "SetWindowLongPtrA", (LPVOID)lpStartAddress, rwxList);
-		if (MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
-			exDumpIt();
+		WorkAfterDetectionParam* param = new WorkAfterDetectionParam;
+		if (param) {
+			param->runCompareCode = TRUE;
+			param->runMemoryRegionDump = TRUE;
+			param->runDumpIt = TRUE;
+			param->runMessageBox = TRUE;
+			strcpy(param->callee_pid, callee_pid.c_str());
+			strcpy(param->caller_pid, caller_pid.c_str());
+			strcpy(param->api_name, "SetWindowLongPtrA");
+			param->entryPoint = (LPVOID)lpStartAddress;
+			strcpy(param->message, "SetWindowLongPtrA Code Injection Detected! Are you want to Dumpit?");
+			param->message_type = (MB_YESNO | MB_ICONQUESTION);
+			
+			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
 		}
 
-		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
 
 	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", callee_pid.c_str(), lpStartAddress);
 	memcpy(monMMF, buf, strlen(buf));
 
+	
 }
 
 
@@ -740,19 +856,31 @@ void CallSetPropA(LPVOID monMMF) {
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
 		form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+		memcpy(monMMF, buf, strlen(buf));
 
-		memory_region_dump(std::stoi(callee_pid), "CallSetPropA", (LPVOID)lpStartAddress, rwxList);
-		if (MessageBoxA(NULL, "CallSetPropA Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
-			exDumpIt();
+		WorkAfterDetectionParam* param = new WorkAfterDetectionParam;
+		if (param) {
+			param->runCompareCode = TRUE;
+			param->runMemoryRegionDump = TRUE;
+			param->runDumpIt = TRUE;
+			param->runMessageBox = TRUE;
+			strcpy(param->callee_pid, callee_pid.c_str());
+			strcpy(param->caller_pid, caller_pid.c_str());
+			strcpy(param->api_name, "CallSetPropA");
+			param->entryPoint = (LPVOID)lpStartAddress;
+			strcpy(param->message, "CallSetPropA Code Injection Detected! Are you want to Dumpit?");
+			param->message_type = (MB_YESNO | MB_ICONQUESTION);
+			
+			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
 		}
 
-		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
 
 	sprintf_s(buf, "%s:%016llx:CallSetPropA:Clean", callee_pid.c_str(), lpStartAddress);
 	memcpy(monMMF, buf, strlen(buf));
+
+	
 }
 
 void CallVirtualProtectEx(LPVOID monMMF) {
@@ -800,6 +928,8 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 	char buf[MSG_SIZE] = "";
 	sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualProtectEx:Response Sended!", callee_pid.c_str(), ret, dwSize);
 	memcpy(monMMF, buf, strlen(buf));
+
+	
 }
 
 
@@ -823,6 +953,8 @@ void CallSleepEx(LPVOID monMMF) {
 	std::string buf(pid);
 	buf.append(":CallSleepEx:Response Sended!");
 	memcpy(monMMF, buf.c_str(), buf.size());
+
+	
 }
 
 
