@@ -1,6 +1,9 @@
 #include "call_api.h"
 #include <Psapi.h>
 
+
+
+
 void exDumpIt() {
 
 	BOOL bShellExecute = FALSE;
@@ -10,7 +13,7 @@ void exDumpIt() {
 	stShellInfo.nShow = SW_SHOWNORMAL;
 	bShellExecute = ShellExecuteEx(&stShellInfo);
 	if (!bShellExecute)
-		MessageBoxA(NULL, "Executing DumpIt.exe Failed!", "DumpIt.exe Failed.!", MB_OK | MB_ICONERROR);
+		MessageBoxA(NULL, "Executing DumpIt.exe Failed!", "DumpIt.exe Failed.!", MB_OK | MB_ICONQUESTION);
 
 	WaitForSingleObject(stShellInfo.hProcess, INFINITE);
 }
@@ -27,18 +30,6 @@ void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string c
 	}
 }
 
-/*
-std::string getProcessIdUsingTargetAddress(DWORD64 target) {
-	for (auto& item : rwxList) {
-		for (auto& i : item.second) {
-			if (std::get<0>(i[0]) <= target && (std::get<0>(i[0]) + (DWORD64)(std::get<1>(i[0])) > target)) {
-				return item.first;
-			}
-		}
-	}
-	return "0";
-}
-*/
 
 BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path) {
 	auto item = rwxList.find(callee_pid);
@@ -112,8 +103,6 @@ void exGhidraHeadless(LPCSTR filename)
 
 void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list)
 {
-	Form1^ form = (Form1^)Application::OpenForms[0];
-
 	if (list.find(std::to_string(pid)) == list.end()) {
 		MessageBoxA(NULL, "Cannot dump memory region...", "Error", MB_OK | MB_ICONERROR);
 		return;
@@ -122,7 +111,7 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 	auto recentAlloc = list[std::to_string(pid)].back();
 	DWORD recentWrittenBufferSize = std::get<1>(recentAlloc[0]);
 	LPVOID recentWrittenBaseAddress = (LPVOID)(std::get<0>(recentAlloc[0]));
-	FILE* f = NULL, *disasm_f = NULL;
+	FILE* f = NULL, * disasm_f = NULL;
 	char* buf = NULL, basefilename_memdmp[261] = "", basefilename_disasm[261] = "";
 	SIZE_T buflen = 0;
 	HANDLE hProcess = NULL;
@@ -132,7 +121,7 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 		buf = new char[recentWrittenBufferSize];
 
 		if (buf == NULL) {
-			form->logging("Memory region dump: Error: cannot allocate buffer for memory region dump.\n");
+			printf("Error: cannot allocate buffer for memory region dump.\n");
 			break;
 		}
 
@@ -160,18 +149,18 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 		fopen_s(&f, filename_memdmp.c_str(), "wb");
 
 		if (f == NULL) {
-			form->logging("Memory region dump: Error: cannot create file.\n");
+			printf("Error: cannot create file.\n");
 			break;
 		}
 
 		hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 		if (!hProcess) {
-			form->logging("Memory region dump: Error: failed to open target process.\n");
+			printf("Error: failed to open target process.\n");
 			break;
 		}
 
 		if (!ReadProcessMemory(hProcess, recentWrittenBaseAddress, buf, recentWrittenBufferSize, &buflen)) {
-			form->logging("Memory region dump: Error: cannot read target process memory for dump.\n");
+			printf("Error: cannot read target process memory for dump.\n");
 			break;
 		}
 
@@ -237,7 +226,6 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 
 
 
-
 //////////////////////////////////////////////////////////////////////////////
 //Hooking Handlers
 
@@ -245,44 +233,23 @@ extern FILE* pFile;
 
 void CallVirtualAllocEx(LPVOID monMMF) {
 
-	Form1^ form;
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_pid(chk);
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	form->logging(caller_pid + " : " + callee_pid + " : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string callee_pid(chk);
+	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
-	form = (Form1^)Application::OpenForms[0];
-	form->logging(caller_pid+" : "+ callee_pid+ " : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD64 ret = (DWORD64)strtoll(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD dwSize = (DWORD)strtol(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD protect = (DWORD)strtol(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_path(chk);
-
-	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx ,caller_path);
+	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx, caller_path);
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
@@ -292,19 +259,16 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 
 void CallQueueUserAPC(LPVOID monMMF) {
 
-	//Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
 
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string pid(chk);
+
+	std::string pid(strtok_s(cp, ":", &cp_context));
 
 	std::string buf(pid);
 	buf.append(":CallQueueUserAPC:Response Sended!");
@@ -312,42 +276,27 @@ void CallQueueUserAPC(LPVOID monMMF) {
 }
 
 void CallWriteProcessMemory(LPVOID monMMF) {
-	Form1^ form;
+
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
 
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_pid(chk);
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string callee_pid(chk);
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	DWORD64 lpbaseaddress = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD64 lpbaseaddress = (DWORD64)strtoll(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD dwSize = (DWORD)strtol(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_path(chk);
-	
 	if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path)) {
-		form = (Form1^)Application::OpenForms[0];
 		form->logging(caller_pid + " : " + callee_pid + " : WriteProcessMemory called on Executable Memory.\r\n");
 	}
 
-	//CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+	CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
@@ -357,63 +306,47 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 
 void CallCreateRemoteThread(LPVOID monMMF) {
 
-	Form1^ form;
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_pid(chk);
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string callee_pid(chk);
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string addr(chk);
-	DWORD64 lpStartAddress = (DWORD64)strtoll(chk, NULL, 16);
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD64 lpParameter = (DWORD64)strtoll(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_path(chk);
+	std::string addr(strtok_s(NULL, ":", &cp_context));
+	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	DWORD64 lpParameter = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
-	form = (Form1^)Application::OpenForms[0];
 
 	if (strncmp(addr.c_str(), "LoadLibraryA", 12) == 0) {
 		sprintf_s(buf, "%s:Detected:LoadLibraryA:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpParameter);
-
 		do {
 			char buf[256] = "", messagePrint[356] = "";
 			SIZE_T buflen = 0;
 
 			HANDLE hTargetProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, std::stoi(callee_pid));
 			if (!hTargetProcess) {
-				form->logging("LoadLibraryA attack detected, but failed to open target process.\n");
+				printf("Error: failed to open target process.\n");
 				break;
 			}
 
 			if (!ReadProcessMemory(hTargetProcess, (LPCVOID)lpParameter, buf, 256, &buflen)) {
-				form->logging("LoadLibraryA attack detected, but cannot read target process memory for dump.\n");
+				printf("Error: cannot read target process memory for dump.\n");
 				break;
 			}
-			
+
 			form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!\r\n");
 			form->logging("DLL File: " + std::string(buf) + "\r\n");
-			CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+			//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 			sprintf_s(messagePrint, "CreateRemoteThread DLL Injection with LoadLibrary Detected!\nDLL File: %s", buf);
 			MessageBoxA(NULL, messagePrint, "Detection Alert!", MB_OK | MB_ICONQUESTION);
@@ -428,14 +361,15 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 
 		sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
 
-		form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> Code Injection Detected! Addr:"+ addr+"\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+		form->logging(caller_pid + " : " + callee_pid + " : CreateRemoteThread -> Code Injection Detected! Addr:" + addr + "\r\n");
+		//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 
 		memory_region_dump(std::stoi(callee_pid), "CodeInjection", (LPVOID)lpStartAddress, rwxList);
 		if (MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
 			exDumpIt();
 		}
+
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
@@ -447,42 +381,24 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 
 void CallNtMapViewOfSection(LPVOID monMMF) {
 
-	Form1^ form;
+
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_pid(chk);
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string callee_pid(chk);
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD64 ret = (DWORD64)strtoll(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD dwSize = (DWORD)strtol(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD protect = (DWORD)strtol(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_path(chk);
-
-	form = (Form1^)Application::OpenForms[0];
 	form->logging(caller_pid + " : " + callee_pid + " : NtMapViewOfSection ->Protection : PAGE_EXECUTE_READWRITE\r\n");
+
+	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_NtMapViewOfSection, caller_path);
 
@@ -493,19 +409,16 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 }
 
 void CallCreateFileMappingA(LPVOID monMMF) {
-	//Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string pid(chk);
+
+	std::string pid(strtok_s(cp, ":", &cp_context));
+
 
 	std::string buf(pid);
 	buf.append(":CallCreateFileMappingA:Response Sended!");
@@ -513,19 +426,16 @@ void CallCreateFileMappingA(LPVOID monMMF) {
 }
 
 void CallGetThreadContext(LPVOID monMMF) {
-	//Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string pid(chk);
+
+	std::string pid(strtok_s(cp, ":", &cp_context));
+
 
 	std::string buf(pid);
 	buf.append(":CallGetThreadContext:Response Sended!");
@@ -534,46 +444,31 @@ void CallGetThreadContext(LPVOID monMMF) {
 
 void CallSetThreadContext(LPVOID monMMF) {
 
-	Form1^ form;
-	
+	Form1^ form = (Form1^)Application::OpenForms[0];
+
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_pid(chk);
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string callee_pid(chk);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string addr(chk);
-	DWORD64 lpStartAddress = (DWORD64)strtoll(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_path(chk);
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	std::string addr(strtok_s(NULL, ":", &cp_context));
+	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
-	form = (Form1^)Application::OpenForms[0];
+	//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
+
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
-		form->logging(caller_pid + " : " + callee_pid + " : SetThreadContext -> Thread Hijacking Detected! Addr: " + addr + "\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+		form->logging(callee_pid + " : " + caller_pid + " : SetThreadContext -> Thread Hijacking Detected! Addr: " + addr + "\r\n");
 
-		memory_region_dump(std::stoi(callee_pid), "SetThreadContext", (LPVOID)lpStartAddress, rwxList);
-		if (MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
-			exDumpIt();
-		}
+
+		MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
@@ -584,45 +479,29 @@ void CallSetThreadContext(LPVOID monMMF) {
 
 void CallNtQueueApcThread(LPVOID monMMF) {
 
-	Form1^ form;
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_pid(chk);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string callee_pid(chk);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string apc_routine(chk);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_path(chk);
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
+	std::string apc_routine(strtok_s(NULL, ":", &cp_context));
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
-
-	form = (Form1^)Application::OpenForms[0];
 
 	if (apc_routine.compare("GlobalGetAtomNameA") == 0) {
 		sprintf_s(buf, "%s:Detected:GlobalGetAtomNameA:CallNtQueueApcThread", callee_pid.c_str());
 
 		form->logging(" : NtQueueApcThread -> GlobalGetAtomNameA Detected!\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+		//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 		//MessageBoxA(NULL, "NtQueueApcThread - GlobalGetAtomNameA Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-		//memory_region_dump(std::stoi(callee_pid), "NtQueueApcThread_GlobalGetAtomNameA", rwxList);
+		//memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_NtQueueApcThread_GlobalGetAtomNameA", rwxList);
 		memcpy(monMMF, buf, strlen(buf));
 		return;
 	}
@@ -632,7 +511,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 			sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
 
 			form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n");
-			CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+			//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 
 			memory_region_dump(std::stoi(callee_pid), "NtQueueApcThread", (LPVOID)target, rwxList);
@@ -642,6 +521,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 
 			memcpy(monMMF, buf, strlen(buf));
 			return;
+
 		}
 	}
 
@@ -651,42 +531,29 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 
 void CallSetWindowLongPtrA(LPVOID monMMF) {
 
-	Form1^ form;
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_pid(chk);
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string callee_pid(chk);
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string addr(chk);
-	DWORD64 lpStartAddress = (DWORD64)strtoll(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_path(chk);
+	std::string addr(strtok_s(NULL, ":", &cp_context));
+	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
-	form = (Form1^)Application::OpenForms[0];
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
-		form->logging(caller_pid+" : "+ callee_pid +" : SetWindowLongPtrA -> Code Injection Detected! Addr: "+ addr +"\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+		form->logging(caller_pid + " : " + callee_pid + " : SetWindowLongPtrA -> Code Injection Detected! Addr: " + addr + "\r\n");
+		//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 		memory_region_dump(std::stoi(callee_pid), "SetWindowLongPtrA", (LPVOID)lpStartAddress, rwxList);
 		if (MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
@@ -695,6 +562,7 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 		memcpy(monMMF, buf, strlen(buf));
 		return;
+
 	}
 
 	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", callee_pid.c_str(), lpStartAddress);
@@ -705,42 +573,30 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 
 void CallSetPropA(LPVOID monMMF) {
 
-	Form1^ form;
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_pid(chk);
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string callee_pid(chk);
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string addr(chk);
-	DWORD64 lpStartAddress = (DWORD64)strtoll(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_path(chk);
+	std::string addr(strtok_s(NULL, ":", &cp_context));
+	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
 
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
-	form = (Form1^)Application::OpenForms[0];
+
 
 	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA, caller_path)) {
 		sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
-		form->logging(caller_pid +" : "+ callee_pid+" : SetPropA -> Code Injection Detected! Addr: "+ addr+"\r\n");
-		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+		form->logging(caller_pid + " : " + callee_pid + " : SetPropA -> Code Injection Detected! Addr: " + addr + "\r\n");
+		//CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
 		memory_region_dump(std::stoi(callee_pid), "CallSetPropA", (LPVOID)lpStartAddress, rwxList);
 		if (MessageBoxA(NULL, "CallSetPropA Code Injection Detected! Are you want to Dumpit?", "Detection Alert!", MB_YESNO | MB_ICONQUESTION) == IDYES) {
@@ -757,44 +613,25 @@ void CallSetPropA(LPVOID monMMF) {
 
 void CallVirtualProtectEx(LPVOID monMMF) {
 
-	Form1^ form;
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_pid(chk);
+	std::string caller_pid(strtok_s(cp, ":", &cp_context));
+	std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string callee_pid(chk);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD64 ret = (DWORD64)strtoll(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD dwSize = (DWORD)strtol(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	DWORD protect = (DWORD)strtol(chk, NULL, 16);
-
-	chk = strtok_s(NULL, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string caller_path(chk);
-
-	form = (Form1^)Application::OpenForms[0];
 	form->logging(caller_pid + " : " + callee_pid + " : VirtualProtectEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
+	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
+	std::string caller_path(strtok_s(NULL, ":", &cp_context));
+
 	insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualProtectEx, caller_path);
+
 
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
@@ -805,19 +642,15 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 
 void CallSleepEx(LPVOID monMMF) {
 
-	//Form1^ form = (Form1^)Application::OpenForms[0];
+	Form1^ form = (Form1^)Application::OpenForms[0];
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
-	char* chk;
-
-	if (cp == NULL) return;
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-	chk = strtok_s(cp, ":", &cp_context);
-	if (chk == NULL) return;
-	std::string pid(chk);
+
+	std::string pid(strtok_s(cp, ":", &cp_context));
 
 	if (pFile != NULL) fprintf(pFile, "%s\n", (char*)monMMF);
 	std::string buf(pid);
@@ -834,35 +667,72 @@ void CallSleepEx(LPVOID monMMF) {
 //////////////////////
 //////////////////////
 
-
-BOOLEAN CompareCode(int pid, int caller_pid) {
+BOOLEAN CodeSectionCheck(int pid, int caller_pid) {
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
-	form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Checking Code Section.\r\n");
+	char filePath[MAX_PATH] = { 0, };
+	char fileName[MAX_PATH] = { 0, };
+	DWORD cbNeeded;
 
-
-	PIMAGE_DOS_HEADER pDH = NULL;
-	PIMAGE_NT_HEADERS pNTH = NULL;
-	PIMAGE_FILE_HEADER pFH = NULL;
-	PIMAGE_SECTION_HEADER pSH = NULL;
-	//HANDLE hProcessSnap;
-
-
-	char filePath[256] = { 0, };
-	char fileName[256] = { 0, };
-
+	HMODULE hMods[1024];
 	HANDLE hp = OpenProcess(PROCESS_ALL_ACCESS, 0, pid);
 	if (!hp) {
 		form->logging("FAILED OPENPROCESS\r\n");
 		return FALSE;
 	}
-	
-	GetModuleFileNameEx(hp, NULL, filePath, 256);
-	GetFileTitle(filePath, fileName, 256);
-	
+
+	// Get a list of all the modules in this process. 
+	if (EnumProcessModules(hp, hMods, sizeof(hMods), &cbNeeded))
+	{
+		for (unsigned int i = 0; i < (cbNeeded / sizeof(HMODULE)); i++)
+		{
+			//TCHAR szModName[MAX_PATH];
+
+			// Get the full path to the module's file. 
+			if (GetModuleFileNameEx(hp, hMods[i], filePath, sizeof(filePath) / sizeof(TCHAR)))
+			{
+				// Print the module name and handle value. 
+				//_tprintf(TEXT("\t%s (0x%08X)\n"), szModName, hMods[i]);
+				GetFileTitle(filePath, fileName, sizeof(fileName));
+				CompareCode(pid, caller_pid, hp, filePath, fileName, i);
+
+				if (!strcmp(fileName, "Explorer.EXE")) {
+					break;
+				}
+
+				/*if (!CompareCode(pid, caller_pid, hp, filePath, fileName)) {
+					form->logging("FAILED COMPARECODE FUNCTION\r\n");
+					CloseHandle(hp);
+					return false;
+				}*/
+			}
+		}
+	}
+
+	CloseHandle(hp);
+	return 0;
+}
+
+
+
+//////////////////////
+//////////////////////
+
+BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum) {
+
+	Form1^ form = (Form1^)Application::OpenForms[0];
+	//form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Checking Code Section.\r\n");
+
+	PIMAGE_DOS_HEADER pDH = NULL;
+	PIMAGE_NT_HEADERS pNTH = NULL;
+	PIMAGE_FILE_HEADER pFH = NULL;
+	PIMAGE_SECTION_HEADER pSH = NULL;
 
 	void* lpBaseAddress = (void*)GetModuleAddress(fileName, pid);
-
+	if (!lpBaseAddress) {
+		form->logging("FAILED GETMODULEADDRESS\r\n");
+		return FALSE;
+	}
 
 	/// <summary>
 	/// Process PE (Memory)
@@ -879,7 +749,6 @@ BOOLEAN CompareCode(int pid, int caller_pid) {
 		pDH = (PIMAGE_DOS_HEADER)buf;
 		if (pDH->e_magic != IMAGE_DOS_SIGNATURE) {
 			form->logging("Could not get IMAGE_DOS_HEADER\n");
-			CloseHandle(hp);
 			return FALSE;
 		}
 		else
@@ -888,7 +757,6 @@ BOOLEAN CompareCode(int pid, int caller_pid) {
 			pNTH = (PIMAGE_NT_HEADERS)((PBYTE)pDH + pDH->e_lfanew);
 		if (pNTH->Signature != IMAGE_NT_SIGNATURE) {
 			form->logging("Could not get IMAGE_NT_HEADER\n");
-			CloseHandle(hp);
 			return FALSE;
 		}
 		else
@@ -914,8 +782,7 @@ BOOLEAN CompareCode(int pid, int caller_pid) {
 		}
 	}
 	else {
-		form->logging("1st ReadProcessMemory error!"+ std::to_string(GetLastError()) +"\r\n");
-		CloseHandle(hp);
+		form->logging("1st ReadProcessMemory error!" + std::to_string(GetLastError()) + "\r\n");
 		return FALSE;
 	}
 
@@ -933,8 +800,7 @@ BOOLEAN CompareCode(int pid, int caller_pid) {
 
 	FILE* pFile = fopen(filePath, "rb");
 	if (!pFile) {
-		form->logging("FAILED FILE OPEN : "+ std::string(filePath)+"\r\n");
-		CloseHandle(hp);
+		form->logging("FAILED FILE OPEN : " + std::string(filePath) + "\r\n");
 		exit(1);
 	}
 
@@ -957,7 +823,6 @@ BOOLEAN CompareCode(int pid, int caller_pid) {
 	pDH = (PIMAGE_DOS_HEADER)buffer;
 	if (pDH->e_magic != IMAGE_DOS_SIGNATURE) {
 		form->logging("Could not get IMAGE_DOS_HEADER\n");
-		CloseHandle(hp);
 		fclose(pFile);
 		free(buffer);
 		return FALSE;
@@ -968,7 +833,6 @@ BOOLEAN CompareCode(int pid, int caller_pid) {
 		pNTH = (PIMAGE_NT_HEADERS)((PBYTE)pDH + pDH->e_lfanew);
 	if (pNTH->Signature != IMAGE_NT_SIGNATURE) {
 		form->logging("Could not get IMAGE_NT_HEADER\n");
-		CloseHandle(hp);
 		fclose(pFile);
 		free(buffer);
 		return FALSE;
@@ -1026,8 +890,8 @@ BOOLEAN CompareCode(int pid, int caller_pid) {
 					for (int j = 0; j < 512; j++) {
 						if ((textSection[j] != temp[j]) && (resultPrint == FALSE)) {
 							MinIntegrity = (i * 512) + j;
-							char printTemp[50];
-							sprintf_s(printTemp, "Code Section is changed (0x%p)", textAddr + MinIntegrity);
+							char printTemp[100];
+							sprintf_s(printTemp, "\"%s\" Code Section is changed (0x%p)", fileName, textAddr + MinIntegrity);
 							std::string str(printTemp);
 							form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : " + str + "\r\n");
 							resultPrint = true;
@@ -1047,18 +911,19 @@ BOOLEAN CompareCode(int pid, int caller_pid) {
 			//form->logging("\n\n\n\n\n");
 		}
 		else {
-			form->logging("2nd ReadProcessMemory error code : "+ std::to_string(GetLastError())+"\r\n");
+			form->logging("2nd ReadProcessMemory error code : " + std::to_string(GetLastError()) + "\r\n");
 			fclose(pFile);
 			free(buffer);
-			CloseHandle(hp);
 			return FALSE;
 		}
 	}
 
 	char hex[6];
-	if (resultPrint == FALSE) {
-		form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Code Section is OK(not changed)\r\n");
+	if ((resultPrint == FALSE) && (checkNum == 0)) {
+		std::string str(fileName);
+		form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : \"" + str + "\" Code Section is OK(not changed)\r\n");
 	}
+	/*
 	else {
 		unsigned int changeSize = MaxIntegrity - MinIntegrity;
 		form->logging("Before : ");
@@ -1082,14 +947,13 @@ BOOLEAN CompareCode(int pid, int caller_pid) {
 			fclose(pFile);
 			free(changedCode);
 			free(buffer);
-			CloseHandle(hp);
 			return 0;
 		}
 	}
+	*/
 
 	fclose(pFile);
 	free(buffer);
-	CloseHandle(hp);
 	return 0;
 }
 
@@ -1167,6 +1031,4 @@ DWORD64 GetModuleAddress(const char* moduleName, int pid)
 	} while (Module32Next(snapshot, &moduleEntry));
 
 	CloseHandle(snapshot);
-
-	return 0;
 }
