@@ -1,8 +1,7 @@
 #include "call_api.h"
 #include <Psapi.h>
 
-
-
+std::string result_cp;
 
 void exDumpIt() {
 
@@ -297,7 +296,8 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 	}
 
 	CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
-
+	form->logging(result_cp);
+	result_cp = "";
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
 	sprintf_s(buf, "%s:%016llx:%08lx:CallWriteProcessMemory:Response Sended!", callee_pid.c_str(), lpbaseaddress, dwSize);
@@ -893,6 +893,7 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 							char printTemp[100];
 							sprintf_s(printTemp, "\"%s\" Code Section is changed (0x%p)", fileName, textAddr + MinIntegrity);
 							std::string str(printTemp);
+							result_cp.append(str);
 							form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : " + str + "\r\n");
 							resultPrint = true;
 						}
@@ -922,6 +923,8 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 	if ((resultPrint == FALSE) && (checkNum == 0)) {
 		std::string str(fileName);
 		form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : \"" + str + "\" Code Section is OK(not changed)\r\n");
+		std::string ok = "Code Section is OK(not changed)";
+		result_cp.append(ok);
 	}
 	/*
 	else {
