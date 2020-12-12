@@ -9,6 +9,7 @@
 #include <imnodes.h>
 #include <SDL.h>
 #include <GL/gl3w.h>
+#include <stdio.h>
 
 
 using namespace CppCLRWinformsProjekt;
@@ -24,13 +25,13 @@ int fileExists(TCHAR* file);
 void exGhidraHeadless(LPCSTR filename);
 void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list);
 
-BOOLEAN CodeSectionCheck(int pid, int caller_pid);
-BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum);
+BOOLEAN CodeSectionCheck(int pid, int caller_pid,char * pointer);
+int CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum,char *point,int len);
 BOOL calcMD5(byte* data, LPSTR md5);
 DWORD64 GetModuleAddress(const char* moduleName, int pid);
 
-void insert_index(int idx, std::string pid, std::string hash_check, std::string timestamp);
-
+void insert_index(std::string pid, std::string hash_check, std::string timestamp);
+void insert_status(std::string callee_pid,std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v);
 //######################################################
 
 void CallVirtualAllocEx(LPVOID monMMF);

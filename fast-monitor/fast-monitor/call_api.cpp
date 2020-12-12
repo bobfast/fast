@@ -1,15 +1,15 @@
 #include "call_api.h"
 #include <Psapi.h>
 #include <mysql.h>
-std::string result_cp;
-void insert_index(int idx, std::string pid, std::string hash_check, std::string timestamp) {
+
+void insert_index( std::string pid, std::string hash_check, std::string timestamp) {
 	MYSQL* connection = NULL;
 	MYSQL conn;
 	MYSQL_RES* sql_result;
 	MYSQL_ROW sql_row;
 	int query_stat;
-	char query[1000] = {0,};
-	char temp_hashcheck[200] = { 0, };
+	char query[1000] = { 0, };
+	char temp_hashcheck[400] = { 0, };
 	char temp_timestamp[200] = { 0, };
 	mysql_init(&conn);
 	char temp_pid[10];
@@ -19,21 +19,31 @@ void insert_index(int idx, std::string pid, std::string hash_check, std::string 
 	connection = mysql_real_connect(&conn, "localhost", "root", "root", "fast", 3306, NULL, 0);
 	if (connection == NULL)
 	{
-		MessageBoxA(NULL, "connect Failed!", "connect failed", MB_OK );
+		MessageBoxA(NULL, "connect Failed!", "connect failed", MB_OK);
 		return;
-	
+
 	}
-	
-	sprintf(query, "insert into attack_index(idx,pid,hashcheck,timestamp) values(%d,%s,\"%s\",\"%s\")", idx, temp_pid, temp_hashcheck, temp_timestamp);
+
+	sprintf(query,"insert into attack_index(pid,hashcheck,timestamp) values(%s,\"%s\",\"%s\")",  temp_pid, temp_hashcheck, temp_timestamp);
 	query_stat = mysql_query(connection, query);
 	if (query_stat != 0)
 	{
 		fprintf(stderr, "Mysql query error : %s", mysql_error(&conn));
-		MessageBoxA(NULL, query,"query failed", MB_OK);
+		MessageBoxA(NULL, query, "query failed", MB_OK);
 		return;
 	}
 	mysql_close(connection);
-	
+
+}
+void insert_status(std::string callee_pid,std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v) {
+	MYSQL* connection = NULL;
+	MYSQL conn;
+	MYSQL_RES* sql_result;
+	MYSQL_ROW sql_row;
+	int query_stat;
+	char query[1000] = { 0, };
+	insert_index(callee_pid, "", "");
+
 }
 void exDumpIt() {
 
@@ -74,7 +84,9 @@ BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string
 				std::get<3>(i[0]) |= flags;
 				if (flags != FLAG_WriteProcessMemory) {
 					Form1^ form = (Form1^)Application::OpenForms[0];
+
 					form->show_detection(callee_pid, i);
+					//insert_status(callee_pid,i);
 				}
 				return TRUE;
 			}
@@ -326,12 +338,18 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 	if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path)) {
 		form->logging(caller_pid + " : " + callee_pid + " : WriteProcessMemory called on Executable Memory.\r\n");
 	}
+	char data[600] = {0,};
+	char* result_p = data;
 
-	CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
-	form->logging(result_cp);
-	if (result_cp.length() > 0)
-		insert_index(1, callee_pid, result_cp, "2020-98");
-	result_cp = "";
+	CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid),result_p);
+	
+	form->logging(data);
+	if (strnlen_s(data,600)>0) {
+		
+		insert_index( callee_pid, data,"2020");
+	
+	}
+	
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
 	sprintf_s(buf, "%s:%016llx:%08lx:CallWriteProcessMemory:Response Sended!", callee_pid.c_str(), lpbaseaddress, dwSize);
@@ -701,13 +719,13 @@ void CallSleepEx(LPVOID monMMF) {
 //////////////////////
 //////////////////////
 
-BOOLEAN CodeSectionCheck(int pid, int caller_pid) {
+BOOLEAN CodeSectionCheck(int pid, int caller_pid,char *pointer) {
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
 	char filePath[MAX_PATH] = { 0, };
 	char fileName[MAX_PATH] = { 0, };
 	DWORD cbNeeded;
-
+	int len_c=0;
 	HMODULE hMods[1024];
 	HANDLE hp = OpenProcess(PROCESS_ALL_ACCESS, 0, pid);
 	if (!hp) {
@@ -728,7 +746,7 @@ BOOLEAN CodeSectionCheck(int pid, int caller_pid) {
 				// Print the module name and handle value. 
 				//_tprintf(TEXT("\t%s (0x%08X)\n"), szModName, hMods[i]);
 				GetFileTitle(filePath, fileName, sizeof(fileName));
-				CompareCode(pid, caller_pid, hp, filePath, fileName, i);
+				len_c+=CompareCode(pid, caller_pid, hp, filePath, fileName, i,pointer,len_c);
 
 				if (!strcmp(fileName, "Explorer.EXE")) {
 					break;
@@ -752,7 +770,7 @@ BOOLEAN CodeSectionCheck(int pid, int caller_pid) {
 //////////////////////
 //////////////////////
 
-BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum) {
+int CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum, char *point,int len) {
 
 	Form1^ form = (Form1^)Application::OpenForms[0];
 	//form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Checking Code Section.\r\n");
@@ -761,19 +779,14 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 	PIMAGE_NT_HEADERS pNTH = NULL;
 	PIMAGE_FILE_HEADER pFH = NULL;
 	PIMAGE_SECTION_HEADER pSH = NULL;
-
+	int temp_len = 0;
 	void* lpBaseAddress = (void*)GetModuleAddress(fileName, pid);
 	if (!lpBaseAddress) {
 		form->logging("FAILED GETMODULEADDRESS\r\n");
 		return FALSE;
 	}
-
-	/// <summary>
-	/// Process PE (Memory)
-	/// </summary>
-	/// <param name="argc"></param>
-	/// <param name="argv"></param>
-	/// <returns></returns>
+	point += len;
+	
 
 	BYTE buf[700] = { 0, };
 	BYTE* textAddr = NULL;
@@ -927,7 +940,8 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 							char printTemp[100];
 							sprintf_s(printTemp, "\'%s\' Code Section is changed (0x%p)", fileName, textAddr + MinIntegrity);
 							std::string str(printTemp);
-							result_cp.append(str);
+							temp_len+=sprintf_s(point, 400, "%s", printTemp);
+							point += temp_len;
 							form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : " + str + "\r\n");
 							resultPrint = true;
 						}
@@ -955,10 +969,10 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 
 	char hex[6];
 	if ((resultPrint == FALSE) && (checkNum == 0)) {
-		std::string str(fileName);
-		form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : \"" + str + "\" Code Section is OK(not changed)\r\n");
-		std::string ok = "Code Section is OK(not changed)";
-		result_cp.append(ok);
+		char printTemp2[150];
+		sprintf_s(printTemp2, "%d : %d : \'%s\' Code Section is OK(not changed)", caller_pid, pid, fileName);
+		std::string str2(printTemp2);
+		
 	}
 	/*
 	else {
@@ -991,7 +1005,7 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 
 	fclose(pFile);
 	free(buffer);
-	return 0;
+	return temp_len;
 }
 
 

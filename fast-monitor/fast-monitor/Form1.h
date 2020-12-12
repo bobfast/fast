@@ -424,8 +424,9 @@ namespace CppCLRWinformsProjekt {
 		this->detected->Items->Add(item);
 
 		//###################
-
 		detectionInfo.push_back(v);
+
+
 	}
 
 
