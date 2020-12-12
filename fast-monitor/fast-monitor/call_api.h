@@ -30,7 +30,7 @@ int CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileNa
 BOOL calcMD5(byte* data, LPSTR md5);
 DWORD64 GetModuleAddress(const char* moduleName, int pid);
 
-void insert_index(std::string pid, std::string hash_check, std::string timestamp);
+void insert_index(std::string pid, std::string hash_check);
 void insert_status(std::string callee_pid,std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v);
 //######################################################
 

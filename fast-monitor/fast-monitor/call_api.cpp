@@ -2,20 +2,20 @@
 #include <Psapi.h>
 #include <mysql.h>
 
-void insert_index( std::string pid, std::string hash_check, std::string timestamp) {
+void insert_index( std::string pid, std::string hash_check) {
 	MYSQL* connection = NULL;
 	MYSQL conn;
 	MYSQL_RES* sql_result;
 	MYSQL_ROW sql_row;
 	int query_stat;
 	char query[1000] = { 0, };
-	char temp_hashcheck[400] = { 0, };
-	char temp_timestamp[200] = { 0, };
+	char temp_hashcheck[600] = { 0, };
+
 	mysql_init(&conn);
 	char temp_pid[10];
 	strncpy_s(temp_pid, pid.c_str(), pid.length());
 	strncpy_s(temp_hashcheck, hash_check.c_str(), hash_check.length());
-	strncpy_s(temp_timestamp, timestamp.c_str(), timestamp.length());
+
 	connection = mysql_real_connect(&conn, "localhost", "root", "root", "fast", 3306, NULL, 0);
 	if (connection == NULL)
 	{
@@ -24,7 +24,7 @@ void insert_index( std::string pid, std::string hash_check, std::string timestam
 
 	}
 
-	sprintf(query,"insert into attack_index(pid,hashcheck,timestamp) values(%s,\"%s\",\"%s\")",  temp_pid, temp_hashcheck, temp_timestamp);
+	sprintf(query,"insert into attack_index(pid,hashcheck) values(%s,\"%s\")",  temp_pid, temp_hashcheck);
 	query_stat = mysql_query(connection, query);
 	if (query_stat != 0)
 	{
@@ -42,7 +42,7 @@ void insert_status(std::string callee_pid,std::vector< std::tuple<DWORD64, DWORD
 	MYSQL_ROW sql_row;
 	int query_stat;
 	char query[1000] = { 0, };
-	insert_index(callee_pid, "", "");
+	//insert_index(callee_pid, "", "");
 
 }
 void exDumpIt() {
@@ -346,7 +346,7 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 	form->logging(data);
 	if (strnlen_s(data,600)>0) {
 		
-		insert_index( callee_pid, data,"2020");
+		insert_index( callee_pid, data);
 	
 	}
 	
