@@ -29,7 +29,7 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 BOOL calcMD5(byte* data, LPSTR md5);
 DWORD64 GetModuleAddress(const char* moduleName, int pid);
 
-
+void insert_index(int idx, std::string pid, std::string hash_check, std::string timestamp);
 
 //######################################################
 

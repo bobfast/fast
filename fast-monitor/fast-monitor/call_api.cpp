@@ -1,8 +1,40 @@
 #include "call_api.h"
 #include <Psapi.h>
-
+#include <mysql.h>
 std::string result_cp;
-
+void insert_index(int idx, std::string pid, std::string hash_check, std::string timestamp) {
+	MYSQL* connection = NULL;
+	MYSQL conn;
+	MYSQL_RES* sql_result;
+	MYSQL_ROW sql_row;
+	int query_stat;
+	char query[1000] = {0,};
+	char temp_hashcheck[200] = { 0, };
+	char temp_timestamp[200] = { 0, };
+	mysql_init(&conn);
+	char temp_pid[10];
+	strncpy_s(temp_pid, pid.c_str(), pid.length());
+	strncpy_s(temp_hashcheck, hash_check.c_str(), hash_check.length());
+	strncpy_s(temp_timestamp, timestamp.c_str(), timestamp.length());
+	connection = mysql_real_connect(&conn, "localhost", "root", "root", "fast", 3306, NULL, 0);
+	if (connection == NULL)
+	{
+		MessageBoxA(NULL, "connect Failed!", "connect failed", MB_OK );
+		return;
+	
+	}
+	
+	sprintf(query, "insert into attack_index(idx,pid,hashcheck,timestamp) values(%d,%s,\"%s\",\"%s\")", idx, temp_pid, temp_hashcheck, temp_timestamp);
+	query_stat = mysql_query(connection, query);
+	if (query_stat != 0)
+	{
+		fprintf(stderr, "Mysql query error : %s", mysql_error(&conn));
+		MessageBoxA(NULL, query,"query failed", MB_OK);
+		return;
+	}
+	mysql_close(connection);
+	
+}
 void exDumpIt() {
 
 	BOOL bShellExecute = FALSE;
@@ -297,6 +329,8 @@ void CallWriteProcessMemory(LPVOID monMMF) {
 
 	CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 	form->logging(result_cp);
+	if (result_cp.length() > 0)
+		insert_index(1, callee_pid, result_cp, "2020-98");
 	result_cp = "";
 	memset(monMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
@@ -891,7 +925,7 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 						if ((textSection[j] != temp[j]) && (resultPrint == FALSE)) {
 							MinIntegrity = (i * 512) + j;
 							char printTemp[100];
-							sprintf_s(printTemp, "\"%s\" Code Section is changed (0x%p)", fileName, textAddr + MinIntegrity);
+							sprintf_s(printTemp, "\'%s\' Code Section is changed (0x%p)", fileName, textAddr + MinIntegrity);
 							std::string str(printTemp);
 							result_cp.append(str);
 							form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : " + str + "\r\n");
