@@ -29,7 +29,7 @@ BOOLEAN CodeSectionCheck(int pid, int caller_pid,char * pointer);
 int CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum,char *point,int len);
 BOOL calcMD5(byte* data, LPSTR md5);
 DWORD64 GetModuleAddress(const char* moduleName, int pid);
-
+std::string getAPI(UCHAR flags);
 void insert_index(std::string pid, std::string hash_check);
 void insert_status(std::string callee_pid,std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v);
 //######################################################

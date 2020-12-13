@@ -35,15 +35,80 @@ void insert_index( std::string pid, std::string hash_check) {
 	mysql_close(connection);
 
 }
+std::string getAPI(UCHAR flags) {
+
+	if (flags & FLAG_VirtualAllocEx)
+		return std::string("VirtualAllocEx");
+	if (flags & FLAG_NtMapViewOfSection)
+		return std::string("NtMapViewOfSection");
+	if (flags & FLAG_VirtualProtectEx)
+		return std::string("VirtualProtectEx");
+
+	if (flags == FLAG_WriteProcessMemory)
+		return std::string("WriteProcessMemory");
+
+
+	if (flags == FLAG_CreateRemoteThread)
+		return std::string("CreateRemoteThread");
+	if (flags == FLAG_SetWindowLongPtrA)
+		return std::string("SetWindowLongPtrA");
+	if (flags == FLAG_SetPropA)
+		return std::string("SetPropA");
+	if (flags == FLAG_SetThreadContext)
+		return std::string("SetThreadContext");
+
+	return std::string("");
+}
 void insert_status(std::string callee_pid,std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v) {
 	MYSQL* connection = NULL;
 	MYSQL conn;
-	MYSQL_RES* sql_result;
+	MYSQL_RES *sql_result=NULL;
 	MYSQL_ROW sql_row;
 	int query_stat;
-	char query[1000] = { 0, };
-	//insert_index(callee_pid, "", "");
+	
+	char wapi[600] = { 0, };
+	char temp_pid[10] = { 0, };
+	char address[20] = { 0, };
+	
+	insert_index(callee_pid, "not_checked");
 
+	mysql_init(&conn);
+	connection = mysql_real_connect(&conn, "localhost", "root", "root", "fast", 3306, NULL, 0);
+
+	if (connection == NULL)
+	{
+		MessageBoxA(NULL, "connect Failed!", "connect failed", MB_OK);
+		return;
+
+	}
+	query_stat = mysql_query(connection, "select max(no) from attack_index");
+	if (query_stat != 0)
+	{
+		fprintf(stderr, "Mysql query error : %s", mysql_error(&conn));
+		MessageBoxA(NULL, "query failed", "query failed", MB_OK);
+		return;
+	}
+	sql_result = mysql_store_result(connection);
+	sql_row = mysql_fetch_row(sql_result);
+	for (auto tp: v) {
+		char query[1000] = { 0, };
+		std::string caller_pid(std::get<2>(tp));
+		std::string temp_wapi(getAPI(std::get<3>(tp)));
+		sprintf(address, "%016llx", std::get<0>(tp));
+		strncpy_s(temp_pid, caller_pid.c_str(), caller_pid.length());
+		strncpy_s(wapi, temp_wapi.c_str(), temp_wapi.length());
+		sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi) values(%s,%s,\"%s\",%d,\"%s\")", sql_row[0],temp_pid,address,std::get<1>(tp),wapi);
+		query_stat = mysql_query(connection, query);
+		if (query_stat != 0)
+		{
+			fprintf(stderr, "Mysql query error : %s", mysql_error(&conn));
+			MessageBoxA(NULL, query, "query failed", MB_OK);
+			return;
+		}
+	}
+	mysql_close(connection);
+	
+	
 }
 void exDumpIt() {
 
@@ -86,7 +151,7 @@ BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string
 					Form1^ form = (Form1^)Application::OpenForms[0];
 
 					form->show_detection(callee_pid, i);
-					//insert_status(callee_pid,i);
+					insert_status(callee_pid,i);
 				}
 				return TRUE;
 			}
