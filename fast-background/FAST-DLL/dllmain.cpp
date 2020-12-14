@@ -288,6 +288,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	CloseHandle(hMonThread);
 	//printf("%s\n", (char*)dllMMF);
 
+	/*
 	char* cp = (char*)dllMMF;
 	char* context = NULL;
 	std::string pid(strtok_s(cp, ":", &context));
@@ -297,6 +298,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		//return NULL;
 	}
+	*/
 
 
 	return pCreateRemoteThread(

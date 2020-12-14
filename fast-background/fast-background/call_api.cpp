@@ -268,7 +268,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 		//sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
 
 		printf("%s :  %s : CreateRemoteThread -> Code Injection Detected! Addr:%s\r\n", callee_pid.c_str(), caller_pid.c_str(), addr.c_str());
-		//CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
+		CompareCode(std::stoi(callee_pid), std::stoi(caller_pid));
 
 		memory_region_dump(std::stoi(callee_pid), "MemoryRegionDump_CodeInjection", rwxList);
 		//memcpy(monMMF, buf, strlen(buf));
@@ -625,7 +625,7 @@ void CompareCode(int pid, int caller_pid) {
 		}
 	}
 	else {
-		printf("ReadProcessMemory error!");
+		printf("ReadProcessMemory error! lpBaseAddress=%p\n", lpBaseAddress);
 		CloseHandle(hp);
 		return;
 	}
