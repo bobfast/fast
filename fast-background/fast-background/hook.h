@@ -27,6 +27,7 @@
 #define FLAG_SetPropA 0b00100000
 #define FLAG_SetThreadContext 0b01000000
 #define FLAG_NtQueueApcThread 0b10000000 
+#define FLAG_WriteProcessMemory 0b10000000 
 
 
 void init();

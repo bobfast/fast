@@ -1,5 +1,6 @@
 #pragma once
 #include "hook.h"
+#include <capstone/capstone/capstone.h>
 #define MSG_SIZE 256
 
 static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR>>>> rwxList;
@@ -11,6 +12,10 @@ BOOL checkList(std::string pid, DWORD64 target ,  DWORD dwSize, std::string call
 int fileExists(TCHAR* file);
 void memory_region_dump(DWORD pid, const char* filename, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR >>>>& list);
 
+BOOLEAN CodeSectionCheck(int pid, int caller_pid);
+BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum);
+BOOL calcMD5(byte* data, LPSTR md5);
+DWORD64 GetModuleAddress(const char* moduleName, int pid);
 
 
 
