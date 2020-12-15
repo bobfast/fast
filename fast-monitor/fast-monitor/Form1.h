@@ -109,6 +109,7 @@ namespace CppCLRWinformsProjekt {
 	private: System::Windows::Forms::ToolStripMenuItem^ runGhidraToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ setGhidraPathToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ yarascanToolStripMenuItem;
+	private: System::Windows::Forms::Button^ button1;
 
 	protected:
 
@@ -137,6 +138,7 @@ namespace CppCLRWinformsProjekt {
 			this->stopToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->volatilityexeToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->browserawToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->yarascanToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->ghidraToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->setGhidraPathToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->runGhidraToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
@@ -150,7 +152,7 @@ namespace CppCLRWinformsProjekt {
 			this->callee_pid = (gcnew System::Windows::Forms::ColumnHeader());
 			this->attack_num = (gcnew System::Windows::Forms::ColumnHeader());
 			this->timestamp = (gcnew System::Windows::Forms::ColumnHeader());
-			this->yarascanToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->button1 = (gcnew System::Windows::Forms::Button());
 			this->menuStrip1->SuspendLayout();
 			this->SuspendLayout();
 			// 
@@ -179,7 +181,7 @@ namespace CppCLRWinformsProjekt {
 			this->targetPID->Location = System::Drawing::Point(641, 4);
 			this->targetPID->Margin = System::Windows::Forms::Padding(2);
 			this->targetPID->Name = L"targetPID";
-			this->targetPID->Size = System::Drawing::Size(133, 40);
+			this->targetPID->Size = System::Drawing::Size(133, 24);
 			this->targetPID->TabIndex = 4;
 			this->targetPID->SelectedIndexChanged += gcnew System::EventHandler(this, &Form1::targetPID_SelectedIndexChanged);
 			// 
@@ -190,7 +192,6 @@ namespace CppCLRWinformsProjekt {
 				static_cast<System::Int32>(static_cast<System::Byte>(83)));
 			this->menuStrip1->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(129)));
-			this->menuStrip1->GripMargin = System::Windows::Forms::Padding(2, 2, 0, 2);
 			this->menuStrip1->ImageScalingSize = System::Drawing::Size(32, 32);
 			this->menuStrip1->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(3) {
 				this->monitoringToolStripMenuItem,
@@ -214,20 +215,20 @@ namespace CppCLRWinformsProjekt {
 			this->monitoringToolStripMenuItem->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Bold));
 			this->monitoringToolStripMenuItem->ForeColor = System::Drawing::Color::LightGray;
 			this->monitoringToolStripMenuItem->Name = L"monitoringToolStripMenuItem";
-			this->monitoringToolStripMenuItem->Size = System::Drawing::Size(169, 31);
+			this->monitoringToolStripMenuItem->Size = System::Drawing::Size(88, 31);
 			this->monitoringToolStripMenuItem->Text = L"Monitoring";
 			// 
 			// startToolStripMenuItem
 			// 
 			this->startToolStripMenuItem->Name = L"startToolStripMenuItem";
-			this->startToolStripMenuItem->Size = System::Drawing::Size(218, 44);
+			this->startToolStripMenuItem->Size = System::Drawing::Size(112, 22);
 			this->startToolStripMenuItem->Text = L"Start";
 			this->startToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::startToolStripMenuItem_Click);
 			// 
 			// stopToolStripMenuItem
 			// 
 			this->stopToolStripMenuItem->Name = L"stopToolStripMenuItem";
-			this->stopToolStripMenuItem->Size = System::Drawing::Size(218, 44);
+			this->stopToolStripMenuItem->Size = System::Drawing::Size(112, 22);
 			this->stopToolStripMenuItem->Text = L"Stop";
 			this->stopToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::stopToolStripMenuItem_Click);
 			// 
@@ -242,15 +243,22 @@ namespace CppCLRWinformsProjekt {
 			this->volatilityexeToolStripMenuItem->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Bold));
 			this->volatilityexeToolStripMenuItem->ForeColor = System::Drawing::Color::LightGray;
 			this->volatilityexeToolStripMenuItem->Name = L"volatilityexeToolStripMenuItem";
-			this->volatilityexeToolStripMenuItem->Size = System::Drawing::Size(142, 31);
+			this->volatilityexeToolStripMenuItem->Size = System::Drawing::Size(75, 31);
 			this->volatilityexeToolStripMenuItem->Text = L"Volatility";
 			// 
 			// browserawToolStripMenuItem
 			// 
 			this->browserawToolStripMenuItem->Name = L"browserawToolStripMenuItem";
-			this->browserawToolStripMenuItem->Size = System::Drawing::Size(359, 44);
+			this->browserawToolStripMenuItem->Size = System::Drawing::Size(142, 22);
 			this->browserawToolStripMenuItem->Text = L"malfind";
 			this->browserawToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::browserawToolStripMenuItem_Click);
+			// 
+			// yarascanToolStripMenuItem
+			// 
+			this->yarascanToolStripMenuItem->Name = L"yarascanToolStripMenuItem";
+			this->yarascanToolStripMenuItem->Size = System::Drawing::Size(142, 22);
+			this->yarascanToolStripMenuItem->Text = L"yarascan";
+			this->yarascanToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::yarascanToolStripMenuItem_Click);
 			// 
 			// ghidraToolStripMenuItem
 			// 
@@ -261,20 +269,20 @@ namespace CppCLRWinformsProjekt {
 			this->ghidraToolStripMenuItem->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Bold));
 			this->ghidraToolStripMenuItem->ForeColor = System::Drawing::Color::LightGray;
 			this->ghidraToolStripMenuItem->Name = L"ghidraToolStripMenuItem";
-			this->ghidraToolStripMenuItem->Size = System::Drawing::Size(118, 31);
+			this->ghidraToolStripMenuItem->Size = System::Drawing::Size(62, 31);
 			this->ghidraToolStripMenuItem->Text = L"Ghidra";
 			// 
 			// setGhidraPathToolStripMenuItem
 			// 
 			this->setGhidraPathToolStripMenuItem->Name = L"setGhidraPathToolStripMenuItem";
-			this->setGhidraPathToolStripMenuItem->Size = System::Drawing::Size(543, 44);
+			this->setGhidraPathToolStripMenuItem->Size = System::Drawing::Size(274, 22);
 			this->setGhidraPathToolStripMenuItem->Text = L"Set Ghidra Directory Path";
 			this->setGhidraPathToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::setGhidraPathToolStripMenuItem_Click);
 			// 
 			// runGhidraToolStripMenuItem
 			// 
 			this->runGhidraToolStripMenuItem->Name = L"runGhidraToolStripMenuItem";
-			this->runGhidraToolStripMenuItem->Size = System::Drawing::Size(543, 44);
+			this->runGhidraToolStripMenuItem->Size = System::Drawing::Size(274, 22);
 			this->runGhidraToolStripMenuItem->Text = L"Run Ghidra and Open Project";
 			this->runGhidraToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::runGhidraToolStripMenuItem_Click);
 			// 
@@ -365,20 +373,24 @@ namespace CppCLRWinformsProjekt {
 			this->timestamp->Text = L"timestamp";
 			this->timestamp->Width = 175;
 			// 
-			// yarascanToolStripMenuItem
+			// button1
 			// 
-			this->yarascanToolStripMenuItem->Name = L"yarascanToolStripMenuItem";
-			this->yarascanToolStripMenuItem->Size = System::Drawing::Size(359, 44);
-			this->yarascanToolStripMenuItem->Text = L"yarascan";
-			this->yarascanToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::yarascanToolStripMenuItem_Click);
+			this->button1->Location = System::Drawing::Point(538, 5);
+			this->button1->Name = L"button1";
+			this->button1->Size = System::Drawing::Size(98, 21);
+			this->button1->TabIndex = 9;
+			this->button1->Text = L"WEB_LOG";
+			this->button1->UseVisualStyleBackColor = true;
+			this->button1->Click += gcnew System::EventHandler(this, &Form1::button1_Click);
 			// 
 			// Form1
 			// 
-			this->AutoScaleDimensions = System::Drawing::SizeF(16, 27);
+			this->AutoScaleDimensions = System::Drawing::SizeF(8, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(11)), static_cast<System::Int32>(static_cast<System::Byte>(7)),
 				static_cast<System::Int32>(static_cast<System::Byte>(17)));
 			this->ClientSize = System::Drawing::Size(782, 490);
+			this->Controls->Add(this->button1);
 			this->Controls->Add(this->detected);
 			this->Controls->Add(this->api_list);
 			this->Controls->Add(this->targetPID);
@@ -394,8 +406,8 @@ namespace CppCLRWinformsProjekt {
 			this->Name = L"Form1";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 			this->Text = L"FAST-Monitor";
-			this->Load += gcnew System::EventHandler(this, &Form1::Form1_Load);
 			this->FormClosing += gcnew System::Windows::Forms::FormClosingEventHandler(this, &Form1::Form1_Closing);
+			this->Load += gcnew System::EventHandler(this, &Form1::Form1_Load);
 			this->menuStrip1->ResumeLayout(false);
 			this->menuStrip1->PerformLayout();
 			this->ResumeLayout(false);
@@ -545,7 +557,10 @@ namespace CppCLRWinformsProjekt {
 		return std::string("");
 	}
 
-	};
+	private: System::Void button1_Click(System::Object^ sender, System::EventArgs^ e) {
+		System::Diagnostics::Process::Start("http://localhost/index.php");
+	}
+};
 }
 
 
