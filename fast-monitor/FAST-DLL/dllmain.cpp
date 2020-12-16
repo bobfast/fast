@@ -12,7 +12,6 @@ static WRITEPROCESSMEMORY pWriteProcessMemory = WriteProcessMemory;
 static DBGPRINT pDbgPrint;  // for debug printing 
 HMODULE hMod = NULL;
 
-HANDLE eventLog = RegisterEventSourceA(NULL, "FAST-DLLLog");
 bool isDetectedRWXPageWhenInitializing = false;
 
 //#####################################
@@ -68,7 +67,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessA(
 	char* pValue2 = NULL;
 	size_t len = NULL;
 	_dupenv_s(&pValue2, &len, "expHDll");
-	return DetourCreateProcessWithDllA(lpApplicationName,
+	return DetourCreateProcessWithDllExA(lpApplicationName,
 		lpCommandLine,
 		lpProcessAttributes,
 		lpThreadAttributes,
@@ -116,7 +115,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessW(
 	size_t len = NULL;
 	_dupenv_s(&pValue2, &len, "expHDll");
 
-	return DetourCreateProcessWithDllW(lpApplicationName,
+	return DetourCreateProcessWithDllExW(lpApplicationName,
 		lpCommandLine,
 		lpProcessAttributes,
 		lpThreadAttributes,
@@ -184,6 +183,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	ULONG Win32Protect
 )
 {
+<<<<<<< Updated upstream
 
 	//printf("NtMapViewOfSection is HOOKED!\n");
 	//printf("protect : %p\n", Win32Protect);
@@ -191,6 +191,25 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 		memset(dllMMF, 0, MSG_SIZE);
 
 		NTSTATUS res = (*TrueNtMapViewOfSection)(
+=======
+	DWORD target_pid;
+	DWORD64 realBaseAddr = (DWORD64)BaseAddress;
+	SIZE_T readbyte;
+	memset(dllMMF, 0, MSG_SIZE);
+	char buf[MSG_SIZE] = "";
+	HANDLE hMonThread = NULL;
+
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+
+	NTSTATUS res;
+
+	if (Win32Protect == PAGE_EXECUTE_READWRITE) {
+		res = TrueNtMapViewOfSection(
+>>>>>>> Stashed changes
 			SectionHandle,
 			ProcessHandle,
 			BaseAddress,
@@ -202,6 +221,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 			AllocationType,
 			Win32Protect);
 
+<<<<<<< Updated upstream
 		HANDLE hThread = NULL;
 		char buf[MSG_SIZE] = "";
 
@@ -229,6 +249,47 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	}
 	else
 		return (*TrueNtMapViewOfSection)(
+=======
+		// GetProcessId(ProcessHandle) failed, maybe...
+		// because PROCESS_VM_READ exists
+		// but PROCESS_QUERY_(LIMITED)_INFORMATION doesn't exist in ProcessHandle.
+		// If failed, target_pid can be 0.
+		target_pid = GetProcessId(ProcessHandle);
+
+		// Getting PID using DuplicateHandle
+		HANDLE hProcessDuplicated = NULL;
+		DWORD duplicateHandleResult = 0;
+
+		if (target_pid == 0) {
+			duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), ProcessHandle, GetCurrentProcess(),
+				&hProcessDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+			if (duplicateHandleResult != 0) {
+				target_pid = GetProcessId(hProcessDuplicated);
+
+				CloseHandle(hProcessDuplicated);
+			}
+		}
+		
+		if (!ReadProcessMemory(GetCurrentProcess(), BaseAddress, &realBaseAddr, sizeof(realBaseAddr), &readbyte)) {
+			printf("Error: cannot read target process memory to get real base address.\n");
+		}
+		else {
+			sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallNtMapViewOfSection:IPC Successful!",
+				GetCurrentProcessId(), target_pid, realBaseAddr,
+				(DWORD)CommitSize, Win32Protect);
+			memcpy(dllMMF, buf, strlen(buf));
+			hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallNtMapViewOfSection, monMMF, 0, NULL);
+			WaitForSingleObject(hMonThread, INFINITE);
+			CloseHandle(hMonThread);
+			printf("%s\n", (char*)dllMMF);
+		}
+
+		return res;
+	}
+	else {
+		return TrueNtMapViewOfSection(
+>>>>>>> Stashed changes
 			SectionHandle,
 			ProcessHandle,
 			BaseAddress,
@@ -239,6 +300,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 			InheritDisposition,
 			AllocationType,
 			Win32Protect);
+	}
 }
 
 
@@ -260,6 +322,23 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	HANDLE hMonThread = NULL;
 
 
+	DWORD target_pid = GetProcessId(hProcess);
+
+	// Getting PID using DuplicateHandle
+	HANDLE hProcessDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hProcess, GetCurrentProcess(),
+			&hProcessDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessId(hProcessDuplicated);
+
+			CloseHandle(hProcessDuplicated);
+		}
+	}
+
 	if (lpStartAddress == (LPTHREAD_START_ROUTINE)LoadLibraryA) {
 
 		if (!ReadProcessMemory(hProcess, lpParameter, buf, MSG_SIZE, NULL))
@@ -269,21 +348,29 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 
+<<<<<<< Updated upstream
 		sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId());
+=======
+		sprintf_s(buf, "%lu:%lu:LoadLibraryA:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), target_pid, lpParameter);
+>>>>>>> Stashed changes
 		//sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess));
 	}
 	else {
 
 
-		//printf("target : %lu\n", GetProcessId(hProcess));
+		//MessageBoxA(NULL, (std::string("target : ") + std::to_string(GetProcessId(hProcess))).c_str(), "test", MB_OK);
 		if (!(GetProcessId(hProcess)))
 		{
 
-			//printf("GetProcessId(%ld) failed!!! [%ld]\n", GetProcessId(hProcess), GetLastError());
+			printf("GetProcessId(%ld) failed!!! [%ld]\n", GetProcessId(hProcess), GetLastError());
 
 		}
 		//sprintf_s(buf, "%lu:%016x:%016x:CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess), lpStartAddress, lpParameter);
+<<<<<<< Updated upstream
 		sprintf_s(buf, "%lu:%p:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), lpStartAddress, lpParameter);
+=======
+		sprintf_s(buf, "%lu:%lu:%p:%p:%s:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), target_pid, lpStartAddress, lpParameter, szImagePath);
+>>>>>>> Stashed changes
 	}
 
 	memcpy(dllMMF, buf, strlen(buf));
@@ -503,7 +590,11 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	//sprintf_s(buf, "%d:CallNtQueueApcThread:IPC Successful!", GetProcessIdOfThread(ThreadHandle));
 
 	if (ApcRoutine == GlobalGetAtomNameA)
+<<<<<<< Updated upstream
 		sprintf_s(buf, "%d:GlobalGetAtomNameA:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId());
+=======
+		sprintf_s(buf, "%lu:%lu:GlobalGetAtomNameA:%s:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, szImagePath);
+>>>>>>> Stashed changes
 	else
 		sprintf_s(buf, "%d:%p:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), ApcRoutine);
 
@@ -533,10 +624,58 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 ) {
 	memset(dllMMF, 0, MSG_SIZE);
 
+<<<<<<< Updated upstream
 
 	char buf[MSG_SIZE] = "";
 	HANDLE hT = NULL;
 
+=======
+	// GetProcessIdOfThread(hThread) failed, maybe...
+	// because THREAD_SET_CONTEXT exists
+	// but THREAD_QUERY_(LIMITED)_INFORMATION doesn't exist in hThread.
+	// If failed, target_pid can be 0.
+	DWORD target_pid = GetProcessIdOfThread(hThread);
+	char buf[MSG_SIZE] = "";
+	HANDLE hMonThread= NULL;
+
+	// Getting PID using DuplicateHandle
+	HANDLE hThreadDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hThread, GetCurrentProcess(),
+			&hThreadDuplicated, THREAD_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessIdOfThread(hThreadDuplicated);
+
+			CloseHandle(hThreadDuplicated);
+		}
+	}
+
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+
+#ifdef _X86_
+	if (lpContext->Eip == 0) {
+		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, (ULONGLONG)lpContext->Eax, szImagePath);
+	}
+	else {
+		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, (ULONGLONG)lpContext->Eip, szImagePath);
+	}
+#endif
+#ifdef _AMD64_
+	if (lpContext->Rip == 0) {
+		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rax, szImagePath);
+}
+	else {
+		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rip, szImagePath);
+	}
+#endif
+>>>>>>> Stashed changes
 
 	sprintf_s(buf, "%lu:CallSetThreadContext:IPC Successful!", GetCurrentProcessId());
 	memcpy(dllMMF, buf, strlen(buf));
@@ -544,10 +683,22 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	//WaitForSingleObject(hThread, INFINITE);
 	printf("%s\n", (char*)dllMMF);
 
+<<<<<<< Updated upstream
 	return (*TrueSetThreadContext)(
+=======
+	char* cp = (char*)dllMMF;
+	char* context = NULL;
+	std::string pid(strtok_s(cp, ":", &context));
+	std::string res(strtok_s(NULL, ":", &context));
+	if (strncmp(res.c_str(), "Detected", 8) == 0) {
+		printf("CallSetThreadContext : Thread Hijacking Attack Detected and Prevented!\n");
+		return NULL;
+	}
+	return TrueSetThreadContext(
+>>>>>>> Stashed changes
 		hThread,
 		lpContext
-		);
+	);
 }
 
 
@@ -655,21 +806,36 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 	HANDLE hMemoryMap = NULL;
 	LPBYTE pMemoryMap = NULL;
 
+<<<<<<< Updated upstream
 	HANDLE fm;
 	char* map_addr;
 
+=======
+	HANDLE fm = NULL;
+	char* map_addr = nullptr;
+	NTSTATUS mapview_stat;
+>>>>>>> Stashed changes
 	LPVOID lpMap = 0;
 	SIZE_T viewsize = 0;
-
 	size_t sz;
 
 	switch (dwReason)
 	{
 	case DLL_PROCESS_ATTACH:
 
+		if (DetourIsHelperProcess()) {
+			OutputDebugStringA("FAST-DLL: It is helper process. Quit.\n");
+			return TRUE;
+		}
+
 		//#############################
 
-		hMemoryMap = OpenFileMapping(FILE_MAP_READ, FALSE, (LPCSTR)"shared");
+#ifdef _X86_
+		hMemoryMap = OpenFileMapping(FILE_MAP_READ, FALSE, (LPCSTR)"shared32");
+#endif
+#ifdef _AMD64_
+		hMemoryMap = OpenFileMapping(FILE_MAP_READ, FALSE, (LPCSTR)"shared64");
+#endif
 
 		pMemoryMap = (BYTE*)MapViewOfFile(
 			hMemoryMap, FILE_MAP_READ,
@@ -677,11 +843,9 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		);
 		if (!pMemoryMap)
 		{
-
 			CloseHandle(hMemoryMap);
-			printf("MapViewOfFile Failed.\n");
+			OutputDebugStringA("FAST-DLL: MapViewOfFile Failed.");
 			return FALSE;
-
 		}
 
 		sz = strlen((char*)pMemoryMap) + 1;
@@ -694,49 +858,60 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		// get ntdll module
 		hMod = GetModuleHandleA("ntdll.dll");
 		if (hMod == NULL) {
-			printf("FAST-DLL: Error - cannot get ntdll.dll module.\n");
+			OutputDebugStringA("FAST-DLL: Error - cannot get ntdll.dll module.");
 			return 1;
 		}
 
 		// get functions in ntdll
 		TrueNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
 		if (TrueNtMapViewOfSection == NULL) {
-			printf("Failed to get NtMapViewOfSection\n");
+			OutputDebugStringA("FAST-DLL: Failed to get NtMapViewOfSection.");
 			return 1;
 		}
 		pNtMapViewOfSection = (NTMAPVIEWOFSECTION)GetProcAddress(hMod, "NtMapViewOfSection");
 		if (pNtMapViewOfSection == NULL) {
-			printf("FAST-DLL: Error - cannot get NtMapViewOfSection's address.\n");
+			OutputDebugStringA("FAST-DLL: Error - cannot get NtMapViewOfSection's address.");
 			return 1;
 		}
 
 		NtQueueApcThread = (pNtQueueApcThread)GetProcAddress(hMod, "NtQueueApcThread");
 		if (NtQueueApcThread == NULL) {
-			printf("GetProcAddress NtQueueApcThread  Failed.\n");
+			OutputDebugStringA("FAST-DLL: GetProcAddress NtQueueApcThread Failed.");
 			return 1;
 		}
 
 		pDbgPrint = (DBGPRINT)GetProcAddress(hMod, "DbgPrint");
 		if (pDbgPrint == NULL) {
-			printf("FAST-DLL: Error - cannot get DbgPrint's address.\n");
+			OutputDebugStringA("FAST-DLL: Error - cannot get DbgPrint's address.");
 			return 1;
 		}
 
 		fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, MSG_SIZE, NULL);
 		if (fm == NULL) {
-			printf("FAST-DLL: Error - cannot create file mapping.\n");
+			OutputDebugStringA("FAST-DLL: Error - cannot create file mapping.");
 			return 1;
 		}
 		map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+		if (!map_addr) {
+			OutputDebugStringA((std::string("FAST-DLL: Cannot map view of a file. Error code = ") + std::to_string(GetLastError())).c_str());
+			return FALSE;
+		}
 
 		hMonProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD, FALSE, *(DWORD*)((char*)pMemoryMap + sz));
 
-		(*pNtMapViewOfSection)(fm, hMonProcess, &lpMap, 0, MSG_SIZE, nullptr, &viewsize, SECTION_INHERIT::ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
+		if (!hMonProcess) {
+			OutputDebugStringA((std::string("FAST-DLL: Cannot open monitor process. Error code = ") + std::to_string(GetLastError())).c_str());
+			return FALSE;
+		}
+
+		mapview_stat = pNtMapViewOfSection(fm, hMonProcess, &lpMap, 0, MSG_SIZE, nullptr, &viewsize, SECTION_INHERIT::ViewUnmap, 0, PAGE_READWRITE); // "The default behavior for executable pages allocated is to be marked valid call targets for CFG." (https://docs.microsoft.com/en-us/windows/desktop/api/memoryapi/nf-memoryapi-mapviewoffile)
+		if (!NT_SUCCESS(mapview_stat)) {
+			OutputDebugStringA("FAST-DLL: Cannot get map view of section of monitor process.");
+			return FALSE;
+		}
 
 		monMMF = (LPVOID)lpMap;
 		dllMMF = (LPVOID)map_addr;
-
-
 
 		CallVirtualAllocEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
 		CallQueueUserAPC = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + sizeof(DWORD64)));
@@ -758,6 +933,8 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		//#############################
 
 		DetourRestoreAfterWith();
+		DisableThreadLibraryCalls(hinst);
+
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 

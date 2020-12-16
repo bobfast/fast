@@ -1,8 +1,44 @@
 #pragma once
 #include "Form1.h"
+<<<<<<< Updated upstream
 using namespace CppCLRWinformsProjekt;
 
 #define MSG_SIZE 256
+=======
+#include <inttypes.h>
+#include <capstone/capstone/capstone.h>
+#include "node_editor.h"
+#include <imgui.h>
+#include <imgui_impl_sdl.h>
+#include <imgui_impl_opengl3.h>
+#include <imnodes.h>
+#include <SDL.h>
+#include <GL/gl3w.h>
+#include <stdio.h>
+
+
+using namespace CppCLRWinformsProjekt;
+#define MSG_SIZE 256
+
+static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>> rwxList;
+extern FILE* pFile;
+
+void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path);
+BOOL checkList(std::string pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path);
+
+int fileExists(TCHAR* file);
+void exGhidraHeadless(LPCSTR filename);
+void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list);
+
+BOOLEAN CodeSectionCheck(int pid, int caller_pid,char * pointer);
+int CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum,char *point,int len);
+BOOL calcMD5(byte* data, LPSTR md5);
+DWORD64 GetModuleAddress(const char* moduleName, int pid);
+std::string getAPI(UCHAR flags);
+void insert_index(std::string pid, std::string hash_check);
+void insert_status(std::string callee_pid,std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v);
+//######################################################
+>>>>>>> Stashed changes
 
 void CallVirtualAllocEx(LPVOID monMMF);
 void CallQueueUserAPC(LPVOID monMMF);
@@ -90,5 +126,3 @@ static NTSTATUS(*PNtMapViewOfSection)(
 	ULONG Win32Protect);
 
 //######################################################
-
-

@@ -1,0 +1,3 @@
+LIBRARY  FAST-DLL-32
+EXPORTS
+	DetourFinishHelperProcess @1

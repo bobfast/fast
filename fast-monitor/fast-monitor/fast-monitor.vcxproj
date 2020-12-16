@@ -78,14 +78,20 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+<<<<<<< Updated upstream
     <IncludePath>..\include;$(IncludePath)</IncludePath>
+=======
+    <IncludePath>..\..\\mysql-8.0.22-winx64\include;..\..\include;$(IncludePath)</IncludePath>
+    <LibraryPath>..\..\mysql-8.0.22-winx64\lib;$(LibraryPath)</LibraryPath>
+>>>>>>> Stashed changes
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>..\..\include;$(IncludePath)</IncludePath>
+    <IncludePath>..\..\mysql-8.0.22-winx64\include;..\..\include;$(IncludePath)</IncludePath>
+    <LibraryPath>..\..\mysql-8.0.22-winx64\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -138,9 +144,17 @@
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
+<<<<<<< Updated upstream
     </ClCompile>
     <Link>
       <AdditionalDependencies>detours.lib;%(AdditionalDependencies)</AdditionalDependencies>
+=======
+      <AdditionalIncludeDirectories>..\..\imnode\src;..\..\imnode\include\GL;..\..\imnode\include;..\..\SDL2-devel-2.0.12-VC\SDL2-2.0.12\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>libmysql.lib;SDL2.lib;SDL2main.lib;opengl32.lib;detours.lib;capstone.lib;%(AdditionalDependencies)</AdditionalDependencies>
+>>>>>>> Stashed changes
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>main</EntryPointSymbol>
       <AdditionalLibraryDirectories>..\..\lib.X64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

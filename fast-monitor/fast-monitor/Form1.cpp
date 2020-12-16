@@ -1,5 +1,6 @@
 #include "call_api.h"
 
+<<<<<<< Updated upstream
 //////////////////////////////////////////////////////////////////////////////
 //
 //  Test DetourCreateProcessfast function (fast.cpp).
@@ -10,6 +11,19 @@
 //
 #define MSG_SIZE 256
 using namespace CppCLRWinformsProjekt;
+=======
+FILE* pFile;
+std::string ghidraDirectory = "";
+static HANDLE fm32 = NULL;
+static HANDLE fm64 = NULL;
+static char* map_addr32;
+static char* map_addr64;
+static DWORD dwBufSize32 = 0;
+static DWORD dwBufSize64 = 0;
+static DWORD thispid = GetCurrentProcessId();
+static LPCSTR rpszDllsOut32 = NULL;
+static LPCSTR rpszDllsOut64 = NULL;
+>>>>>>> Stashed changes
 
 void init() {
 	time_t t = time(NULL);
@@ -29,11 +43,167 @@ void init() {
 
 	fprintf(pFile, buf);
 	fprintf(pFile, "\n#####Monitor Turned on.\n");
+<<<<<<< Updated upstream
 }
 
 void exiting() {
 
 
+=======
+
+
+	// Turn on the SeDebugPrivilege.
+
+	TOKEN_PRIVILEGES tp;
+	BOOL bResult = FALSE;
+	HANDLE hToken = NULL;
+	DWORD dwSize;
+
+	ZeroMemory(&tp, sizeof(tp));
+	tp.PrivilegeCount = 1;
+
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &hToken) &&
+		LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &tp.Privileges[0].Luid))
+	{
+		tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+		bResult = AdjustTokenPrivileges(hToken, FALSE, &tp, 0, NULL, &dwSize);
+	}
+	CloseHandle(hToken);
+
+
+	/////////////////////////////////////////////////////////
+	// Getting the DLL's full path.
+
+	LPCSTR rpszDllsRaw32 = (LPCSTR)"FAST-DLL-32.dll";
+
+	CHAR szDllPath32[1024];
+	PCHAR pszFilePart32 = NULL;
+
+	if (!GetFullPathNameA(rpszDllsRaw32, ARRAYSIZE(szDllPath32), szDllPath32, &pszFilePart32))
+	{
+		return;
+	}
+
+	DWORD c32 = (DWORD)strlen(szDllPath32) + 1;
+	PCHAR psz32 = new CHAR[c32];
+	StringCchCopyA(psz32, c32, szDllPath32);
+	rpszDllsOut32 = psz32;
+
+
+
+	LPCSTR rpszDllsRaw64 = (LPCSTR)"FAST-DLL-64.dll";
+
+	CHAR szDllPath64[1024];
+	PCHAR pszFilePart64 = NULL;
+
+	if (!GetFullPathNameA(rpszDllsRaw64, ARRAYSIZE(szDllPath64), szDllPath64, &pszFilePart64))
+	{
+		return;
+	}
+
+	DWORD c64 = (DWORD)strlen(szDllPath64) + 1;
+	PCHAR psz64 = new CHAR[c64];
+	StringCchCopyA(psz64, c64, szDllPath64);
+	rpszDllsOut64 = psz64;
+
+
+
+	/////////////////////////////////////////////////////////
+	// Making shared memory.
+
+	dwBufSize32 = (DWORD)(strlen(rpszDllsOut32) + 1) * sizeof(char);
+
+	fm32 = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
+		0,
+		(DWORD)((dwBufSize32 + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"shared32");
+
+
+	map_addr32 = (char*)MapViewOfFile(fm32, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+
+	memcpy(map_addr32, rpszDllsOut32, dwBufSize32);
+	memcpy(map_addr32 + dwBufSize32, &thispid, sizeof(DWORD));
+
+
+	dwBufSize64 = (DWORD)(strlen(rpszDllsOut64) + 1) * sizeof(char);
+
+	fm64 = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
+		0,
+		(DWORD)((dwBufSize64 + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"shared64");
+
+
+	map_addr64 = (char*)MapViewOfFile(fm64, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+
+	memcpy(map_addr64, rpszDllsOut64, dwBufSize64);
+	memcpy(map_addr64 + dwBufSize64, &thispid, sizeof(DWORD));
+
+
+
+	LPVOID fp = CallVirtualAllocEx;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD), &fp, sizeof(DWORD64));
+
+	fp = CallQueueUserAPC;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallWriteProcessMemory;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 2 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 2 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallCreateRemoteThread;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 3 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 3 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallNtMapViewOfSection;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 4 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 4 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallCreateFileMappingA;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 5 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 5 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallGetThreadContext;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 6 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 6 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallSetThreadContext;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 7 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 7 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallNtQueueApcThread;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 8 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 8 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallSetWindowLongPtrA;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 9 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 9 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallSetPropA;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallVirtualProtectEx;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 11 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 11 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+	fp = CallSleepEx;
+	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 12 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 12 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+
+
+
+	//Initial Hooking.
+	//mon(0);
+
+}
+
+void exiting() {
+	//Close Everything.
+	UnmapViewOfFile(map_addr32);
+	UnmapViewOfFile(map_addr64);
+	CloseHandle(fm32);
+	CloseHandle(fm64);
+>>>>>>> Stashed changes
 	fclose(pFile);
 }
 
@@ -42,18 +212,93 @@ void exiting() {
 
 DWORD findPidByName(const char* pname)
 {
+<<<<<<< Updated upstream
 	HANDLE h;
 	PROCESSENTRY32 procSnapshot;
 	h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	procSnapshot.dwSize = sizeof(PROCESSENTRY32);
+=======
+	Form1^ form = (Form1^)Application::OpenForms[0];
+
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
+	{
+		form->logging("ImGui Error: " + std::string(SDL_GetError()) + "\n");
+		return;
+	}
+
+#if __APPLE__
+	// GL 3.2 Core + GLSL 150
+	const char* glsl_version = "#version 150";
+	SDL_GL_SetAttribute(
+		SDL_GL_CONTEXT_FLAGS,
+		SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG); // Always required on Mac
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+#else
+	// GL 3.0 + GLSL 130
+	const char* glsl_version = "#version 130";
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+#endif
+
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+	SDL_DisplayMode current;
+	SDL_GetCurrentDisplayMode(0, &current);
+	SDL_Window* window = SDL_CreateWindow(
+		"Injection flow",
+		SDL_WINDOWPOS_CENTERED,
+		SDL_WINDOWPOS_CENTERED,
+		1280,
+		720,
+		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+	SDL_GLContext gl_context = SDL_GL_CreateContext(window);
+	SDL_GL_MakeCurrent(window, gl_context);
+	SDL_GL_SetSwapInterval(1); // Enable vsync
+
+	if (gl3wInit())
+	{
+		fprintf(stderr, "Failed to initialize OpenGL loader!\n");
+		return;
+	}
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+
+	ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
+	ImGui_ImplOpenGL3_Init(glsl_version);
+
+	imnodes::Initialize();
+
+	// Setup style
+	ImGui::StyleColorsDark();
+	imnodes::StyleColorsDark();
+
+	bool done = false;
+	bool initialized = false;
+
+	{
+		const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+	}
+>>>>>>> Stashed changes
 
 	do
 	{
 		if (!strcmp((const char*)procSnapshot.szExeFile, pname))
 		{
+<<<<<<< Updated upstream
 			DWORD pid = procSnapshot.th32ProcessID;
 			CloseHandle(h);
 			return pid;
+=======
+			initialized = true;
+			Show_node::NodeEditorInitialize((unsigned int)v.size());
+>>>>>>> Stashed changes
 		}
 	} while (Process32Next(h, &procSnapshot));
 
@@ -91,6 +336,7 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 }
 
 
+<<<<<<< Updated upstream
 
 
 //////////////////////////////////////////////////////////////////////// main.
@@ -362,6 +608,43 @@ int CDECL mon(int isFree_)
 	//if (!isFree)
 	//    while (TRUE)
 	//        Sleep(0);
+=======
+System::Void Form1::runGhidraToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+	if (ghidraDirectory == "") {
+		MessageBox::Show("You must set your Ghidra directory", "New Ghidra Project Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+		return;
+	}
+
+	array<String^>^ currentdirfiles = IO::Directory::GetFiles(".");
+	bool thereIsBinFile = false;
+
+	String^ analyzeHeadless_bat = gcnew String((ghidraDirectory + "\\support\\analyzeHeadless.bat").c_str());
+	String^ args = gcnew String(". GhidraMemdmpProject -import ");
+
+	if (!IO::File::Exists(analyzeHeadless_bat)) {
+		MessageBox::Show(analyzeHeadless_bat + " not found.", "New Ghidra Project Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+		return;
+	}
+
+	for (int i = 0; i < currentdirfiles->Length; i++) {
+		String^ elem = (String^)(currentdirfiles->GetValue(i));
+
+		// find .bin files
+		if (elem->LastIndexOf(".bin") == elem->Length - 4) {
+			thereIsBinFile = true;
+			args = args + "\"" + elem + "\" ";
+		}
+	}
+
+	if (thereIsBinFile) {
+		Diagnostics::Process^ proc = Diagnostics::Process::Start(analyzeHeadless_bat, args);  // RUN analyzeHeadless.bat with arguments
+		proc->WaitForExit();
+	}
+	else {
+		MessageBox::Show("There is no dumped *.bin file.", "New Ghidra Project Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
+		return;
+	}
+>>>>>>> Stashed changes
 
 	return 0; //dwResult;
 }
