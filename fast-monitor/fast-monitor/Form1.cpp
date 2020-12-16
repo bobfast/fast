@@ -212,7 +212,7 @@ void vol(char* path, int op) {
 
 
 
-void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v)
+void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v)
 {
 	Form1^ form = (Form1^)Application::OpenForms[0];
 

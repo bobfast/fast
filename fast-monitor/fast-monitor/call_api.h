@@ -15,15 +15,15 @@
 using namespace CppCLRWinformsProjekt;
 #define MSG_SIZE 256
 
-static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>> rwxList;
+static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>>>> rwxList;
 extern FILE* pFile;
 
-void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path);
-BOOL checkList(std::string pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path);
+void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path,std::string callstack);
+BOOL checkList(std::string pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path,std::string callstack);
 
 int fileExists(TCHAR* file);
 void exGhidraHeadless(LPCSTR filename);
-void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list);
+void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>>>>& list);
 
 BOOLEAN CodeSectionCheck(int pid, int caller_pid,char * pointer);
 int CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum,char *point,int len);
@@ -31,7 +31,7 @@ BOOL calcMD5(byte* data, LPSTR md5);
 DWORD64 GetModuleAddress(const char* moduleName, int pid);
 std::string getAPI(UCHAR flags);
 void insert_index(std::string pid, std::string hash_check);
-void insert_status(std::string callee_pid,std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v);
+void insert_status(std::string callee_pid,std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v);
 //######################################################
 
 void CallVirtualAllocEx(LPVOID monMMF);
