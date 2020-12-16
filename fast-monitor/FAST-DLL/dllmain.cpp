@@ -19,7 +19,7 @@ bool isDetectedRWXPageWhenInitializing = false;
 //#####################################
 
 static HANDLE hMonProcess = NULL;
-static HANDLE ghDllApiMutex = NULL, ghCallApiMonMutex = NULL;
+static CRITICAL_SECTION api_cs;
 static LPCSTR dll_path = NULL;
 
 static LPVOID monMMF = NULL;
@@ -144,10 +144,6 @@ DLLBASIC_API BOOL WINAPI MyQueueUserAPC(
 	HANDLE    hThread,
 	ULONG_PTR dwData
 ) {
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
-
 	HANDLE hMonThread = NULL;
 	char buf[MSG_SIZE] = "";
 	//sprintf_s(buf, "%d:CallNtQueueApcThread:IPC Successful!", GetProcessIdOfThread(ThreadHandle));
@@ -155,14 +151,18 @@ DLLBASIC_API BOOL WINAPI MyQueueUserAPC(
 	LPVOID fp = pfnAPC;
 	sprintf_s(buf, "%d:%p:CallQueueUserAPC:IPC Successful!", GetCurrentProcessId(), fp);
 
+	EnterCriticalSection(&api_cs);
+
+	memset(dllMMF, 0, MSG_SIZE);
 	memcpy(dllMMF, buf, strlen(buf));
-	
+
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallQueueUserAPC, monMMF, 0, NULL);
 	WaitForSingleObject(hMonThread, INFINITE);
 	CloseHandle(hMonThread);
+
 	printf("%s\n", (char*)dllMMF);
 
-	ReleaseMutex(ghDllApiMutex);
+	LeaveCriticalSection(&api_cs);
 
 	return TrueQueueUserAPC(
 		pfnAPC,
@@ -189,10 +189,6 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	ULONG Win32Protect
 )
 {
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
-
 	DWORD target_pid;
 	DWORD64 realBaseAddr = (DWORD64)BaseAddress;
 	SIZE_T readbyte;
@@ -248,20 +244,23 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 			sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallNtMapViewOfSection:IPC Successful!",
 				GetCurrentProcessId(), target_pid, realBaseAddr,
 				(DWORD)CommitSize, Win32Protect);
+
+			EnterCriticalSection(&api_cs);
+
+			memset(dllMMF, 0, MSG_SIZE);
 			memcpy(dllMMF, buf, strlen(buf));
 			
 			hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallNtMapViewOfSection, monMMF, 0, NULL);
 			WaitForSingleObject(hMonThread, INFINITE);
 			CloseHandle(hMonThread);
 			printf("%s\n", (char*)dllMMF);
-		}
 
-		ReleaseMutex(ghDllApiMutex);
+			LeaveCriticalSection(&api_cs);
+		}
 
 		return res;
 	}
 	else {
-		ReleaseMutex(ghDllApiMutex);
 
 		return TrueNtMapViewOfSection(
 			SectionHandle,
@@ -290,10 +289,6 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	DWORD                  dwCreationFlags,
 	LPDWORD                lpThreadId)
 {
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
-
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
 
@@ -346,6 +341,9 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 		sprintf_s(buf, "%lu:%lu:%p:%p:%s:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), target_pid, lpStartAddress, lpParameter, szImagePath);
 	}
 
+	EnterCriticalSection(&api_cs);
+
+	memset(dllMMF, 0, MSG_SIZE);
 	memcpy(dllMMF, buf, strlen(buf));
 	
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallCreateRemoteThread, monMMF, 0, NULL);
@@ -360,11 +358,12 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	if (strncmp(res.c_str(), "Detected", 8) == 0) {
 		printf("CreateRemoteThread : Process Injection Attack Detected and Prevented!\n");
 		
-		ReleaseMutex(ghDllApiMutex);
+		LeaveCriticalSection(&api_cs);
+
 		return NULL;
 	}
 
-	ReleaseMutex(ghDllApiMutex);
+	LeaveCriticalSection(&api_cs);
 
 	return pCreateRemoteThread(
 		hProcess,
@@ -387,9 +386,6 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	DWORD  flAllocationType,
 	DWORD  flProtect)
 {
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
 
@@ -410,6 +406,10 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 		);
 
 		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:%s:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize, flProtect, szImagePath);
+		
+		EnterCriticalSection(&api_cs);
+
+		memset(dllMMF, 0, MSG_SIZE);
 		memcpy(dllMMF, buf, strlen(buf));
 		
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualAllocEx, monMMF, 0, NULL);
@@ -417,12 +417,11 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 		CloseHandle(hMonThread);
 		printf("%s\n", (char*)dllMMF);
 
-		ReleaseMutex(ghDllApiMutex);
+		LeaveCriticalSection(&api_cs);
 
 		return ret;
 	}
 	else {
-		ReleaseMutex(ghDllApiMutex);
 
 		return pVirtualAllocEx(
 			hProcess,
@@ -443,10 +442,6 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 	SIZE_T  nSize,
 	SIZE_T* lpNumberOfBytesWritten)
 {
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
-
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
 
@@ -458,6 +453,9 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 
 	sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%s:MyWriteProcessMemory:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpBaseAddress, (DWORD)nSize, szImagePath);
 
+	EnterCriticalSection(&api_cs);
+
+	memset(dllMMF, 0, MSG_SIZE);
 	memcpy(dllMMF, buf, strlen(buf));
 	
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallWriteProcessMemory, monMMF, 0, NULL);
@@ -465,7 +463,7 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 	CloseHandle(hMonThread);
 	printf("%s\n", (char*)dllMMF);
 
-	ReleaseMutex(ghDllApiMutex);
+	LeaveCriticalSection(&api_cs);
 
 	return pWriteProcessMemory(
 		hProcess,
@@ -500,21 +498,22 @@ DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
 {
 	if ((hFile == INVALID_HANDLE_VALUE)
 		) {//&& (flProtect == PAGE_EXECUTE_READWRITE)) {
-		DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-		memset(dllMMF, 0, MSG_SIZE);
 
 		HANDLE hThread = NULL;
 		char buf[MSG_SIZE] = "";
 		sprintf_s(buf, "%lu:CallCreateFileMappingA:IPC Successful!     ", GetCurrentProcessId());
+
+		EnterCriticalSection(&api_cs);
+
+		memset(dllMMF, 0, MSG_SIZE);
 		memcpy(dllMMF, buf, strlen(buf));
-		
+
 		hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallCreateFileMappingA, monMMF, 0, NULL);
 		WaitForSingleObject(hThread, INFINITE);
 		CloseHandle(hThread);
 		printf("%s\n", (char*)dllMMF);  //#####
 
-		ReleaseMutex(ghDllApiMutex);
+		LeaveCriticalSection(&api_cs);
 	}
 	HANDLE check_map = NULL;
 	check_map = TrueCreateFileMappingA(hFile, lpFileMappingAttributes, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
@@ -543,10 +542,6 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	PVOID ApcStatusBlock OPTIONAL,
 	PVOID ApcReserved OPTIONAL
 ) {
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
-
 	DWORD target_pid = GetProcessIdOfThread(ThreadHandle);
 	HANDLE hThread = NULL;
 	char buf[MSG_SIZE] = "";
@@ -562,6 +557,9 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	else
 		sprintf_s(buf, "%lu:%lu:%p:%s:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, ApcRoutine, szImagePath);
 
+	EnterCriticalSection(&api_cs);
+
+	memset(dllMMF, 0, MSG_SIZE);
 	memcpy(dllMMF, buf, strlen(buf));
 	
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallNtQueueApcThread, monMMF, 0, NULL);
@@ -575,12 +573,13 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	std::string res(strtok_s(NULL, ":", &context));
 	if (strncmp(res.c_str(), "Detected", 8) == 0) {
 		printf("NtQueueApcThread : Process Injection Attack Detected and Prevented!\n");
-
-		ReleaseMutex(ghDllApiMutex);
+		
+		LeaveCriticalSection(&api_cs);
+		
 		return NULL;
 	}
 
-	ReleaseMutex(ghDllApiMutex);
+	LeaveCriticalSection(&api_cs);
 
 	return NtQueueApcThread(ThreadHandle,
 		ApcRoutine,
@@ -602,10 +601,6 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	HANDLE        hThread,
 	const CONTEXT* lpContext
 ) {
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
-
 	// GetProcessIdOfThread(hThread) failed, maybe...
 	// because THREAD_SET_CONTEXT exists
 	// but THREAD_QUERY_(LIMITED)_INFORMATION doesn't exist in hThread.
@@ -652,6 +647,9 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	}
 #endif
 
+	EnterCriticalSection(&api_cs);
+
+	memset(dllMMF, 0, MSG_SIZE);
 	memcpy(dllMMF, buf, strlen(buf));
 	
 	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetThreadContext, monMMF, 0, NULL);
@@ -665,13 +663,13 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	std::string res(strtok_s(NULL, ":", &context));
 	if (strncmp(res.c_str(), "Detected", 8) == 0) {
 		printf("CallSetThreadContext : Thread Hijacking Attack Detected and Prevented!\n");
-
-		ReleaseMutex(ghDllApiMutex);
-
+		
+		LeaveCriticalSection(&api_cs);
+		
 		return NULL;
 	}
 
-	ReleaseMutex(ghDllApiMutex);
+	LeaveCriticalSection(&api_cs);
 
 	return TrueSetThreadContext(
 		hThread,
@@ -694,10 +692,6 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	int      nIndex,
 	LONG_PTR dwNewLong)
 {
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
-
 	char buf[MSG_SIZE] = "";
 	HANDLE hThread = NULL;
 	DWORD dwpid = NULL;
@@ -714,8 +708,6 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	{
 		printf("OpenProcess(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
 
-		ReleaseMutex(ghDllApiMutex);
-
 		return NULL;
 	}
 
@@ -725,15 +717,11 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	{
 		printf("ReadProcessMemory(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
 
-		ReleaseMutex(ghDllApiMutex);
-
 		return NULL;
 	}
 	if (!ReadProcessMemory(hProcess, (LPCVOID)p1, (LPVOID)&p2, sizeof(LPVOID), NULL))
 	{
 		printf("ReadProcessMemory(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
-
-		ReleaseMutex(ghDllApiMutex);
 
 		return NULL;
 	}
@@ -742,6 +730,10 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 
 	//printf("%016llx\n", dwNewLong);
 	sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), dwpid, p2, szImagePath);
+	
+	EnterCriticalSection(&api_cs);
+
+	memset(dllMMF, 0, MSG_SIZE);
 	memcpy(dllMMF, buf, strlen(buf));
 	
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetWindowLongPtrA, monMMF, 0, NULL);
@@ -756,12 +748,12 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	if (strncmp(res.c_str(), "Detected", 8) == 0) {
 		printf("SetWindowLongPtrA : Windows Attribute Injection Attack Detected and Prevented!\n");
 
-		ReleaseMutex(ghDllApiMutex);
+		LeaveCriticalSection(&api_cs);
 
 		return NULL;
 	}
 
-	ReleaseMutex(ghDllApiMutex);
+	LeaveCriticalSection(&api_cs);
 
 	return TrueSetWindowLongPtrA(hWnd, nIndex, dwNewLong);
 }
@@ -782,10 +774,6 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 	LPCSTR lpString,
 	HANDLE hData
 ) {
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
-
 	char buf[MSG_SIZE] = "";
 	HANDLE hThread = NULL;
 	DWORD dwpid = NULL;
@@ -803,8 +791,6 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 	{
 		printf("OpenProcess(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
 
-		ReleaseMutex(ghDllApiMutex);
-
 		return NULL;
 	}
 	
@@ -814,13 +800,15 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 	{
 		printf("ReadProcessMemory(%ld) failed!!! [%ld]\n", GetCurrentProcessId(), GetLastError());
 
-		ReleaseMutex(ghDllApiMutex);
-
 		return NULL;
 	}
 
 
 	sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetPropA:IPC Successful!", GetCurrentProcessId(), dwpid, ptr, szImagePath);
+	
+	EnterCriticalSection(&api_cs);
+
+	memset(dllMMF, 0, MSG_SIZE);
 	memcpy(dllMMF, buf, strlen(buf));
 	
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, (LPTHREAD_START_ROUTINE)CallSetPropA, monMMF, 0, NULL);
@@ -835,12 +823,12 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 	if (strncmp(res.c_str(), "Detected", 8) == 0) {
 		printf("SetPropA : Windows Property Injection Attack Detected and Prevented!\n");
 
-		ReleaseMutex(ghDllApiMutex);
+		LeaveCriticalSection(&api_cs);
 
 		return NULL;
 	}
 
-	ReleaseMutex(ghDllApiMutex);
+	LeaveCriticalSection(&api_cs);
 
 	return TrueSetPropA(
 		hWnd,
@@ -866,9 +854,6 @@ SIZE_T dwSize,
 DWORD  flNewProtect,
 PDWORD lpflOldProtect)
 {
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
 	char buf[MSG_SIZE] = "";
 	HANDLE hMonThread = NULL;
 
@@ -880,17 +865,20 @@ PDWORD lpflOldProtect)
 
 
 	if ( flNewProtect == (PAGE_EXECUTE_READWRITE ) ) {
-
 		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:%s:MyVirtualProtectEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpAddress, (DWORD)dwSize, flNewProtect, szImagePath);
+		
+		EnterCriticalSection(&api_cs);
+
+		memset(dllMMF, 0, MSG_SIZE);
 		memcpy(dllMMF, buf, strlen(buf));
 		
 		hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallVirtualProtectEx, monMMF, 0, NULL);
 		WaitForSingleObject(hMonThread, INFINITE);
 		CloseHandle(hMonThread);
 		printf("%s\n", (char*)dllMMF);
-	}
 
-	ReleaseMutex(ghDllApiMutex);
+		LeaveCriticalSection(&api_cs);
+	}
 
 	return TrueVirtualProtectEx(
 		hProcess,
@@ -913,13 +901,13 @@ DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 
 	InterlockedExchangeAdd(&dwSlept, LONG(dwEnd - dwBeg));
 
-	DWORD dMutexState = WaitForSingleObject(ghDllApiMutex, INFINITE);
-
-	memset(dllMMF, 0, MSG_SIZE);
-
 	HANDLE hThread = NULL;
 	char buf[MSG_SIZE] = "";
 	sprintf_s(buf, "%lu:CallSleepEx:IPC Successful!     ", GetCurrentProcessId());
+	
+	EnterCriticalSection(&api_cs);
+
+	memset(dllMMF, 0, MSG_SIZE);
 	memcpy(dllMMF, buf, strlen(buf));
 	
 	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallSleepEx, monMMF, 0, NULL);
@@ -927,7 +915,7 @@ DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 	CloseHandle(hThread);
 	printf("%s\n", (char*)dllMMF);
 
-	ReleaseMutex(ghDllApiMutex);
+	LeaveCriticalSection(&api_cs);
 
 	return ret;
 }
@@ -1061,12 +1049,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 
 		//printf("%llu\n", *(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
 
-		ghDllApiMutex = OpenMutexA(SYNCHRONIZE, FALSE, "fast-DLL-API-mutex");
-
-		if (!ghDllApiMutex) {
-			OutputDebugStringA((std::string("FAST-DLL: Cannot open dllApi mutex. Error code = ") + std::to_string(GetLastError())).c_str());
-			return FALSE;
-		}
+		InitializeCriticalSection(&api_cs);
 
 		//#############################
 
@@ -1133,7 +1116,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		UnmapViewOfFile(pMemoryMap);
 		UnmapViewOfFile(map_addr);
 		CloseHandle(fm);
-		CloseHandle(ghDllApiMutex);
+		DeleteCriticalSection(&api_cs);
 
 		printf("FAST-DLL: Process detached.\n");
 		break;
