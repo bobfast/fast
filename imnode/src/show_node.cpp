@@ -53,7 +53,7 @@ namespace Show_node
                 return std::string("");
             }
 
-            void listing(int current, int attribute, int index ,std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string> tp) {
+            void listing(int current, int attribute, int index ,std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string> tp) {
                 if (current == 1) {
                     imnodes::PushColorStyle(
                         imnodes::ColorStyle_TitleBar, IM_COL32(37, 142, 63, 255));
@@ -104,7 +104,7 @@ namespace Show_node
                 imnodes::PopColorStyle();
             }
       
-            void show(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v)
+            void show(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v)
             {
                 int index = v.size();
                 int current = 1;
@@ -146,7 +146,7 @@ namespace Show_node
         }
     }
 
-    void NodeEditorShow(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v) { editor.show(v); }
+    void NodeEditorShow(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v) { editor.show(v); }
 
     void NodeEditorShutdown() {}
 

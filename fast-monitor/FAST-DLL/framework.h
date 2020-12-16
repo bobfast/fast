@@ -1,12 +1,24 @@
 ﻿#pragma once
 #include <Windows.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <locale.h>
+#include <tchar.h>
+#include <process.h>
+#include "dbghelp.h"
+#include <psapi.h>
 
+#pragma comment(lib, "psapi.lib")
+#pragma comment(lib,"Dbghelp.lib")
+const int MaxNameLen = 256;
+
+using namespace std;
+#define TEMP_SIZE 1000
 #define DLLBASIC_API extern "C" __declspec(dllexport)
-#define MSG_SIZE 384
+#define MSG_SIZE 3000
 
 #define NT_SUCCESS(status) (((NTSTATUS)(status)) >= 0)
-
+void printStack(char buf[]);
 // Enumeration type for NtMapViewOfSection
 typedef enum class _SECTION_INHERIT {
 	ViewShare = 1,

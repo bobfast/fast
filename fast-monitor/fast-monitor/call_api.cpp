@@ -1,14 +1,17 @@
 #include "call_api.h"
-<<<<<<< Updated upstream
-=======
 #include <Psapi.h>
 #include <mysql.h>
 
+DWORD StringToDword(std::string pid)
+{
+    DWORD cur_dword;
+    sscanf(pid.c_str(), "%ul", &cur_dword);
+    return cur_dword;
+}
 void insert_index(std::string pid, std::string hash_check) {
     MYSQL* connection = NULL;
     MYSQL conn;
-    MYSQL_RES* sql_result;
-    MYSQL_ROW sql_row;
+    
     int query_stat;
     char query[1000] = { 0, };
     char temp_hashcheck[600] = { 0, };
@@ -25,8 +28,22 @@ void insert_index(std::string pid, std::string hash_check) {
         return;
 
     }
+    
+    DWORD process_id = StringToDword(pid);
 
-    sprintf(query, "insert into attack_index(pid,hashcheck) values(%s,\"%s\")", temp_pid, temp_hashcheck);
+    HANDLE process_handle = OpenProcess(
+        PROCESS_QUERY_LIMITED_INFORMATION,
+        FALSE,
+        process_id
+    );
+
+    TCHAR szImagePath[MAX_PATH] = { 0, };
+    DWORD dwLen = 0;
+    ZeroMemory(szImagePath, sizeof(szImagePath));
+    dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+    QueryFullProcessImageName(process_handle, 1, szImagePath, &dwLen);
+    CloseHandle(process_handle);
+    sprintf(query, "insert into attack_index(pid,hashcheck,targetpath) values(%s,\"%s\",\"%s\")", temp_pid, temp_hashcheck, szImagePath);
     query_stat = mysql_query(connection, query);
     if (query_stat != 0)
     {
@@ -61,7 +78,7 @@ std::string getAPI(UCHAR flags) {
 
     return std::string("");
 }
-void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v) {
+void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v) {
     MYSQL* connection = NULL;
     MYSQL conn;
     MYSQL_RES* sql_result = NULL;
@@ -71,7 +88,7 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
     char wapi[600] = { 0, };
     char temp_pid[10] = { 0, };
     char address[20] = { 0, };
-
+    char temp_callstack[3000] = { 0, };
     insert_index(callee_pid, "not_checked");
 
     mysql_init(&conn);
@@ -96,10 +113,12 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
         char query[1000] = { 0, };
         std::string caller_pid(std::get<2>(tp));
         std::string temp_wapi(getAPI(std::get<3>(tp)));
+        std::string callstack(std::get<5>(tp));
         sprintf(address, "%016llx", std::get<0>(tp));
         strncpy_s(temp_pid, caller_pid.c_str(), caller_pid.length());
         strncpy_s(wapi, temp_wapi.c_str(), temp_wapi.length());
-        sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi) values(%s,%s,\"%s\",%d,\"%s\")", sql_row[0], temp_pid, address, std::get<1>(tp), wapi);
+        strncpy_s(temp_callstack, callstack.c_str(), callstack.length());
+        sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi,callstack,caller_path) values(%s,%s,\"%s\",%d,\"%s\",\"%s\",\"%s\")", sql_row[0], temp_pid, address, std::get<1>(tp), wapi,temp_callstack, std::get<4>(tp).c_str());
         query_stat = mysql_query(connection, query);
         if (query_stat != 0)
         {
@@ -110,6 +129,47 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
     }
     mysql_close(connection);
 
+
+}
+void insert_dump(std::string dumpfilename) {
+    MYSQL* connection = NULL;
+    MYSQL conn;
+    MYSQL_RES* sql_result;
+    MYSQL_ROW sql_row;
+    int query_stat;
+    char query[1000] = { 0, };
+    char dump[100];
+
+    mysql_init(&conn);
+
+    strncpy_s(dump, dumpfilename.c_str(), dumpfilename.length());
+    connection = mysql_real_connect(&conn, "localhost", "root", "root", "fast", 3306, NULL, 0);
+    if (connection == NULL)
+    {
+        MessageBoxA(NULL, "connect Failed!", "connect failed", MB_OK);
+        return;
+
+    }
+
+    query_stat = mysql_query(connection, "select max(no) from attack_index");
+    if (query_stat != 0)
+    {
+        fprintf(stderr, "Mysql query error : %s", mysql_error(&conn));
+        MessageBoxA(NULL, "query failed", "query failed", MB_OK);
+        return;
+    }
+    sql_result = mysql_store_result(connection);
+    sql_row = mysql_fetch_row(sql_result);
+
+    sprintf(query, "insert into dump_path(idx,dump) values(%s,\"%s\")", sql_row[0], dump);
+    query_stat = mysql_query(connection, query);
+    if (query_stat != 0)
+    {
+        fprintf(stderr, "Mysql query error : %s", mysql_error(&conn));
+        MessageBoxA(NULL, query, "query failed", MB_OK);
+        return;
+    }
+    mysql_close(connection);
 
 }
 void exDumpIt() {
@@ -126,26 +186,26 @@ void exDumpIt() {
     WaitForSingleObject(stShellInfo.hProcess, INFINITE);
 }
 
-void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path) {
-    std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string >> v = { std::make_tuple(ret, dwSize, caller_pid, flags,caller_path) };
+void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path,std::string callstack) {
+    std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string  >> v = { std::make_tuple(ret, dwSize, caller_pid, flags,caller_path,callstack) };
     auto rwxItem = rwxList.find(callee_pid);
     if (rwxItem != rwxList.end()) {
         rwxItem->second.push_back(v);
     }
     else {
-        std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string >>> ls = { v };
+        std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string >>> ls = { v };
         rwxList.insert(std::make_pair(callee_pid, ls));
     }
 }
 
 
-BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path) {
+BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path,std::string callstack) {
     auto item = rwxList.find(callee_pid);
     if (item != rwxList.end()) {
 
         for (auto& i : item->second) {
             if (std::get<0>(i[0]) <= target && (std::get<0>(i[0]) + (DWORD64)(std::get<1>(i[0])) > target)) {
-                std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string > tp = { std::make_tuple(target, dwSize, caller_pid, flags,caller_path) };
+                std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string > tp = { std::make_tuple(target, dwSize, caller_pid, flags,caller_path,callstack) };
                 i.push_back(tp);
 
                 std::get<3>(i[0]) |= flags;
@@ -211,7 +271,7 @@ void exGhidraHeadless(LPCSTR filename)
     WaitForSingleObject(stShellInfo.hProcess, INFINITE);
 }
 
-void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list)
+void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>>>>& list)
 {
     if (list.find(std::to_string(pid)) == list.end()) {
         MessageBoxA(NULL, "Cannot dump memory region...", "Error", MB_OK | MB_ICONERROR);
@@ -293,7 +353,7 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 
             filename_disasm = std::string("[disasm]") + std::string(basefilename_disasm) + std::string(".txt");
             fopen_s(&disasm_f, filename_disasm.c_str(), "wt");
-
+            insert_dump(filename_disasm);
             if (disasm_f == NULL) {
                 // file cannot create -> disasm ignored
                 break;
@@ -340,7 +400,6 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 //Hooking Handlers
 
 extern FILE* pFile;
->>>>>>> Stashed changes
 
 void CallVirtualAllocEx(LPVOID monMMF) {
 
@@ -351,29 +410,6 @@ void CallVirtualAllocEx(LPVOID monMMF) {
 
     if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-<<<<<<< Updated upstream
-
-	std::string pid(strtok_s(cp, ":", &cp_context));
-	form->logging(gcnew System::String(pid.c_str()));
-	form->logging(gcnew System::String(" : VirtualAlloc -> Protection : PAGE_EXECUTE_READWRITE\r\n"));
-
-	DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
-
-	auto item = rwxList.find(pid);
-	if (item != rwxList.end()) {
-		item->second.push_back(std::make_pair(ret, dwSize));
-	}
-	else {
-		std::vector<std::pair<DWORD64, DWORD >> ls = { std::make_pair(ret, dwSize) };
-		rwxList.insert(std::make_pair(pid, ls));
-	}
-
-	memset(monMMF, 0, MSG_SIZE);
-	char buf[MSG_SIZE] = "";
-	sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualAllocEx:Response Sended!", pid.c_str(), ret, dwSize);
-	memcpy(monMMF, buf, strlen(buf));
-=======
     std::string caller_pid(strtok_s(cp, ":", &cp_context));
     std::string callee_pid(strtok_s(NULL, ":", &cp_context));
     form->logging(caller_pid + " : " + callee_pid + " : VirtualAllocEx ->Protection : PAGE_EXECUTE_READWRITE\r\n");
@@ -382,14 +418,14 @@ void CallVirtualAllocEx(LPVOID monMMF) {
     DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
     DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
-
-    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx, caller_path);
+    strtok_s(NULL, "!", &cp_context);
+    std::string callstack(strtok_s(NULL, "*", &cp_context));
+    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx, caller_path,callstack);
 
     memset(monMMF, 0, MSG_SIZE);
     char buf[MSG_SIZE] = "";
     sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualAllocEx:Response Sended!", callee_pid.c_str(), ret, dwSize);
     memcpy(monMMF, buf, strlen(buf));
->>>>>>> Stashed changes
 }
 
 void CallQueueUserAPC(LPVOID monMMF) {
@@ -399,13 +435,8 @@ void CallQueueUserAPC(LPVOID monMMF) {
     char* cp = (char*)monMMF;
     char* cp_context = NULL;
 
-<<<<<<< Updated upstream
-	//form->logging(gcnew System::String(cp));
-	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
-=======
 
     if (pFile != NULL) fprintf(pFile, "%s\n", cp);
->>>>>>> Stashed changes
 
 
     std::string pid(strtok_s(cp, ":", &cp_context));
@@ -423,29 +454,18 @@ void CallWriteProcessMemory(LPVOID monMMF) {
     char* cp_context = NULL;
 
 
-<<<<<<< Updated upstream
-	//form->logging(gcnew System::String(cp));
-	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
-=======
     if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
->>>>>>> Stashed changes
 
     std::string caller_pid(strtok_s(cp, ":", &cp_context));
     std::string callee_pid(strtok_s(NULL, ":", &cp_context));
     DWORD64 lpbaseaddress = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
     DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
+    strtok_s(NULL, "!", &cp_context);
+    std::string callstack(strtok_s(NULL, "*", &cp_context));
 
-<<<<<<< Updated upstream
-	std::string pid(strtok_s(cp, ":", &cp_context));
-
-
-	std::string buf(pid);
-	buf.append(":CallWriteProcessMemory:Response Sended!");
-	memcpy(monMMF, buf.c_str(), buf.size());
-=======
-    if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path)) {
+    if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path,callstack)) {
         form->logging(caller_pid + " : " + callee_pid + " : WriteProcessMemory called on Executable Memory.\r\n");
     }
     char data[600] = { 0, };
@@ -464,7 +484,6 @@ void CallWriteProcessMemory(LPVOID monMMF) {
     char buf[MSG_SIZE] = "";
     sprintf_s(buf, "%s:%016llx:%08lx:CallWriteProcessMemory:Response Sended!", callee_pid.c_str(), lpbaseaddress, dwSize);
     memcpy(monMMF, buf, strlen(buf));
->>>>>>> Stashed changes
 }
 
 void CallCreateRemoteThread(LPVOID monMMF) {
@@ -480,23 +499,15 @@ void CallCreateRemoteThread(LPVOID monMMF) {
     std::string caller_pid(strtok_s(cp, ":", &cp_context));
     std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
-<<<<<<< Updated upstream
-	std::string pid(strtok_s(cp, ":", &cp_context));
-	form->logging(gcnew System::String(pid.c_str()));
-
-	std::string addr(strtok_s(NULL, ":", &cp_context));
-	DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
-	DWORD64 lpParameter = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
-=======
 
     std::string addr(strtok_s(NULL, ":", &cp_context));
     DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
     DWORD64 lpParameter = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
-
+    strtok_s(NULL, "!", &cp_context);
+    std::string callstack(strtok_s(NULL, "*", &cp_context));
     char buf[MSG_SIZE] = "";
     memset(monMMF, 0, MSG_SIZE);
->>>>>>> Stashed changes
 
 
     if (strncmp(addr.c_str(), "LoadLibraryA", 12) == 0) {
@@ -505,37 +516,6 @@ void CallCreateRemoteThread(LPVOID monMMF) {
             char buf[256] = "", messagePrint[356] = "";
             SIZE_T buflen = 0;
 
-<<<<<<< Updated upstream
-	char buf[MSG_SIZE] = "";
-	memset(monMMF, 0, MSG_SIZE);
-	auto item = rwxList.find(pid);
-	if (strncmp(addr.c_str(), "LoadLibraryA", 12) == 0) {
-		sprintf_s(buf, "%s:Detected:LoadLibraryA:%016llx:CallCreateRemoteThread", pid.c_str(), lpParameter);
-		form->logging(gcnew System::String(" : CreateRemoteThread -> LoadLibraryA DLL Injection Detected!"));
-		form->logging(gcnew System::String("\r\n"));
-		form->logging(gcnew System::String("\r\n"));
-		MessageBoxA(NULL, "CreateRemoteThread DLL Injection with LoadLibrary Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-		memcpy(monMMF, buf, strlen(buf));
-		return;
-	}
-	else if (item != rwxList.end()) {
-
-		for (auto i : item->second) {
-			if (i.first <= lpStartAddress && (i.first + (DWORD64)i.second > lpStartAddress))
-				sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", pid.c_str(), lpStartAddress, lpParameter);
-			form->logging(gcnew System::String(" : CreateRemoteThread -> Code Injection Detected! Addr: "));
-			form->logging(gcnew System::String(addr.c_str()));
-			form->logging(gcnew System::String("\r\n"));
-			form->logging(gcnew System::String("\r\n"));
-			MessageBoxA(NULL, "CreateRemoteThread Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-			memcpy(monMMF, buf, strlen(buf));
-			return;
-		}
-	}
-
-	sprintf_s(buf, "%s:%016llx:%016llx:CallCreateRemoteThread:Clean", pid.c_str(), lpStartAddress, lpParameter);
-	memcpy(monMMF, buf, strlen(buf));
-=======
             HANDLE hTargetProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, std::stoi(callee_pid));
             if (!hTargetProcess) {
                 printf("Error: failed to open target process.\n");
@@ -560,7 +540,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
         memcpy(monMMF, buf, strlen(buf));
         return;
     }
-    else if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_CreateRemoteThread, caller_path)) {
+    else if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_CreateRemoteThread, caller_path,callstack)) {
 
         sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
 
@@ -578,22 +558,13 @@ void CallCreateRemoteThread(LPVOID monMMF) {
     }
 
     sprintf_s(buf, "%s:%016llx:%016llx:CallCreateRemoteThread:Clean", callee_pid.c_str(), lpStartAddress, lpParameter);
+    
     memcpy(monMMF, buf, strlen(buf));
->>>>>>> Stashed changes
 
 }
 
 void CallNtMapViewOfSection(LPVOID monMMF) {
 
-<<<<<<< Updated upstream
-	Form1^ form = (Form1^)Application::OpenForms[0];
-
-	char* cp = (char*)monMMF;
-	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
-	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
-
-=======
 
     Form1^ form = (Form1^)Application::OpenForms[0];
 
@@ -604,61 +575,27 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
 
     std::string caller_pid(strtok_s(cp, ":", &cp_context));
     std::string callee_pid(strtok_s(NULL, ":", &cp_context));
->>>>>>> Stashed changes
-
-	std::string pid(strtok_s(cp, ":", &cp_context));
-
-<<<<<<< Updated upstream
-	form->logging(gcnew System::String(pid.c_str()));
-	form->logging(gcnew System::String(" : NtMapViewOfSection -> Protection : PAGE_EXECUTE_READWRITE\r\n"));
 
 
-	DWORD64 BaseAddress = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	DWORD CommitSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	if (pFile != NULL) fprintf(pFile, "%llu\n", BaseAddress);
-
-	auto item = rwxList.find(pid);
-	if (item != rwxList.end()) {
-		item->second.push_back(std::make_pair(BaseAddress, CommitSize));
-	}
-	else {
-		std::vector<std::pair<DWORD64, DWORD >> ls = { std::make_pair(BaseAddress, CommitSize) };
-		rwxList.insert(std::make_pair(pid, ls));
-	}
-
-	memset(monMMF, 0, MSG_SIZE);
-	char buf[MSG_SIZE] = "";
-	sprintf_s(buf, "%s:%016llx:%08lx:CallNtMapViewOfSection:Response Sended!", pid.c_str(), BaseAddress, CommitSize);
-	memcpy(monMMF, buf, strlen(buf));
-=======
     form->logging(caller_pid + " : " + callee_pid + " : NtMapViewOfSection ->Protection : PAGE_EXECUTE_READWRITE\r\n");
 
     DWORD64 ret = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
     DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
     DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
-
-    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_NtMapViewOfSection, caller_path);
+    strtok_s(NULL, "!", &cp_context);
+    std::string callstack(strtok_s(NULL, "*", &cp_context));
+    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_NtMapViewOfSection, caller_path,callstack);
 
     memset(monMMF, 0, MSG_SIZE);
     char buf[MSG_SIZE] = "";
     sprintf_s(buf, "%s:%016llx:%08lx:CallNtMapViewOfSection:Response Sended!", callee_pid.c_str(), ret, dwSize);
     memcpy(monMMF, buf, strlen(buf));
->>>>>>> Stashed changes
 }
 
 void CallCreateFileMappingA(LPVOID monMMF) {
     Form1^ form = (Form1^)Application::OpenForms[0];
 
-<<<<<<< Updated upstream
-	char* cp = (char*)monMMF;
-	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
-	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
-
-	
-	std::string pid(strtok_s(cp, ":", &cp_context));
-=======
     char* cp = (char*)monMMF;
     char* cp_context = NULL;
 
@@ -666,7 +603,6 @@ void CallCreateFileMappingA(LPVOID monMMF) {
 
 
     std::string pid(strtok_s(cp, ":", &cp_context));
->>>>>>> Stashed changes
 
 
     std::string buf(pid);
@@ -677,17 +613,10 @@ void CallCreateFileMappingA(LPVOID monMMF) {
 void CallGetThreadContext(LPVOID monMMF) {
     Form1^ form = (Form1^)Application::OpenForms[0];
 
-<<<<<<< Updated upstream
-	char* cp = (char*)monMMF;
-	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
-	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
-=======
     char* cp = (char*)monMMF;
     char* cp_context = NULL;
 
     if (pFile != NULL) fprintf(pFile, "%s\n", cp);
->>>>>>> Stashed changes
 
 
     std::string pid(strtok_s(cp, ":", &cp_context));
@@ -700,50 +629,30 @@ void CallGetThreadContext(LPVOID monMMF) {
 
 void CallSetThreadContext(LPVOID monMMF) {
 
-<<<<<<< Updated upstream
-	Form1^ form = (Form1^)Application::OpenForms[0];
-
-	char* cp = (char*)monMMF;
-	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
-	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
-=======
     Form1^ form = (Form1^)Application::OpenForms[0];
 
     char* cp = (char*)monMMF;
     char* cp_context = NULL;
->>>>>>> Stashed changes
 
     if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
-<<<<<<< Updated upstream
-	std::string pid(strtok_s(cp, ":", &cp_context));
-
-	form->logging(gcnew System::String(pid.c_str()));
-	form->logging(gcnew System::String(" :SetThreadContext Called!\r\n"));
-=======
 
     std::string caller_pid(strtok_s(cp, ":", &cp_context));
     std::string callee_pid(strtok_s(NULL, ":", &cp_context));
     std::string addr(strtok_s(NULL, ":", &cp_context));
     DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
-
+    strtok_s(NULL, "!", &cp_context);
+    std::string callstack(strtok_s(NULL, "*", &cp_context));
     char buf[MSG_SIZE] = "";
     memset(monMMF, 0, MSG_SIZE);
 
     //CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
->>>>>>> Stashed changes
 
-    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path)) {
+    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path,callstack)) {
         sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
         form->logging(callee_pid + " : " + caller_pid + " : SetThreadContext -> Thread Hijacking Detected! Addr: " + addr + "\r\n");
 
-<<<<<<< Updated upstream
-	std::string buf(pid);
-	buf.append(":CallSetThreadContext:Response Sended!");
-	memcpy(monMMF, buf.c_str(), buf.size());
-=======
 
         MessageBoxA(NULL, "SetThreadContext Thread Hijacking Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
         memcpy(monMMF, buf, strlen(buf));
@@ -752,7 +661,6 @@ void CallSetThreadContext(LPVOID monMMF) {
 
     sprintf_s(buf, "%s:%016llx:CallSetThreadContext:Clean", callee_pid.c_str(), lpStartAddress);
     memcpy(monMMF, buf, strlen(buf));
->>>>>>> Stashed changes
 }
 
 void CallNtQueueApcThread(LPVOID monMMF) {
@@ -762,38 +670,14 @@ void CallNtQueueApcThread(LPVOID monMMF) {
     char* cp = (char*)monMMF;
     char* cp_context = NULL;
 
-<<<<<<< Updated upstream
-	char* cp = (char*)monMMF;
-	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
-	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
-
-
-	std::string pid(strtok_s(cp, ":", &cp_context));
-
-	DWORD64 target = (DWORD64)strtoll(strtok_s(NULL, ":", &cp_context), NULL, 16);
-	char buf[MSG_SIZE] = "";
-	memset(monMMF, 0, MSG_SIZE);
-	auto item = rwxList.find(pid);
-	if (item != rwxList.end()) {
-		for (auto i : item->second) {
-			if (i.first <= target && (i.first + (DWORD64)i.second > target))
-				sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", pid.c_str(), target);
-			memcpy(monMMF, buf, strlen(buf));
-			return;
-		}
-	}
-
-	sprintf_s(buf, "%s:%016llx:CallNtQueueApcThread:Clean", pid.c_str(), target);
-	memcpy(monMMF, buf, strlen(buf));
-=======
     if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
     std::string caller_pid(strtok_s(cp, ":", &cp_context));
     std::string callee_pid(strtok_s(NULL, ":", &cp_context));
     std::string apc_routine(strtok_s(NULL, ":", &cp_context));
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
-
+    strtok_s(NULL, "!", &cp_context);
+    std::string callstack(strtok_s(NULL, "*", &cp_context));
     char buf[MSG_SIZE] = "";
     memset(monMMF, 0, MSG_SIZE);
 
@@ -810,7 +694,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
     }
     else {
         DWORD64 target = (DWORD64)strtoll(apc_routine.c_str(), NULL, 16);
-        if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread, caller_path)) {
+        if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread, caller_path,callstack)) {
             sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
 
             form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n");
@@ -830,7 +714,6 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 
     sprintf_s(buf, "%s:%s:CallNtQueueApcThread:Clean", callee_pid.c_str(), apc_routine.c_str());
     memcpy(monMMF, buf, strlen(buf));
->>>>>>> Stashed changes
 }
 
 void CallSetWindowLongPtrA(LPVOID monMMF) {
@@ -840,57 +723,22 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
     char* cp = (char*)monMMF;
     char* cp_context = NULL;
 
-<<<<<<< Updated upstream
-	char* cp = (char*)monMMF;
-	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
-	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
-=======
     if (pFile != NULL) fprintf(pFile, "%s\n", cp);
 
->>>>>>> Stashed changes
 
     std::string caller_pid(strtok_s(cp, ":", &cp_context));
     std::string callee_pid(strtok_s(NULL, ":", &cp_context));
 
-<<<<<<< Updated upstream
-	std::string pid(strtok_s(cp, ":", &cp_context));
-	form->logging(gcnew System::String(pid.c_str()));
-
-
-	std::string addr(strtok_s(NULL, ":", &cp_context));
-	DWORD64 target = (DWORD64)strtoll(addr.c_str(), NULL, 16);
-	char buf[MSG_SIZE] = "";
-	memset(monMMF, 0, MSG_SIZE);
-	auto item = rwxList.find(pid);
-	if (item != rwxList.end()) {
-
-		for (auto i : item->second) {
-			if (i.first <= target && (i.first + (DWORD64)i.second > target))
-				sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", pid.c_str(), target);
-			form->logging(gcnew System::String(" : SetWindowLongPtrA -> Code Injection Detected! Addr: "));
-			form->logging(gcnew System::String(addr.c_str()));
-			form->logging(gcnew System::String("\r\n"));
-			form->logging(gcnew System::String("\r\n"));
-			MessageBoxA(NULL, "SetWindowLongPtrA Code Injection Detected!", "Detection Alert!", MB_OK | MB_ICONQUESTION);
-			memcpy(monMMF, buf, strlen(buf));
-			return;
-		}
-	}
-
-	sprintf_s(buf, "%s:%016llx:CallSetWindowLongPtrA:Clean", pid.c_str(), target);
-	memcpy(monMMF, buf, strlen(buf));
-
-=======
     std::string addr(strtok_s(NULL, ":", &cp_context));
     DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
-
+    strtok_s(NULL, "!", &cp_context);
+    std::string callstack(strtok_s(NULL, "*", &cp_context));
     char buf[MSG_SIZE] = "";
     memset(monMMF, 0, MSG_SIZE);
 
 
-    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA, caller_path)) {
+    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA, caller_path,callstack)) {
         sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
         form->logging(caller_pid + " : " + callee_pid + " : SetWindowLongPtrA -> Code Injection Detected! Addr: " + addr + "\r\n");
         //CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
@@ -927,13 +775,14 @@ void CallSetPropA(LPVOID monMMF) {
     std::string addr(strtok_s(NULL, ":", &cp_context));
     DWORD64 lpStartAddress = (DWORD64)strtoll(addr.c_str(), NULL, 16);
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
-
+    strtok_s(NULL, "!", &cp_context);
+    std::string callstack(strtok_s(NULL, "*", &cp_context));
     char buf[MSG_SIZE] = "";
     memset(monMMF, 0, MSG_SIZE);
 
 
 
-    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA, caller_path)) {
+    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA, caller_path,callstack)) {
         sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
         form->logging(caller_pid + " : " + callee_pid + " : SetPropA -> Code Injection Detected! Addr: " + addr + "\r\n");
         //CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
@@ -969,15 +818,15 @@ void CallVirtualProtectEx(LPVOID monMMF) {
     DWORD dwSize = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
     DWORD protect = (DWORD)strtol(strtok_s(NULL, ":", &cp_context), NULL, 16);
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
-
-    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualProtectEx, caller_path);
+    strtok_s(NULL, "!", &cp_context);
+    std::string callstack(strtok_s(NULL, "*", &cp_context));
+    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualProtectEx, caller_path,callstack);
 
 
     memset(monMMF, 0, MSG_SIZE);
     char buf[MSG_SIZE] = "";
     sprintf_s(buf, "%s:%016llx:%08lx:CallVirtualProtectEx:Response Sended!", callee_pid.c_str(), ret, dwSize);
     memcpy(monMMF, buf, strlen(buf));
->>>>>>> Stashed changes
 }
 
 
@@ -985,17 +834,10 @@ void CallSleepEx(LPVOID monMMF) {
 
     Form1^ form = (Form1^)Application::OpenForms[0];
 
-<<<<<<< Updated upstream
-	char* cp = (char*)monMMF;
-	char* cp_context = NULL;
-	//form->logging(gcnew System::String(cp));
-	if (pFile != NULL) fprintf(pFile, "%s\n", cp);
-=======
     char* cp = (char*)monMMF;
     char* cp_context = NULL;
 
     if (pFile != NULL) fprintf(pFile, "%s\n", cp);
->>>>>>> Stashed changes
 
 
     std::string pid(strtok_s(cp, ":", &cp_context));
@@ -1005,8 +847,6 @@ void CallSleepEx(LPVOID monMMF) {
     buf.append(":CallSleepEx:Response Sended!");
     memcpy(monMMF, buf.c_str(), buf.size());
 }
-<<<<<<< Updated upstream
-=======
 
 
 
@@ -1381,4 +1221,3 @@ DWORD64 GetModuleAddress(const char* moduleName, int pid)
 
     CloseHandle(snapshot);
 }
->>>>>>> Stashed changes

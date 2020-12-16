@@ -9,14 +9,14 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <tuple>
+#include <msclr\marshal_cppstd.h>
 #pragma warning(push)
 #if _MSC_VER > 1400
 #pragma warning(disable : 6102 6103) // /analyze warnings
 #endif
 #include <strsafe.h>
 #pragma warning(pop)
-<<<<<<< Updated upstream
-=======
 /// <summary>
 /// flags
 /// </summary>
@@ -31,22 +31,15 @@
 #define FLAG_WriteProcessMemory 0b10000000 
 
 #define indexof( datum, data ) ( &datum - &*data.begin() )
->>>>>>> Stashed changes
 
 void init();
 void exiting();
-<<<<<<< Updated upstream
-
-static FILE* pFile = NULL;
-static std::unordered_map<std::string, std::vector<std::pair<DWORD64, DWORD>>> rwxList;
-=======
 void vol(char* path, int op);
 
-void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v);
-static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>> detectionInfo;
+void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v);
+static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>>> detectionInfo;
 static bool hooked = false;
 extern std::string ghidraDirectory;
->>>>>>> Stashed changes
 
 namespace CppCLRWinformsProjekt {
 
@@ -56,6 +49,7 @@ namespace CppCLRWinformsProjekt {
 	using namespace System::Windows::Forms;
 	using namespace System::Data;
 	using namespace System::Drawing;
+	using namespace System::Runtime::InteropServices;
 
 	/// <summary>
 	/// Zusammenfassung f? Form1
@@ -71,6 +65,7 @@ namespace CppCLRWinformsProjekt {
 		{
 			InitializeComponent();
 			init();
+
 			//
 			//TODO: Konstruktorcode hier hinzuf?en.
 			//
@@ -88,13 +83,10 @@ namespace CppCLRWinformsProjekt {
 				delete components;
 			}
 		}
-	private: System::Windows::Forms::Button^ hookAndMonitoring;
-	private: System::Windows::Forms::Button^ unhook;
+
 	private: System::Windows::Forms::TextBox^ logBox;
-	private: System::Windows::Forms::CheckedListBox^ AttackOpt;
+
 	private: System::Windows::Forms::ComboBox^ targetPID;
-<<<<<<< Updated upstream
-=======
 	private: System::Windows::Forms::MenuStrip^ menuStrip1;
 	private: System::Windows::Forms::ToolStripMenuItem^ monitoringToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ startToolStripMenuItem;
@@ -119,7 +111,6 @@ namespace CppCLRWinformsProjekt {
 	private: System::Windows::Forms::ToolStripMenuItem^ yarascanToolStripMenuItem;
 	private: System::Windows::Forms::Button^ button1;
 
->>>>>>> Stashed changes
 	protected:
 
 
@@ -139,13 +130,8 @@ namespace CppCLRWinformsProjekt {
 		/// </summary>
 		void InitializeComponent(void)
 		{
-			this->hookAndMonitoring = (gcnew System::Windows::Forms::Button());
-			this->unhook = (gcnew System::Windows::Forms::Button());
 			this->logBox = (gcnew System::Windows::Forms::TextBox());
-			this->AttackOpt = (gcnew System::Windows::Forms::CheckedListBox());
 			this->targetPID = (gcnew System::Windows::Forms::ComboBox());
-<<<<<<< Updated upstream
-=======
 			this->menuStrip1 = (gcnew System::Windows::Forms::MenuStrip());
 			this->monitoringToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->startToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
@@ -168,72 +154,33 @@ namespace CppCLRWinformsProjekt {
 			this->timestamp = (gcnew System::Windows::Forms::ColumnHeader());
 			this->button1 = (gcnew System::Windows::Forms::Button());
 			this->menuStrip1->SuspendLayout();
->>>>>>> Stashed changes
 			this->SuspendLayout();
-			// 
-			// hookAndMonitoring
-			// 
-			this->hookAndMonitoring->Location = System::Drawing::Point(12, 12);
-			this->hookAndMonitoring->Name = L"hookAndMonitoring";
-			this->hookAndMonitoring->Size = System::Drawing::Size(242, 82);
-			this->hookAndMonitoring->TabIndex = 0;
-			this->hookAndMonitoring->Text = L"Start";
-			this->hookAndMonitoring->UseVisualStyleBackColor = true;
-			this->hookAndMonitoring->Click += gcnew System::EventHandler(this, &Form1::hookAndMonitoring_Click);
-			// 
-			// unhook
-			// 
-			this->unhook->Location = System::Drawing::Point(274, 12);
-			this->unhook->Name = L"unhook";
-			this->unhook->Size = System::Drawing::Size(240, 82);
-			this->unhook->TabIndex = 1;
-			this->unhook->Text = L"Stop";
-			this->unhook->UseVisualStyleBackColor = true;
-			this->unhook->Click += gcnew System::EventHandler(this, &Form1::unhook_Click);
 			// 
 			// logBox
 			// 
-			this->logBox->Location = System::Drawing::Point(12, 351);
+			this->logBox->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(35)), static_cast<System::Int32>(static_cast<System::Byte>(32)),
+				static_cast<System::Int32>(static_cast<System::Byte>(39)));
+			this->logBox->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
+			this->logBox->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(129)));
+			this->logBox->ForeColor = System::Drawing::Color::DarkGray;
+			this->logBox->Location = System::Drawing::Point(5, 248);
+			this->logBox->Margin = System::Windows::Forms::Padding(2);
 			this->logBox->Multiline = true;
 			this->logBox->Name = L"logBox";
 			this->logBox->ReadOnly = true;
 			this->logBox->ScrollBars = System::Windows::Forms::ScrollBars::Both;
-			this->logBox->Size = System::Drawing::Size(1044, 529);
+			this->logBox->Size = System::Drawing::Size(771, 238);
 			this->logBox->TabIndex = 2;
-			// 
-			// AttackOpt
-			// 
-			this->AttackOpt->Font = (gcnew System::Drawing::Font(L"±¼¸²", 10.875F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(129)));
-			this->AttackOpt->FormattingEnabled = true;
-			this->AttackOpt->Items->AddRange(gcnew cli::array< System::Object^  >(6) {
-				L"#2 CodeViaCreateRemoteThread(LoadLibrayA)", L"#3 CodeViaCreateRemoteThread",
-					L"#4 Suspendthread/Resumethread", L"#5 CodeViaQueueUserAPC(+AtomBombing)", L"#6 CtrlInject", L"#10 SetWindowLongPtrA"
-			});
-			this->AttackOpt->Location = System::Drawing::Point(12, 100);
-			this->AttackOpt->Name = L"AttackOpt";
-			this->AttackOpt->Size = System::Drawing::Size(751, 232);
-			this->AttackOpt->TabIndex = 3;
-			this->AttackOpt->SelectedIndexChanged += gcnew System::EventHandler(this, &Form1::AttackOpt_SelectedIndexChanged);
 			// 
 			// targetPID
 			// 
 			this->targetPID->Font = (gcnew System::Drawing::Font(L"±¼¸²", 12, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(129)));
 			this->targetPID->FormattingEnabled = true;
-			this->targetPID->Location = System::Drawing::Point(803, 292);
+			this->targetPID->Location = System::Drawing::Point(641, 4);
+			this->targetPID->Margin = System::Windows::Forms::Padding(2);
 			this->targetPID->Name = L"targetPID";
-<<<<<<< Updated upstream
-			this->targetPID->Size = System::Drawing::Size(253, 40);
-			this->targetPID->TabIndex = 4;
-			this->targetPID->SelectedIndexChanged += gcnew System::EventHandler(this, &Form1::targetPID_SelectedIndexChanged);
-			// 
-			// Form1
-			// 
-			this->AutoScaleDimensions = System::Drawing::SizeF(13, 24);
-			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->ClientSize = System::Drawing::Size(1085, 904);
-=======
 			this->targetPID->Size = System::Drawing::Size(133, 24);
 			this->targetPID->TabIndex = 4;
 			this->targetPID->SelectedIndexChanged += gcnew System::EventHandler(this, &Form1::targetPID_SelectedIndexChanged);
@@ -446,33 +393,29 @@ namespace CppCLRWinformsProjekt {
 			this->Controls->Add(this->button1);
 			this->Controls->Add(this->detected);
 			this->Controls->Add(this->api_list);
->>>>>>> Stashed changes
 			this->Controls->Add(this->targetPID);
-			this->Controls->Add(this->AttackOpt);
 			this->Controls->Add(this->logBox);
-			this->Controls->Add(this->unhook);
-			this->Controls->Add(this->hookAndMonitoring);
+			this->Controls->Add(this->menuStrip1);
+			this->Font = (gcnew System::Drawing::Font(L"±¼¸²", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point, static_cast<System::Byte>(0)));
+			this->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(235)), static_cast<System::Int32>(static_cast<System::Byte>(42)),
+				static_cast<System::Int32>(static_cast<System::Byte>(83)));
+			this->FormBorderStyle = System::Windows::Forms::FormBorderStyle::FixedSingle;
+			this->MainMenuStrip = this->menuStrip1;
+			this->Margin = System::Windows::Forms::Padding(2);
+			this->MaximizeBox = false;
 			this->Name = L"Form1";
+			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 			this->Text = L"FAST-Monitor";
-<<<<<<< Updated upstream
-=======
 			this->FormClosing += gcnew System::Windows::Forms::FormClosingEventHandler(this, &Form1::Form1_Closing);
 			this->Load += gcnew System::EventHandler(this, &Form1::Form1_Load);
 			this->menuStrip1->ResumeLayout(false);
 			this->menuStrip1->PerformLayout();
->>>>>>> Stashed changes
 			this->ResumeLayout(false);
 			this->PerformLayout();
 
 		}
 #pragma endregion
 
-<<<<<<< Updated upstream
-	private: System::Void hookAndMonitoring_Click(System::Object^ sender, System::EventArgs^ e) {
-		this->logBox->AppendText("Hook DLLs!\r\n\r\n");
-		mon(0);
-
-=======
 	public: Void logging(std::string buf) {
 		String^ text = gcnew String(buf.c_str());
 		String^ pid = (String^)(text->Split(' '))[0];
@@ -483,7 +426,7 @@ namespace CppCLRWinformsProjekt {
 	}
 
 
-	public: Void show_detection(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v) {
+	public: Void show_detection(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v) {
 
 		System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(callee_pid.c_str()));
 		item->SubItems->Add(gcnew String(std::get<3>(v[0]).ToString()));
@@ -519,14 +462,9 @@ namespace CppCLRWinformsProjekt {
 		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "on");
 		proc->WaitForExit();
 		hooked = true;
->>>>>>> Stashed changes
 	}
-
-	private: System::Void unhook_Click(System::Object^ sender, System::EventArgs^ e) {
+	private: System::Void stopToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		this->logBox->AppendText("Unhook DLLs!\r\n\r\n");
-<<<<<<< Updated upstream
-		mon(1);
-=======
 		Diagnostics::Process^ proc = Diagnostics::Process::Start("hook-dll.exe", "off");
 		proc->WaitForExit();
 		hooked = false;
@@ -543,32 +481,56 @@ namespace CppCLRWinformsProjekt {
 	}
 	private: System::Void yarascanToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		System::Windows::Forms::DialogResult dr = this->openFileDialog1->ShowDialog();
->>>>>>> Stashed changes
 
-	}
-
-	public: Void logging(String^ text) {
-		String^ pid = (String^)(text->Split(' '))[0];
-		if(this->targetPID->Items->Contains(pid) != true)
-			this->targetPID->Items->Add(pid);
-		this->logBox->AppendText(text);
-	}
-
-
-	private: System::Void AttackOpt_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
-		
-	}
-	private: System::Void targetPID_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
-
-		if (this->targetPID->SelectedIndex > -1) {
-
+		if (System::Windows::Forms::DialogResult::OK == dr) {
+			char* path = (char*)(void*)Marshal::StringToHGlobalAnsi(this->openFileDialog1->FileName);
+			vol(path, 1);
+			Marshal::FreeHGlobal((System::IntPtr)path);
 		}
+	}
+
+	private: System::Void detected_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
+
+		this->api_list->Items->Clear();
+
+		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v = detectionInfo.at(this->detected->FocusedItem->Index);
+
+		for (auto tp : v) {
+			mon_listing(tp);
+		}
+	}
+
+	private: Void mon_listing(std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string> tp) {
+
+
+		System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(std::get<2>(tp).c_str()));
+		item->SubItems->Add(System::Convert::ToString((long long)std::get<0>(tp), 16));
+		item->SubItems->Add(gcnew String(std::get<1>(tp).ToString()));
+		item->SubItems->Add(gcnew String(getAPI(std::get<3>(tp)).c_str()));
+		this->api_list->Items->Add(item);
 
 	}
-<<<<<<< Updated upstream
-	};
 
-=======
+	private: System::Void setGhidraPathToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+		Windows::Forms::FolderBrowserDialog^ dialog = gcnew Windows::Forms::FolderBrowserDialog();
+		Windows::Forms::DialogResult result = dialog->ShowDialog();
+		msclr::interop::marshal_context context;
+
+		if (result == Windows::Forms::DialogResult::OK) {
+			ghidraDirectory = context.marshal_as<std::string>(dialog->SelectedPath);
+			this->logBox->AppendText("Set Ghidra directory: " + gcnew String(ghidraDirectory.c_str()) + "\r\n");
+		}
+	}
+
+	private: System::Void runGhidraToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e);
+
+
+
+	private: System::Void detected_MouseDoubleClick(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e) {
+		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v = detectionInfo.at(this->detected->FocusedItem->Index);
+		imgui(v);
+
+	}
 
 	private: std::string getAPI(UCHAR flags) {
 
@@ -599,7 +561,6 @@ namespace CppCLRWinformsProjekt {
 		System::Diagnostics::Process::Start("http://localhost/index.php");
 	}
 };
->>>>>>> Stashed changes
 }
 
 
