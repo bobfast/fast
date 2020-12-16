@@ -5,8 +5,7 @@
 void insert_index(std::string pid, std::string hash_check) {
     MYSQL* connection = NULL;
     MYSQL conn;
-    MYSQL_RES* sql_result;
-    MYSQL_ROW sql_row;
+    
     int query_stat;
     char query[1000] = { 0, };
     char temp_hashcheck[600] = { 0, };
@@ -69,7 +68,7 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
     char wapi[600] = { 0, };
     char temp_pid[10] = { 0, };
     char address[20] = { 0, };
-
+    char temp_callstack[3000] = { 0, };
     insert_index(callee_pid, "not_checked");
 
     mysql_init(&conn);
@@ -94,10 +93,12 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
         char query[1000] = { 0, };
         std::string caller_pid(std::get<2>(tp));
         std::string temp_wapi(getAPI(std::get<3>(tp)));
+        std::string callstack(std::get<5>(tp));
         sprintf(address, "%016llx", std::get<0>(tp));
         strncpy_s(temp_pid, caller_pid.c_str(), caller_pid.length());
         strncpy_s(wapi, temp_wapi.c_str(), temp_wapi.length());
-        sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi) values(%s,%s,\"%s\",%d,\"%s\")", sql_row[0], temp_pid, address, std::get<1>(tp), wapi);
+        strncpy_s(temp_callstack, callstack.c_str(), callstack.length());
+        sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi,callstack,caller_path) values(%s,%s,\"%s\",%d,\"%s\",\"%s\",\"%s\")", sql_row[0], temp_pid, address, std::get<1>(tp), wapi,temp_callstack, std::get<4>(tp).c_str());
         query_stat = mysql_query(connection, query);
         if (query_stat != 0)
         {
@@ -108,6 +109,47 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
     }
     mysql_close(connection);
 
+
+}
+void insert_dump(std::string dumpfilename) {
+    MYSQL* connection = NULL;
+    MYSQL conn;
+    MYSQL_RES* sql_result;
+    MYSQL_ROW sql_row;
+    int query_stat;
+    char query[1000] = { 0, };
+    char dump[100];
+
+    mysql_init(&conn);
+
+    strncpy_s(dump, dumpfilename.c_str(), dumpfilename.length());
+    connection = mysql_real_connect(&conn, "localhost", "root", "root", "fast", 3306, NULL, 0);
+    if (connection == NULL)
+    {
+        MessageBoxA(NULL, "connect Failed!", "connect failed", MB_OK);
+        return;
+
+    }
+
+    query_stat = mysql_query(connection, "select max(no) from attack_index");
+    if (query_stat != 0)
+    {
+        fprintf(stderr, "Mysql query error : %s", mysql_error(&conn));
+        MessageBoxA(NULL, "query failed", "query failed", MB_OK);
+        return;
+    }
+    sql_result = mysql_store_result(connection);
+    sql_row = mysql_fetch_row(sql_result);
+
+    sprintf(query, "insert into dump_path(idx,dump) values(%s,\"%s\")", sql_row[0], dump);
+    query_stat = mysql_query(connection, query);
+    if (query_stat != 0)
+    {
+        fprintf(stderr, "Mysql query error : %s", mysql_error(&conn));
+        MessageBoxA(NULL, query, "query failed", MB_OK);
+        return;
+    }
+    mysql_close(connection);
 
 }
 void exDumpIt() {
@@ -291,7 +333,7 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 
             filename_disasm = std::string("[disasm]") + std::string(basefilename_disasm) + std::string(".txt");
             fopen_s(&disasm_f, filename_disasm.c_str(), "wt");
-
+            insert_dump(filename_disasm);
             if (disasm_f == NULL) {
                 // file cannot create -> disasm ignored
                 break;
