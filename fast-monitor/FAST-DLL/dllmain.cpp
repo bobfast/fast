@@ -3,7 +3,9 @@
 #include "framework.h"
 #include "detours.h"
 #include <string>
+#include <psapi.h>
 
+#pragma comment(lib, "psapi.lib")
 
 static NTMAPVIEWOFSECTION pNtMapViewOfSection;
 static NTMAPVIEWOFSECTION TrueNtMapViewOfSection;
@@ -53,17 +55,17 @@ void printStack(char buf[]) {
     STACKFRAME64        stack;
     ULONG               frame;
     DWORD64             displacement;
-
+    char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+    PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
 
     CONTEXT ctx;
-    char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+
     char module[MaxNameLen];
-    PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
+
 
     RtlCaptureContext(&ctx);
     memset(&stack, 0, sizeof(STACKFRAME64));
-    char prev[TEMP_SIZE] = { 0, };
-    char temp[TEMP_SIZE] = { 0, };
+
     displacement = 0;
 #if !defined(_M_AMD64)
     stack.AddrPC.Offset = (*ctx).Eip;
@@ -100,10 +102,14 @@ void printStack(char buf[]) {
 
         if (!result) break;
 
+
+
         //get symbol name for address
         pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
         pSymbol->MaxNameLen = MAX_SYM_NAME;
-        if (!SymFromAddr(Process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol))continue;
+
+        if (!SymFromAddr(Process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol)) continue;
+
 
 
         //try to get line
@@ -111,8 +117,8 @@ void printStack(char buf[]) {
 
         hModule = NULL;
         lstrcpyA(module, "");
-        if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-            (LPCTSTR)(stack.AddrPC.Offset), &hModule))continue;
+        GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            (LPCTSTR)(stack.AddrPC.Offset), &hModule);
 
         //at least print module name
 
@@ -120,13 +126,12 @@ void printStack(char buf[]) {
             HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, GetCurrentProcessId());
 
             if (hProc != NULL) {
-                GetModuleBaseNameA(hProc, hModule, module, MaxNameLen);
-                sprintf_s(temp, TEMP_SIZE, "\t %s!%s address 0x%lu\n", module, pSymbol->Name, pSymbol->Address);
-                if (strcmp(prev, temp) != 0) {
-                    sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "%s", temp);
-                    sprintf_s(prev, TEMP_SIZE, "%s", temp);
+                if (GetModuleBaseNameA(hProc, hModule, module, MaxNameLen) != 0) {
+                    sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "\t %s!%s address %016llx\n", module, pSymbol->Name, pSymbol->Address);
+                    CloseHandle(hProc);
                 }
             }
+
         }
 
 

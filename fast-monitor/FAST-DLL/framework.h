@@ -18,7 +18,7 @@ using namespace std;
 #define MSG_SIZE 3000
 
 #define NT_SUCCESS(status) (((NTSTATUS)(status)) >= 0)
-
+void printStack(char buf[]);
 // Enumeration type for NtMapViewOfSection
 typedef enum class _SECTION_INHERIT {
 	ViewShare = 1,
