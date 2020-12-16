@@ -683,8 +683,7 @@ BOOLEAN CodeSectionCheck(int pid, int caller_pid) {
 
 BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum) {
 
-
-    //form->logging(std::to_string(caller_pid) + " : " + std::to_string(pid) + " : Checking Code Section.\r\n");
+    printf("%d : %d : Checking Code Section.\r\n", caller_pid, pid);
 
     PIMAGE_DOS_HEADER pDH = NULL;
     PIMAGE_NT_HEADERS pNTH = NULL;
@@ -714,18 +713,19 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
             printf("Could not get IMAGE_DOS_HEADER\n");
             return FALSE;
         }
-        else
-            //form->logging("OK IMAGE_DOS_HEADER\n");
-
+        else {
+            //printf("OK IMAGE_DOS_HEADER\n");
             pNTH = (PIMAGE_NT_HEADERS)((PBYTE)pDH + pDH->e_lfanew);
+        }
+
         if (pNTH->Signature != IMAGE_NT_SIGNATURE) {
             printf("Could not get IMAGE_NT_HEADER\n");
             return FALSE;
         }
-        else
-            //form->logging("OK IMAGE_NT_HEADER\n");
-
+        else {
+            //printf("OK IMAGE_NT_HEADER\n");
             pFH = &pNTH->FileHeader;
+        }
         pSH = IMAGE_FIRST_SECTION(pNTH);
 
         for (int i = 0; i < pFH->NumberOfSections; i++) {
@@ -745,7 +745,12 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
         }
     }
     else {
-        printf("1st ReadProcessMemory error! %d\r\n", GetLastError());
+        printf("1st ReadProcessMemory error! %d\n", GetLastError());
+        return FALSE;
+    }
+
+    if (textAddr == NULL) {
+        printf("Cannot get .text address.\n");
         return FALSE;
     }
 
@@ -755,6 +760,9 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
     /// <param name="argc"></param>
     /// <param name="argv"></param>
     /// <returns></returns>
+    
+    //printf("OK finding .text.\n");
+
     long lSize;
     BYTE* buffer;
     size_t result;
@@ -763,9 +771,11 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 
     fopen_s(&pFile, filePath, "rb");
     if (!pFile) {
-        printf("FAILED FILE OPEN : %s\r\n", std::string(filePath));
+        printf("FAILED FILE OPEN : %s\r\n", filePath);
         exit(1);
     }
+
+    //printf("OK file reading.\n");
 
     fseek(pFile, 0, SEEK_END);
     lSize = ftell(pFile);
@@ -777,11 +787,15 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
         exit(2);
     }
 
+    //printf("OK memory allocating.\n");
+
     result = fread(buffer, 1, lSize, pFile);
     if (result != lSize) {
         fputs("Reading error", stderr);
         exit(3);
     }
+
+    //printf("OK file reading.\n");
 
     pDH = (PIMAGE_DOS_HEADER)buffer;
     if (pDH->e_magic != IMAGE_DOS_SIGNATURE) {
@@ -790,20 +804,23 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
         free(buffer);
         return FALSE;
     }
-    else
-        //form->logging("OK IMAGE_DOS_HEADER\n");
-
+    else {
+        //printf("OK IMAGE_DOS_HEADER\n");
         pNTH = (PIMAGE_NT_HEADERS)((PBYTE)pDH + pDH->e_lfanew);
+    }
+        
     if (pNTH->Signature != IMAGE_NT_SIGNATURE) {
         printf("Could not get IMAGE_NT_HEADER\n");
         fclose(pFile);
         free(buffer);
         return FALSE;
     }
-    else
-        //form->logging("OK IMAGE_NT_HEADER\n");
+    else {
+        //printf("OK IMAGE_NT_HEADER\n");
 
         pFH = &pNTH->FileHeader;
+    }
+        
     pSH = IMAGE_FIRST_SECTION(pNTH);
 
     for (int i = 0; i < pFH->NumberOfSections; i++) {
@@ -822,7 +839,12 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
         pSH++;
     }
 
+    if (ftextAddr == NULL) {
+        printf("Cannot get .text address.\n");
+        return FALSE;
+    }
 
+    //printf("OK finding .text. (2)\n");
 
     /// <summary>
     /// Hashing
@@ -843,11 +865,12 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
 
     for (int i = 0; i < HashNum; i++) {
         if (ReadProcessMemory(hp, textAddrTmp, &textSection, sizeof(textSection), NULL)) {
-
             memcpy(temp, &ftextAddr[i * 512], 512);
 
+            //printf("   OK memcpy\n");
+
             if (calcMD5(textSection, md5) && calcMD5(temp, fmd5)) {
-                //form->logging("%s  %s\n", md5, fmd5);           /////////////////////////////////
+                //printf("   %s  %s\n", md5, fmd5);           /////////////////////////////////
                 if (strcmp(md5, fmd5)) {
 
                     for (int j = 0; j < 512; j++) {
@@ -855,13 +878,12 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
                             MinIntegrity = (i * 512) + j;
                             char printTemp[100];
                             sprintf_s(printTemp, "\"%s\" Code Section is changed (0x%p)", fileName, textAddr + MinIntegrity);
-                            std::string str(printTemp);
-                            printf("%s : %s : %s \r\n", std::to_string(caller_pid), std::to_string(pid), str);
-                            resultPrint = true;
+                            printf("%d : %d : %s \r\n", caller_pid, pid, printTemp);
+                            resultPrint = TRUE;
                         }
-                        else if ((textSection[j] == temp[j]) && (resultPrint == true)) {
-                            if (MaxIntegrity < (i * 512) + j) {
-                                MaxIntegrity = (i * 512) + j;
+                        else if ((textSection[j] == temp[j]) && resultPrint) {
+                            if (MaxIntegrity < (unsigned int)((i * 512) + j)) {
+                                MaxIntegrity = (unsigned int)((i * 512) + j);
                             }
                         }
                     }
@@ -884,36 +906,40 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
     char hex[6];
     if ((resultPrint == FALSE) && (checkNum == 0)) {
         std::string str(fileName);
-        printf("\"%s : %s : %s Code Section is OK(not changed)\r\n", std::to_string(caller_pid), std::to_string(pid), str);
+        printf("\"%d : %d : %s Code Section is OK(not changed)\r\n", caller_pid, pid, str.c_str());
     }
-    /*
     else {
        unsigned int changeSize = MaxIntegrity - MinIntegrity;
-       form->logging("Before : ");
-       for (int i = MinIntegrity; i <= MinIntegrity + 100; i++) {
+       printf("Before : ");
+       for (unsigned int i = MinIntegrity; i <= MinIntegrity + 100; i++) {
           sprintf_s(hex, "%02X ", ftextAddr[i]);
-          form->logging(hex);
+          printf(hex);
        }
-       form->logging("\n");
-       form->logging("After : ");
+       printf("\n");
+       printf("After : ");
        BYTE* changedCode = (BYTE*)malloc(sizeof(BYTE) * 512);
+
+       if (changedCode == NULL) {
+           printf("Cannot allocate memory for changedCode.\n");
+           return FALSE;
+       }
+
        if (ReadProcessMemory(hp, textAddr + MinIntegrity, changedCode, 512, NULL)) {
           for (int i = 0; i < 100; i++) {
              sprintf_s(hex, "%02X ",changedCode[i]);
-             form->logging(hex);
+             printf(hex);
           }
-          form->logging("\n\n");
+          printf("\n\n");
           free(changedCode);
        }
        else {
-          form->logging("FAILED 3rd ReadProcessMemory : changedCode\n");
+          printf("FAILED 3rd ReadProcessMemory : changedCode\n");
           fclose(pFile);
           free(changedCode);
           free(buffer);
           return 0;
        }
     }
-    */
 
     fclose(pFile);
     free(buffer);
@@ -939,12 +965,16 @@ BOOL calcMD5(byte* data, LPSTR md5)
         return FALSE;
     }
 
+    //printf("   OK CryptAcquireContext\n");
+
     if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
     {
         CryptReleaseContext(hProv, 0);
         printf("ERROR: Couldn't create crypto stream!\n");
         return FALSE;
     }
+
+    //printf("   OK CryptCreateHash\n");
 
     if (!CryptHashData(hHash, data, 512, 0))
     {
@@ -954,16 +984,25 @@ BOOL calcMD5(byte* data, LPSTR md5)
         return FALSE;
     }
 
+    //printf("   OK CryptHashData\n");
+
     cbHash = 16;
     if (CryptGetHashParam(hHash, HP_HASHVAL, rgbHash, &cbHash, 0))
     {
+        //printf("   OK CryptGetHashParam\n");
+
         for (DWORD i = 0; i < cbHash; i++)
         {
-            sprintf_s((char*)(md5 + (i * 2)), 2, "%c%c", rgbDigits[rgbHash[i] >> 4], rgbDigits[rgbHash[i] & 0xf]);
+            sprintf_s((char*)&md5[i * 2], 3, "%c%c", rgbDigits[rgbHash[i] >> 4], rgbDigits[rgbHash[i] & 0xf]);
         }
+
+        //printf("   OK hash calculation\n");
 
         CryptDestroyHash(hHash);
         CryptReleaseContext(hProv, 0);
+
+        //printf("   OK CryptDestroyHash, CryptReleaseContext\n");
+
         return TRUE;
     }
     else
