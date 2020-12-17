@@ -460,11 +460,11 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 				param->runMemoryRegionDump = FALSE;
 				param->runDumpIt = FALSE;
 				param->runMessageBox = TRUE;
-				strcpy(param->callee_pid, callee_pid.c_str());
-				strcpy(param->caller_pid, caller_pid.c_str());
-				strcpy(param->api_name, "");
+				strcpy_s(param->callee_pid, callee_pid.c_str());
+				strcpy_s(param->caller_pid, caller_pid.c_str());
+				strcpy_s(param->api_name, "");
 				param->entryPoint = NULL;
-				strcpy(param->message, messagePrint);
+				strcpy_s(param->message, messagePrint);
 				param->message_type = (MB_OK | MB_ICONQUESTION);
 
 				CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
@@ -487,11 +487,11 @@ void CallCreateRemoteThread(LPVOID monMMF) {
 			param->runMemoryRegionDump = TRUE;
 			param->runDumpIt = TRUE;
 			param->runMessageBox = TRUE;
-			strcpy(param->callee_pid, callee_pid.c_str());
-			strcpy(param->caller_pid, caller_pid.c_str());
-			strcpy(param->api_name, "CodeInjection");
+			strcpy_s(param->callee_pid, callee_pid.c_str());
+			strcpy_s(param->caller_pid, caller_pid.c_str());
+			strcpy_s(param->api_name, "CodeInjection");
 			param->entryPoint = (LPVOID)lpStartAddress;
-			strcpy(param->message, "CreateRemoteThread Code Injection Detected! Are you want to Dumpit?");
+			strcpy_s(param->message, "CreateRemoteThread Code Injection Detected! Are you want to Dumpit?");
 			param->message_type = (MB_YESNO | MB_ICONQUESTION);
 			
 			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
@@ -642,11 +642,11 @@ void CallSetThreadContext(LPVOID monMMF) {
 			param->runMemoryRegionDump = TRUE;
 			param->runDumpIt = TRUE;
 			param->runMessageBox = TRUE;
-			strcpy(param->callee_pid, callee_pid.c_str());
-			strcpy(param->caller_pid, caller_pid.c_str());
-			strcpy(param->api_name, "SetThreadContext");
+			strcpy_s(param->callee_pid, callee_pid.c_str());
+			strcpy_s(param->caller_pid, caller_pid.c_str());
+			strcpy_s(param->api_name, "SetThreadContext");
 			param->entryPoint = (LPVOID)lpStartAddress;
-			strcpy(param->message, "SetThreadContext Thread Hijacking Detected! Are you want to Dumpit?");
+			strcpy_s(param->message, "SetThreadContext Thread Hijacking Detected! Are you want to Dumpit?");
 			param->message_type = (MB_YESNO | MB_ICONQUESTION);
 			
 			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
@@ -706,11 +706,11 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 			param->runMemoryRegionDump = FALSE;
 			param->runDumpIt = FALSE;
 			param->runMessageBox = FALSE;
-			strcpy(param->callee_pid, callee_pid.c_str());
-			strcpy(param->caller_pid, caller_pid.c_str());
-			strcpy(param->api_name, "");
+			strcpy_s(param->callee_pid, callee_pid.c_str());
+			strcpy_s(param->caller_pid, caller_pid.c_str());
+			strcpy_s(param->api_name, "");
 			param->entryPoint = NULL;
-			strcpy(param->message, "");
+			strcpy_s(param->message, "");
 			param->message_type = 0;
 			
 			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
@@ -734,11 +734,11 @@ void CallNtQueueApcThread(LPVOID monMMF) {
 				param->runMemoryRegionDump = TRUE;
 				param->runDumpIt = TRUE;
 				param->runMessageBox = TRUE;
-				strcpy(param->callee_pid, callee_pid.c_str());
-				strcpy(param->caller_pid, caller_pid.c_str());
-				strcpy(param->api_name, "NtQueueApcThread");
+				strcpy_s(param->callee_pid, callee_pid.c_str());
+				strcpy_s(param->caller_pid, caller_pid.c_str());
+				strcpy_s(param->api_name, "NtQueueApcThread");
 				param->entryPoint = (LPVOID)target;
-				strcpy(param->message, "NtQueueApcThread Code Injection Detected! Are you want to Dumpit?");
+				strcpy_s(param->message, "NtQueueApcThread Code Injection Detected! Are you want to Dumpit?");
 				param->message_type = (MB_YESNO | MB_ICONQUESTION);
 				
 				CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
@@ -799,11 +799,11 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
 			param->runMemoryRegionDump = TRUE;
 			param->runDumpIt = TRUE;
 			param->runMessageBox = TRUE;
-			strcpy(param->callee_pid, callee_pid.c_str());
-			strcpy(param->caller_pid, caller_pid.c_str());
-			strcpy(param->api_name, "SetWindowLongPtrA");
+			strcpy_s(param->callee_pid, callee_pid.c_str());
+			strcpy_s(param->caller_pid, caller_pid.c_str());
+			strcpy_s(param->api_name, "SetWindowLongPtrA");
 			param->entryPoint = (LPVOID)lpStartAddress;
-			strcpy(param->message, "SetWindowLongPtrA Code Injection Detected! Are you want to Dumpit?");
+			strcpy_s(param->message, "SetWindowLongPtrA Code Injection Detected! Are you want to Dumpit?");
 			param->message_type = (MB_YESNO | MB_ICONQUESTION);
 			
 			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
@@ -864,11 +864,11 @@ void CallSetPropA(LPVOID monMMF) {
 			param->runMemoryRegionDump = TRUE;
 			param->runDumpIt = TRUE;
 			param->runMessageBox = TRUE;
-			strcpy(param->callee_pid, callee_pid.c_str());
-			strcpy(param->caller_pid, caller_pid.c_str());
-			strcpy(param->api_name, "CallSetPropA");
+			strcpy_s(param->callee_pid, callee_pid.c_str());
+			strcpy_s(param->caller_pid, caller_pid.c_str());
+			strcpy_s(param->api_name, "CallSetPropA");
 			param->entryPoint = (LPVOID)lpStartAddress;
-			strcpy(param->message, "CallSetPropA Code Injection Detected! Are you want to Dumpit?");
+			strcpy_s(param->message, "CallSetPropA Code Injection Detected! Are you want to Dumpit?");
 			param->message_type = (MB_YESNO | MB_ICONQUESTION);
 			
 			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
@@ -1265,7 +1265,7 @@ BOOL calcMD5(byte* data, LPSTR md5)
 	{
 		for (DWORD i = 0; i < cbHash; i++)
 		{
-			sprintf(md5 + (i * 2), "%c%c", rgbDigits[rgbHash[i] >> 4], rgbDigits[rgbHash[i] & 0xf]);
+			sprintf_s(md5 + (i * 2), 3, "%c%c", rgbDigits[rgbHash[i] >> 4], rgbDigits[rgbHash[i] & 0xf]);
 		}
 
 		CryptDestroyHash(hHash);
