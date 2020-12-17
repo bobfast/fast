@@ -10,7 +10,7 @@ DWORD StringToDword(std::string pid)
 void insert_index(std::string pid, std::string hash_check) {
     MYSQL* connection = NULL;
     MYSQL conn;
-    
+
     int query_stat;
     char query[1000] = { 0, };
     char temp_hashcheck[600] = { 0, };
@@ -76,7 +76,7 @@ std::string getAPI(UCHAR flags) {
 
     return std::string("");
 }
-void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>> v) {
+void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>> v) {
     MYSQL* connection = NULL;
     MYSQL conn;
     MYSQL_RES* sql_result = NULL;
@@ -107,7 +107,7 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
     for (auto tp : v) {
         char query[1000] = { 0, };
         std::string caller_pid(std::get<2>(tp));
-    
+
         sprintf(address, "%016llx", std::get<0>(tp));
         strncpy_s(temp_pid, caller_pid.c_str(), caller_pid.length());
         sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi,callstack,caller_path) values(%s,%s,\"%s\",%d,\"%s\",\"%s\",\"%s\")", sql_row[0], temp_pid, address, std::get<1>(tp), getAPI(std::get<3>(tp)).c_str(), std::get<5>(tp).c_str(), std::get<4>(tp).c_str());
@@ -178,26 +178,26 @@ void exDumpIt() {
     WaitForSingleObject(stShellInfo.hProcess, INFINITE);
 }
 
-void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path,std::string callstack) {
-    std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string  >> v = { std::make_tuple(ret, dwSize, caller_pid, flags,caller_path,callstack) };
+void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path, std::string callstack) {
+    std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string  >> v = { std::make_tuple(ret, dwSize, caller_pid, flags,caller_path,callstack) };
     auto rwxItem = rwxList.find(callee_pid);
     if (rwxItem != rwxList.end()) {
         rwxItem->second.push_back(v);
     }
     else {
-        std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string >>> ls = { v };
+        std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string >>> ls = { v };
         rwxList.insert(std::make_pair(callee_pid, ls));
     }
 }
 
 
-BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path,std::string callstack) {
+BOOL checkList(std::string callee_pid, DWORD64 target, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path, std::string callstack) {
     auto item = rwxList.find(callee_pid);
     if (item != rwxList.end()) {
 
         for (auto& i : item->second) {
             if (std::get<0>(i[0]) <= target && (std::get<0>(i[0]) + (DWORD64)(std::get<1>(i[0])) > target)) {
-                std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string > tp = { std::make_tuple(target, dwSize, caller_pid, flags,caller_path,callstack) };
+                std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string > tp = { std::make_tuple(target, dwSize, caller_pid, flags,caller_path,callstack) };
                 i.push_back(tp);
 
                 std::get<3>(i[0]) |= flags;
@@ -263,7 +263,7 @@ void exGhidraHeadless(LPCSTR filename)
     WaitForSingleObject(stShellInfo.hProcess, INFINITE);
 }
 
-void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string,std::string>>>>& list)
+void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>>>>& list)
 {
     if (list.find(std::to_string(pid)) == list.end()) {
         MessageBoxA(NULL, "Cannot dump memory region...", "Error", MB_OK | MB_ICONERROR);
@@ -412,7 +412,7 @@ void CallVirtualAllocEx(LPVOID monMMF) {
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
     strtok_s(NULL, "!", &cp_context);
     std::string callstack(strtok_s(NULL, "*", &cp_context));
-    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx, caller_path,callstack);
+    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualAllocEx, caller_path, callstack);
 
     memset(monMMF, 0, MSG_SIZE);
     char buf[MSG_SIZE] = "";
@@ -457,7 +457,7 @@ void CallWriteProcessMemory(LPVOID monMMF) {
     strtok_s(NULL, "!", &cp_context);
     std::string callstack(strtok_s(NULL, "*", &cp_context));
 
-    if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path,callstack)) {
+    if (checkList(callee_pid, lpbaseaddress, dwSize, caller_pid, FLAG_WriteProcessMemory, caller_path, callstack)) {
         form->logging(caller_pid + " : " + callee_pid + " : WriteProcessMemory called on Executable Memory.\r\n");
     }
     char data[600] = { 0, };
@@ -532,7 +532,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
         memcpy(monMMF, buf, strlen(buf));
         return;
     }
-    else if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_CreateRemoteThread, caller_path,callstack)) {
+    else if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_CreateRemoteThread, caller_path, callstack)) {
 
         sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallCreateRemoteThread", caller_pid.c_str(), lpStartAddress, lpParameter);
 
@@ -550,7 +550,7 @@ void CallCreateRemoteThread(LPVOID monMMF) {
     }
 
     sprintf_s(buf, "%s:%016llx:%016llx:CallCreateRemoteThread:Clean", callee_pid.c_str(), lpStartAddress, lpParameter);
-    
+
     memcpy(monMMF, buf, strlen(buf));
 
 }
@@ -577,7 +577,7 @@ void CallNtMapViewOfSection(LPVOID monMMF) {
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
     strtok_s(NULL, "!", &cp_context);
     std::string callstack(strtok_s(NULL, "*", &cp_context));
-    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_NtMapViewOfSection, caller_path,callstack);
+    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_NtMapViewOfSection, caller_path, callstack);
 
     memset(monMMF, 0, MSG_SIZE);
     char buf[MSG_SIZE] = "";
@@ -641,7 +641,7 @@ void CallSetThreadContext(LPVOID monMMF) {
 
     //CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
 
-    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path,callstack)) {
+    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetThreadContext, caller_path, callstack)) {
         sprintf_s(buf, "%s:Detected:%016llx:CallSetThreadContext", callee_pid.c_str(), lpStartAddress);
         form->logging(callee_pid + " : " + caller_pid + " : SetThreadContext -> Thread Hijacking Detected! Addr: " + addr + "\r\n");
 
@@ -686,7 +686,7 @@ void CallNtQueueApcThread(LPVOID monMMF) {
     }
     else {
         DWORD64 target = (DWORD64)strtoll(apc_routine.c_str(), NULL, 16);
-        if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread, caller_path,callstack)) {
+        if (checkList(callee_pid, target, NULL, caller_pid, FLAG_NtQueueApcThread, caller_path, callstack)) {
             sprintf_s(buf, "%s:Detected:%016llx:CallNtQueueApcThread", callee_pid.c_str(), target);
 
             form->logging(" : NtQueueApcThread -> Code Injection Detected!\r\n");
@@ -730,7 +730,7 @@ void CallSetWindowLongPtrA(LPVOID monMMF) {
     memset(monMMF, 0, MSG_SIZE);
 
 
-    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA, caller_path,callstack)) {
+    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetWindowLongPtrA, caller_path, callstack)) {
         sprintf_s(buf, "%s:Detected:%016llx:CallSetWindowLongPtrA", callee_pid.c_str(), lpStartAddress);
         form->logging(caller_pid + " : " + callee_pid + " : SetWindowLongPtrA -> Code Injection Detected! Addr: " + addr + "\r\n");
         //CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
@@ -774,7 +774,7 @@ void CallSetPropA(LPVOID monMMF) {
 
 
 
-    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA, caller_path,callstack)) {
+    if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_SetPropA, caller_path, callstack)) {
         sprintf_s(buf, "%s:Detected:%016llx:CallSetPropA", callee_pid.c_str(), lpStartAddress);
         form->logging(caller_pid + " : " + callee_pid + " : SetPropA -> Code Injection Detected! Addr: " + addr + "\r\n");
         //CodeSectionCheck(std::stoi(callee_pid), std::stoi(caller_pid));
@@ -812,7 +812,7 @@ void CallVirtualProtectEx(LPVOID monMMF) {
     std::string caller_path(strtok_s(NULL, ":", &cp_context));
     strtok_s(NULL, "!", &cp_context);
     std::string callstack(strtok_s(NULL, "*", &cp_context));
-    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualProtectEx, caller_path,callstack);
+    insertList(callee_pid, ret, dwSize, caller_pid, FLAG_VirtualProtectEx, caller_path, callstack);
 
 
     memset(monMMF, 0, MSG_SIZE);
