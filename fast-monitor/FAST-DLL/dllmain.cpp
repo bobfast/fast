@@ -115,7 +115,7 @@ void printStack(char buf[]) {
         } 
 
         if (frame == 0) {
-            offset = stack.AddrStack.Offset;
+            offset = stack.AddrFrame.Offset;
             continue;
         }
 
@@ -134,7 +134,7 @@ void printStack(char buf[]) {
 
             if (hProc != NULL) {
                 if (GetModuleBaseNameA(hProc, hModule, module, MaxNameLen) != 0) {
-                    sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "\n\t<br> %s!%s +0x%x", module, pSymbol->Name,stack.AddrStack.Offset-offset);
+                    sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "\n\t<br> %s!%s +0x%x", module, pSymbol->Name,stack.AddrFrame.Offset-offset);
                     CloseHandle(hProc);
                 }
             }

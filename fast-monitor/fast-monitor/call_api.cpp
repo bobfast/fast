@@ -110,7 +110,7 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
 
         sprintf(address, "%016llx", std::get<0>(tp));
         strncpy_s(temp_pid, caller_pid.c_str(), caller_pid.length());
-        sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi,callstack,caller_path) values(%s,%s,\"%s\",%d,\"%s\",\"%s\",\"%s\")", sql_row[0], temp_pid, address, std::get<1>(tp), getAPI(std::get<3>(tp)).c_str(), std::get<5>(tp).c_str(), std::get<4>(tp).c_str());
+        sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi,callstack,caller_path,bit) values(%s,%s,\"%s\",%d,\"%s\",\"%s\",\"%s\",\"64bit\")", sql_row[0], temp_pid, address, std::get<1>(tp), getAPI(std::get<3>(tp)).c_str(), std::get<5>(tp).c_str(), std::get<4>(tp).c_str());
         query_stat = mysql_query(connection, query);
         if (query_stat != 0)
         {
