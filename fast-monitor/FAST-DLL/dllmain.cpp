@@ -78,7 +78,7 @@ void printStack(char buf[]) {
     Process = GetCurrentProcess();
     Thread = GetCurrentThread();
     SymInitialize(Process, NULL, TRUE); //load symbols
-
+    DWORD offset = 0;
     for (frame = 0; ; frame++)
     {
         //get next call from stack
@@ -102,15 +102,22 @@ void printStack(char buf[]) {
 
         if (!result) break;
 
-        if (frame == 0) continue;
-
+      
         //get symbol name for address
         pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
         pSymbol->MaxNameLen = MAX_SYM_NAME;
 
-        if (!SymFromAddr(Process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol)) continue;
+       
 
+        if (!SymFromAddr(Process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol)) {
+           // sp+= sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "getlasterror:%d, %x\n",GetLastError(),stack.AddrStack.Offset );
+            continue;
+        } 
 
+        if (frame == 0) {
+            offset = stack.AddrStack.Offset;
+            continue;
+        }
 
         //try to get line
 
@@ -127,7 +134,7 @@ void printStack(char buf[]) {
 
             if (hProc != NULL) {
                 if (GetModuleBaseNameA(hProc, hModule, module, MaxNameLen) != 0) {
-                    sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "\n\t %s!%s address %016llx", module, pSymbol->Name, pSymbol->Address);
+                    sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "\n\t %s!%s +0x%x", module, pSymbol->Name,stack.AddrStack.Offset-offset);
                     CloseHandle(hProc);
                 }
             }

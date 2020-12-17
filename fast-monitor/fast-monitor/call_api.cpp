@@ -65,10 +65,8 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
     MYSQL_ROW sql_row;
     int query_stat;
 
-    char wapi[600] = { 0, };
     char temp_pid[10] = { 0, };
     char address[20] = { 0, };
-    char temp_callstack[3000] = { 0, };
     insert_index(callee_pid, "not_checked");
 
     mysql_init(&conn);
@@ -78,7 +76,6 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
     {
         MessageBoxA(NULL, "connect Failed!", "connect failed", MB_OK);
         return;
-
     }
     query_stat = mysql_query(connection, "select max(no) from attack_index");
     if (query_stat != 0)
@@ -92,13 +89,10 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
     for (auto tp : v) {
         char query[1000] = { 0, };
         std::string caller_pid(std::get<2>(tp));
-        std::string temp_wapi(getAPI(std::get<3>(tp)));
-        std::string callstack(std::get<5>(tp));
+    
         sprintf(address, "%016llx", std::get<0>(tp));
         strncpy_s(temp_pid, caller_pid.c_str(), caller_pid.length());
-        strncpy_s(wapi, temp_wapi.c_str(), temp_wapi.length());
-        strncpy_s(temp_callstack, callstack.c_str(), callstack.length());
-        sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi,callstack,caller_path) values(%s,%s,\"%s\",%d,\"%s\",\"%s\",\"%s\")", sql_row[0], temp_pid, address, std::get<1>(tp), wapi,temp_callstack, std::get<4>(tp).c_str());
+        sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi,callstack,caller_path) values(%s,%s,\"%s\",%d,\"%s\",\"%s\",\"%s\")", sql_row[0], temp_pid, address, std::get<1>(tp), getAPI(std::get<3>(tp)).c_str(), std::get<5>(tp).c_str(), std::get<4>(tp).c_str());
         query_stat = mysql_query(connection, query);
         if (query_stat != 0)
         {
