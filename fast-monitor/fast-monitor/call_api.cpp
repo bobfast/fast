@@ -41,7 +41,7 @@ void insert_index(std::string pid, std::string hash_check) {
     dwLen = sizeof(szImagePath) / sizeof(TCHAR);
     QueryFullProcessImageName(process_handle, 1, szImagePath, &dwLen);
     CloseHandle(process_handle);
-    sprintf(query, "insert into attack_index(pid,hashcheck,targetpath) values(%s,\"%s\",\"%s\")", temp_pid, temp_hashcheck, szImagePath);
+    sprintf(query, "insert into attack_index(pid,hashcheck,targetpath,bit) values(%s,\"%s\",\"%s\",\"64bit\")", temp_pid, temp_hashcheck, szImagePath);
     query_stat = mysql_query(connection, query);
     if (query_stat != 0)
     {
@@ -110,7 +110,7 @@ void insert_status(std::string callee_pid, std::vector< std::tuple<DWORD64, DWOR
 
         sprintf(address, "%016llx", std::get<0>(tp));
         strncpy_s(temp_pid, caller_pid.c_str(), caller_pid.length());
-        sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi,callstack,caller_path,bit) values(%s,%s,\"%s\",%d,\"%s\",\"%s\",\"%s\",\"64bit\")", sql_row[0], temp_pid, address, std::get<1>(tp), getAPI(std::get<3>(tp)).c_str(), std::get<5>(tp).c_str(), std::get<4>(tp).c_str());
+        sprintf(query, "insert into api_status(idx,caller_pid,address,size,wapi,callstack,caller_path) values(%s,%s,\"%s\",%d,\"%s\",\"%s\",\"%s\")", sql_row[0], temp_pid, address, std::get<1>(tp), getAPI(std::get<3>(tp)).c_str(), std::get<5>(tp).c_str(), std::get<4>(tp).c_str());
         query_stat = mysql_query(connection, query);
         if (query_stat != 0)
         {
