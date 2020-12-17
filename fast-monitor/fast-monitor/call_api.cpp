@@ -1,7 +1,12 @@
 #include "call_api.h"
 #include <Psapi.h>
 #include <mysql.h>
-
+DWORD StringToDword(std::string pid)
+{
+    DWORD cur_dword;
+    sscanf(pid.c_str(), "%ul", &cur_dword);
+    return cur_dword;
+}
 void insert_index(std::string pid, std::string hash_check) {
     MYSQL* connection = NULL;
     MYSQL conn;
@@ -22,8 +27,21 @@ void insert_index(std::string pid, std::string hash_check) {
         return;
 
     }
+    DWORD process_id = StringToDword(pid);
 
-    sprintf(query, "insert into attack_index(pid,hashcheck) values(%s,\"%s\")", temp_pid, temp_hashcheck);
+    HANDLE process_handle = OpenProcess(
+        PROCESS_QUERY_LIMITED_INFORMATION,
+        FALSE,
+        process_id
+    );
+
+    TCHAR szImagePath[MAX_PATH] = { 0, };
+    DWORD dwLen = 0;
+    ZeroMemory(szImagePath, sizeof(szImagePath));
+    dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+    QueryFullProcessImageName(process_handle, 1, szImagePath, &dwLen);
+    CloseHandle(process_handle);
+    sprintf(query, "insert into attack_index(pid,hashcheck,targetpath) values(%s,\"%s\",\"%s\")", temp_pid, temp_hashcheck, szImagePath);
     query_stat = mysql_query(connection, query);
     if (query_stat != 0)
     {
