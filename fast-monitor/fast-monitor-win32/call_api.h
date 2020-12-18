@@ -1,16 +1,7 @@
 #pragma once
-#include "Form1.h"
+#include "fast-monitor-win32.h"
 #include <inttypes.h>
-#include <capstone/capstone/capstone.h>
-#include "node_editor.h"
-#include <imgui.h>
-#include <imgui_impl_sdl.h>
-#include <imgui_impl_opengl3.h>
-#include <imnodes.h>
-#include <SDL.h>
-#include <GL/gl3w.h>
 
-using namespace CppCLRWinformsProjekt;
 #define MSG_SIZE 384
 
 static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>> rwxList;
@@ -24,7 +15,7 @@ BOOL checkList(std::string pid, DWORD64 target ,  DWORD dwSize, std::string call
 DWORD WorkAfterDetection(LPVOID lpParam);
 int fileExists(TCHAR* file);
 void exGhidraHeadless(LPCSTR filename);
-void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list);
+//void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>>& list);
 
 BOOLEAN CompareCode(int pid, int caller_pid);
 BOOL calcMD5(byte* data, LPSTR md5);

@@ -2,14 +2,10 @@
 
 FILE* pFile;
 std::string ghidraDirectory = "";
-static HANDLE fm32 = NULL;
 static HANDLE fm64 = NULL;
-static char* map_addr32;
 static char* map_addr64;
-static DWORD dwBufSize32 = 0;
 static DWORD dwBufSize64 = 0;
 static DWORD thispid = GetCurrentProcessId();
-static LPCSTR rpszDllsOut32 = NULL;
 static LPCSTR rpszDllsOut64 = NULL;
 
 void init() {
@@ -56,23 +52,6 @@ void init() {
 	/////////////////////////////////////////////////////////
 	// Getting the DLL's full path.
 
-	LPCSTR rpszDllsRaw32 = (LPCSTR)"FAST-DLL-32.dll";
-
-	CHAR szDllPath32[1024];
-	PCHAR pszFilePart32 = NULL;
-
-	if (!GetFullPathNameA(rpszDllsRaw32, ARRAYSIZE(szDllPath32), szDllPath32, &pszFilePart32))
-	{
-		return;
-	}
-
-	DWORD c32 = (DWORD)strlen(szDllPath32) + 1;
-	PCHAR psz32 = new CHAR[c32];
-	StringCchCopyA(psz32, c32, szDllPath32);
-	rpszDllsOut32 = psz32;
-
-
-
 	LPCSTR rpszDllsRaw64 = (LPCSTR)"FAST-DLL-64.dll";
 
 	CHAR szDllPath64[1024];
@@ -93,19 +72,6 @@ void init() {
 	/////////////////////////////////////////////////////////
 	// Making shared memory.
 
-	dwBufSize32 = (DWORD)(strlen(rpszDllsOut32) + 1) * sizeof(char);
-
-	fm32 = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
-		0,
-		(DWORD)((dwBufSize32 + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"fast-shared32");
-
-
-	map_addr32 = (char*)MapViewOfFile(fm32, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-
-	memcpy(map_addr32, rpszDllsOut32, dwBufSize32);
-	memcpy(map_addr32 + dwBufSize32, &thispid, sizeof(DWORD));
-
-
 	dwBufSize64 = (DWORD)(strlen(rpszDllsOut64) + 1) * sizeof(char);
 
 	fm64 = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
@@ -121,72 +87,49 @@ void init() {
 
 
 	LPVOID fp = CallVirtualAllocEx;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD), &fp, sizeof(DWORD64));
 
 	fp = CallQueueUserAPC;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallWriteProcessMemory;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 2 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 2 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallCreateRemoteThread;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 3 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 3 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallNtMapViewOfSection;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 4 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 4 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallCreateFileMappingA;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 5 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 5 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallGetThreadContext;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 6 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 6 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallSetThreadContext;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 7 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 7 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallNtQueueApcThread;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 8 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 8 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallSetWindowLongPtrA;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 9 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 9 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallSetPropA;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallVirtualProtectEx;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 11 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 11 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallSleepEx;
-	memcpy(map_addr32 + dwBufSize32 + sizeof(DWORD) + 12 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 12 * sizeof(DWORD64), &fp, sizeof(DWORD64));
-
-
-	ghDllApiMutex = CreateMutexA(NULL, FALSE, "fast-DLL-API-mutex");
-
-	if (!ghDllApiMutex) {
-		return;
-	}
 }
 
 void exiting() {
 	//Close Everything.
-	UnmapViewOfFile(map_addr32);
 	UnmapViewOfFile(map_addr64);
-	CloseHandle(fm32);
 	CloseHandle(fm64);
-	CloseHandle(ghDllApiMutex);
 	fclose(pFile);
 }
 
