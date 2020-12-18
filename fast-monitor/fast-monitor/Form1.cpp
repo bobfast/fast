@@ -173,11 +173,7 @@ void init() {
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 12 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 
-	ghDllApiMutex = CreateMutexA(NULL, FALSE, "fast-DLL-API-mutex");
 
-	if (!ghDllApiMutex) {
-		return;
-	}
 }
 
 void exiting() {
@@ -186,7 +182,6 @@ void exiting() {
 	UnmapViewOfFile(map_addr64);
 	CloseHandle(fm32);
 	CloseHandle(fm64);
-	CloseHandle(ghDllApiMutex);
 	fclose(pFile);
 }
 
@@ -206,21 +201,35 @@ void vol(char* path, int op) {
 
 	HANDLE vh = ShellExecute(NULL, "open", "cmd.exe", cmd, ".", SW_NORMAL);
 	if (!vh)
-		MessageBoxA(NULL, "Executing Volatility.exe Failed!", "Volatility.exe Failed.!", MB_OK | MB_ICONQUESTION);
+		MessageBoxA(NULL, "Executing Volatility.exe Failed!", "Volatility.exe Failed.!", MB_OK | MB_ICONERROR);
 
 
 }
 
 
+void cuckoo(char* path, char* auth, char* host, char* port) {
 
 
-void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v)
-{
+
+
+	char cmd[512] = "";
+	sprintf_s(cmd, "/C curl -H \"Authorization: Bearer %s\" -F file=@%s http://%s:%s/tasks/create/file", auth, path, host, port);
 	Form1^ form = (Form1^)Application::OpenForms[0];
+	form->logging(std::string(cmd) + "\r\n");
 
+	HANDLE vh = ShellExecute(NULL, "open", "cmd.exe", cmd, ".", SW_NORMAL);
+	if (!vh)
+		MessageBoxA(NULL, "Running Cuckoo Analysis Failed!", "Cuckoo Failed.!", MB_OK | MB_ICONERROR);
+
+
+}
+
+
+void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>> v)
+{
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
 	{
-		form->logging("ImGui Error: " + std::string(SDL_GetError()) + "\n");
+		printf("Error: %s\n", SDL_GetError());
 		return;
 	}
 
@@ -305,7 +314,7 @@ void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::strin
 		if (!initialized)
 		{
 			initialized = true;
-			Show_node::NodeEditorInitialize((unsigned int)v.size());
+			Show_node::NodeEditorInitialize(v.size());
 		}
 
 		Show_node::NodeEditorShow(v);
@@ -335,7 +344,6 @@ void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::strin
 
 	return;
 }
-
 
 // Find injected 'FAST-DLL.dll' handle from monitored process.
 HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)

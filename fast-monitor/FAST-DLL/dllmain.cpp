@@ -66,9 +66,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessA(
 	LPSTARTUPINFOA        lpStartupInfo,
 	LPPROCESS_INFORMATION lpProcessInformation)
 {
-	char* pValue2 = NULL;
-	size_t len = NULL;
-	_dupenv_s(&pValue2, &len, "expHDll");
+
 	return DetourCreateProcessWithDllExA(lpApplicationName,
 		lpCommandLine,
 		lpProcessAttributes,
@@ -113,9 +111,7 @@ DLLBASIC_API BOOL WINAPI HookCreateProcessW(
 	LPPROCESS_INFORMATION lpProcessInformation
 )
 {
-	char* pValue2 = NULL;
-	size_t len = NULL;
-	_dupenv_s(&pValue2, &len, "expHDll");
+
 
 	return DetourCreateProcessWithDllExW(lpApplicationName,
 		lpCommandLine,
@@ -139,18 +135,36 @@ static DWORD(WINAPI* TrueQueueUserAPC)(
 	ULONG_PTR dwData
 	) = QueueUserAPC;
 
-DLLBASIC_API BOOL WINAPI MyQueueUserAPC(
+DLLBASIC_API BOOL WINAPI HookQueueUserAPC(
 	PAPCFUNC  pfnAPC,
 	HANDLE    hThread,
 	ULONG_PTR dwData
 ) {
 	HANDLE hMonThread = NULL;
 	char buf[MSG_SIZE] = "";
-	//sprintf_s(buf, "%d:CallNtQueueApcThread:IPC Successful!", GetProcessIdOfThread(ThreadHandle));
+	//sprintf_s(buf, "%d:CallNtQueueApcThread:", GetProcessIdOfThread(ThreadHandle));
+
+			// Getting PID using DuplicateHandle
+	HANDLE hThreadDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+
+	DWORD target_pid = GetProcessIdOfThread(hThread);
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hThread, GetCurrentProcess(),
+			&hThreadDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessIdOfThread(hThreadDuplicated);
+
+			CloseHandle(hThreadDuplicated);
+		}
+	}
 
 	LPVOID fp = pfnAPC;
-	sprintf_s(buf, "%d:%p:CallQueueUserAPC:IPC Successful!", GetCurrentProcessId(), fp);
-
+	sprintf_s(buf, "%d:%p:CallQueueUserAPC: *", GetCurrentProcessId(), fp);
+	//printStack(buf);
 	EnterCriticalSection(&api_cs);
 
 	memset(dllMMF, 0, MSG_SIZE);
@@ -176,7 +190,7 @@ DLLBASIC_API BOOL WINAPI MyQueueUserAPC(
 // NtMapViewOfSection Hooking Function
 
 
-DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
+DLLBASIC_API NTSTATUS NTAPI HookNtMapViewOfSection(
 	HANDLE SectionHandle,
 	HANDLE ProcessHandle,
 	PVOID* BaseAddress,
@@ -199,7 +213,8 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+	QueryFullProcessImageName(GetCurrentProcess(), 0, szImagePath, &dwLen);
+
 
 	NTSTATUS res;
 
@@ -241,10 +256,10 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 			printf("Error: cannot read target process memory to get real base address.\n");
 		}
 		else {
-			sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallNtMapViewOfSection:IPC Successful!",
+			sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:CallNtMapViewOfSection: *",
 				GetCurrentProcessId(), target_pid, realBaseAddr,
 				(DWORD)CommitSize, Win32Protect);
-
+			//printStack(buf);
 			EnterCriticalSection(&api_cs);
 
 			memset(dllMMF, 0, MSG_SIZE);
@@ -280,7 +295,7 @@ DLLBASIC_API NTSTATUS NTAPI MyNtMapViewOfSection(
 
 //#####################################
 // My CreateRemoteThread Hooking Function
-DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
+DLLBASIC_API HANDLE WINAPI HookCreateRemoteThread(
 	HANDLE                 hProcess,
 	LPSECURITY_ATTRIBUTES  lpThreadAttributes,
 	SIZE_T                 dwStackSize,
@@ -296,7 +311,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+	QueryFullProcessImageName(GetCurrentProcess(), 0, szImagePath, &dwLen);
 
 	DWORD target_pid = GetProcessId(hProcess);
 
@@ -324,8 +339,8 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 		}
 
-		sprintf_s(buf, "%lu:%lu:LoadLibraryA:%p:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), target_pid, lpParameter);
-		//sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess));
+		sprintf_s(buf, "%lu:%lu:LoadLibraryA:%p:CallCreateRemoteThread:", GetCurrentProcessId(), target_pid, lpParameter);
+		//sprintf_s(buf, "%lu:LoadLibraryA::CallCreateRemoteThread:     ", GetProcessId(hProcess));
 	}
 	else {
 
@@ -337,10 +352,10 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 			printf("GetProcessId(%ld) failed!!! [%ld]\n", GetProcessId(hProcess), GetLastError());
 
 		}
-		//sprintf_s(buf, "%lu:%016x:%016x:CallCreateRemoteThread:IPC Successful!     ", GetProcessId(hProcess), lpStartAddress, lpParameter);
-		sprintf_s(buf, "%lu:%lu:%p:%p:%s:CallCreateRemoteThread:IPC Successful!     ", GetCurrentProcessId(), target_pid, lpStartAddress, lpParameter, szImagePath);
+		//sprintf_s(buf, "%lu:%016x:%016x:CallCreateRemoteThread:     ", GetProcessId(hProcess), lpStartAddress, lpParameter);
+		sprintf_s(buf, "%lu:%lu:%p:%p:%s*CallCreateRemoteThread: *", GetCurrentProcessId(), target_pid, lpStartAddress, lpParameter, szImagePath);
 	}
-
+	//printStack(buf);
 	EnterCriticalSection(&api_cs);
 
 	memset(dllMMF, 0, MSG_SIZE);
@@ -379,7 +394,7 @@ DLLBASIC_API HANDLE WINAPI MyCreateRemoteThread(
 
 //#####################################
 // My VirtualAllocEx Hooking Function
-DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
+DLLBASIC_API LPVOID WINAPI HookVirtualAllocEx(
 	HANDLE hProcess,
 	LPVOID lpAddress,
 	SIZE_T dwSize,
@@ -393,7 +408,24 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+	QueryFullProcessImageName(GetCurrentProcess(), 0, szImagePath, &dwLen);
+
+	DWORD target_pid = GetProcessId(hProcess);
+
+	// Getting PID using DuplicateHandle
+	HANDLE hProcessDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hProcess, GetCurrentProcess(),
+			&hProcessDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessId(hProcessDuplicated);
+
+			CloseHandle(hProcessDuplicated);
+		}
+	}
 
 	if (flProtect == (PAGE_EXECUTE_READWRITE)) {
 
@@ -405,8 +437,8 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 			flProtect
 		);
 
-		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:%s:CallVirtualAllocEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)ret, (DWORD)dwSize, flProtect, szImagePath);
-		
+		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:%s*CallVirtualAllocEx: *", GetCurrentProcessId(), target_pid, (DWORD64)ret, (DWORD)dwSize, flProtect, szImagePath);
+		//printStack(buf);
 		EnterCriticalSection(&api_cs);
 
 		memset(dllMMF, 0, MSG_SIZE);
@@ -435,7 +467,7 @@ DLLBASIC_API LPVOID WINAPI MyVirtualAllocEx(
 
 //#####################################
 // My WriteProcessMemory Hooking Function
-DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
+DLLBASIC_API BOOL WINAPI HookWriteProcessMemory(
 	HANDLE  hProcess,
 	LPVOID  lpBaseAddress,
 	LPCVOID lpBuffer,
@@ -449,9 +481,35 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+	QueryFullProcessImageName(GetCurrentProcess(), 0, szImagePath, &dwLen);
 
-	sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%s:MyWriteProcessMemory:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpBaseAddress, (DWORD)nSize, szImagePath);
+	DWORD target_pid = GetProcessId(hProcess);
+
+	// Getting PID using DuplicateHandle
+	HANDLE hProcessDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hProcess, GetCurrentProcess(),
+			&hProcessDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessId(hProcessDuplicated);
+
+			CloseHandle(hProcessDuplicated);
+		}
+	}
+
+	sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%s*CallWriteProcessMemory: *", GetCurrentProcessId(), target_pid, (DWORD64)lpBaseAddress, (DWORD)nSize, szImagePath);
+	//printStack(buf);
+
+	BOOL ret = pWriteProcessMemory(
+		hProcess,
+		lpBaseAddress,
+		lpBuffer,
+		nSize,
+		lpNumberOfBytesWritten
+	);
 
 	EnterCriticalSection(&api_cs);
 
@@ -465,13 +523,7 @@ DLLBASIC_API BOOL WINAPI MyWriteProcessMemory(
 
 	LeaveCriticalSection(&api_cs);
 
-	return pWriteProcessMemory(
-		hProcess,
-		lpBaseAddress,
-		lpBuffer,
-		nSize,
-		lpNumberOfBytesWritten
-	);
+	return ret;
 }
 
 
@@ -487,7 +539,7 @@ static HANDLE(WINAPI* TrueCreateFileMappingA)(
 	LPCSTR					lpName
 	) = CreateFileMappingA;
 
-DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
+DLLBASIC_API HANDLE	WINAPI HookCreateFileMappingA(
 	HANDLE                hFile,
 	LPSECURITY_ATTRIBUTES lpFileMappingAttributes,
 	DWORD                 flProtect,
@@ -496,13 +548,16 @@ DLLBASIC_API HANDLE	WINAPI MyCreateFileMappingA(
 	LPCSTR                lpName
 )
 {
+
+
+
 	if ((hFile == INVALID_HANDLE_VALUE)
 		) {//&& (flProtect == PAGE_EXECUTE_READWRITE)) {
 
 		HANDLE hThread = NULL;
 		char buf[MSG_SIZE] = "";
-		sprintf_s(buf, "%lu:CallCreateFileMappingA:IPC Successful!     ", GetCurrentProcessId());
-
+		sprintf_s(buf, "%lu:CallCreateFileMappingA: *", GetCurrentProcessId());
+		//printStack(buf);
 		EnterCriticalSection(&api_cs);
 
 		memset(dllMMF, 0, MSG_SIZE);
@@ -535,14 +590,14 @@ static pNtQueueApcThread NtQueueApcThread = NULL;
 
 
 
-DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
+DLLBASIC_API NTSTATUS NTAPI HookNtQueueApcThread(
 	HANDLE ThreadHandle,
 	PVOID ApcRoutine,
 	PVOID ApcRoutineContext OPTIONAL,
 	PVOID ApcStatusBlock OPTIONAL,
 	PVOID ApcReserved OPTIONAL
 ) {
-	DWORD target_pid = GetProcessIdOfThread(ThreadHandle);
+
 	HANDLE hThread = NULL;
 	char buf[MSG_SIZE] = "";
 
@@ -550,13 +605,29 @@ DLLBASIC_API NTSTATUS NTAPI MyNtQueueApcThread(
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+	QueryFullProcessImageName(GetCurrentProcess(), 0, szImagePath, &dwLen);
+
+	DWORD target_pid = GetProcessIdOfThread(ThreadHandle);
+	HANDLE hThreadDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hThread, GetCurrentProcess(),
+			&hThreadDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessIdOfThread(hThreadDuplicated);
+
+			CloseHandle(hThreadDuplicated);
+		}
+	}
+
 
 	if (ApcRoutine == GlobalGetAtomNameA)
-		sprintf_s(buf, "%lu:%lu:GlobalGetAtomNameA:%s:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, szImagePath);
+		sprintf_s(buf, "%lu:%lu:GlobalGetAtomNameA:%s:CallNtQueueApcThread:", GetCurrentProcessId(), target_pid, szImagePath);
 	else
-		sprintf_s(buf, "%lu:%lu:%p:%s:CallNtQueueApcThread:IPC Successful!", GetCurrentProcessId(), target_pid, ApcRoutine, szImagePath);
-
+		sprintf_s(buf, "%lu:%lu:%p:%s*CallNtQueueApcThread: *", GetCurrentProcessId(), target_pid, ApcRoutine, szImagePath);
+	//printStack(buf);
 	EnterCriticalSection(&api_cs);
 
 	memset(dllMMF, 0, MSG_SIZE);
@@ -597,7 +668,7 @@ static BOOL(WINAPI* TrueSetThreadContext)(
 	const CONTEXT* lpContext
 	) = SetThreadContext;
 
-DLLBASIC_API BOOL WINAPI MySetThreadContext(
+DLLBASIC_API BOOL WINAPI HookSetThreadContext(
 	HANDLE        hThread,
 	const CONTEXT* lpContext
 ) {
@@ -628,25 +699,25 @@ DLLBASIC_API BOOL WINAPI MySetThreadContext(
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+	QueryFullProcessImageName(GetCurrentProcess(), 0, szImagePath, &dwLen);
 
 #ifdef _X86_
 	if (lpContext->Eip == 0) {
-		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, (ULONGLONG)lpContext->Eax, szImagePath);
+		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:", GetCurrentProcessId(), target_pid, (ULONGLONG)lpContext->Eax, szImagePath);
 	}
 	else {
-		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, (ULONGLONG)lpContext->Eip, szImagePath);
+		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:", GetCurrentProcessId(), target_pid, (ULONGLONG)lpContext->Eip, szImagePath);
 	}
 #endif
 #ifdef _AMD64_
 	if (lpContext->Rip == 0) {
-		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rax, szImagePath);
+		sprintf_s(buf, "%lu:%lu:%016llx:%s*CallSetThreadContext: *", GetCurrentProcessId(), target_pid, lpContext->Rax, szImagePath);
 }
 	else {
-		sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetThreadContext:IPC Successful!", GetCurrentProcessId(), target_pid, lpContext->Rip, szImagePath);
+		sprintf_s(buf, "%lu:%lu:%016llx:%s*CallSetThreadContext: *", GetCurrentProcessId(), target_pid, lpContext->Rip, szImagePath);
 	}
 #endif
-
+	//printStack(buf);
 	EnterCriticalSection(&api_cs);
 
 	memset(dllMMF, 0, MSG_SIZE);
@@ -687,7 +758,7 @@ static LONG_PTR(WINAPI* TrueSetWindowLongPtrA) (
 	LONG_PTR dwNewLong
 	) = SetWindowLongPtrA;
 
-DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
+DLLBASIC_API LONG_PTR WINAPI HookSetWindowLongPtrA
 (HWND     hWnd,
 	int      nIndex,
 	LONG_PTR dwNewLong)
@@ -697,11 +768,27 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	DWORD dwpid = NULL;
 	GetWindowThreadProcessId(hWnd, &dwpid);
 
+
+	// Getting PID using DuplicateHandle
+	HWND hWndDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (dwpid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hWnd, GetCurrentProcess(),
+			((LPHANDLE)&hWndDuplicated), PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			GetWindowThreadProcessId(hWndDuplicated, &dwpid);
+
+			CloseHandle(hWndDuplicated);
+		}
+	}
+
 	TCHAR szImagePath[MAX_PATH] = { 0, };
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+	QueryFullProcessImageName(GetCurrentProcess(), 0, szImagePath, &dwLen);
 
 	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwpid);
 	if (!hProcess)
@@ -729,8 +816,8 @@ DLLBASIC_API LONG_PTR WINAPI MySetWindowLongPtrA
 	CloseHandle(hProcess);
 
 	//printf("%016llx\n", dwNewLong);
-	sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetWindowLongPtrA:IPC Successful!", GetCurrentProcessId(), dwpid, p2, szImagePath);
-	
+	sprintf_s(buf, "%lu:%lu:%016llx:%s*CallSetWindowLongPtrA: *", GetCurrentProcessId(), dwpid, p2, szImagePath);
+	//printStack(buf);
 	EnterCriticalSection(&api_cs);
 
 	memset(dllMMF, 0, MSG_SIZE);
@@ -769,7 +856,7 @@ static BOOL (WINAPI* TrueSetPropA)(
 	HANDLE hData
 ) = SetPropA;
 
-DLLBASIC_API BOOL WINAPI  MySetPropA(
+DLLBASIC_API BOOL WINAPI  HookSetPropA(
 	HWND   hWnd,
 	LPCSTR lpString,
 	HANDLE hData
@@ -780,11 +867,28 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 	GetWindowThreadProcessId(hWnd, &dwpid);
 
 
+	// Getting PID using DuplicateHandle
+	HWND hWndDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (dwpid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hWnd, GetCurrentProcess(),
+			((LPHANDLE)&hWndDuplicated), PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			GetWindowThreadProcessId(hWndDuplicated, &dwpid);
+
+			CloseHandle(hWndDuplicated);
+		}
+	}
+
 	TCHAR szImagePath[MAX_PATH] = { 0, };
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+	QueryFullProcessImageName(GetCurrentProcess(), 0, szImagePath, &dwLen);
+
+
 
 	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwpid);
 	if (!hProcess)
@@ -804,8 +908,9 @@ DLLBASIC_API BOOL WINAPI  MySetPropA(
 	}
 
 
-	sprintf_s(buf, "%lu:%lu:%016llx:%s:CallSetPropA:IPC Successful!", GetCurrentProcessId(), dwpid, ptr, szImagePath);
-	
+	sprintf_s(buf, "%lu:%lu:%016llx:%s*CallSetPropA: *", GetCurrentProcessId(), dwpid, ptr, szImagePath);
+	//printStack(buf);
+
 	EnterCriticalSection(&api_cs);
 
 	memset(dllMMF, 0, MSG_SIZE);
@@ -847,7 +952,7 @@ static BOOL(WINAPI* TrueVirtualProtectEx)(
 	PDWORD lpflOldProtect
 	) = VirtualProtectEx;
 
-DLLBASIC_API BOOL WINAPI  MyVirtualProtectEx(
+DLLBASIC_API BOOL WINAPI  HookVirtualProtectEx(
 HANDLE hProcess,
 LPVOID lpAddress,
 SIZE_T dwSize,
@@ -861,12 +966,29 @@ PDWORD lpflOldProtect)
 	DWORD dwLen = 0;
 	ZeroMemory(szImagePath, sizeof(szImagePath));
 	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+	QueryFullProcessImageName(GetCurrentProcess(), 0, szImagePath, &dwLen);
 
+
+	DWORD target_pid = GetProcessId(hProcess);
+
+	// Getting PID using DuplicateHandle
+	HANDLE hProcessDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), hProcess, GetCurrentProcess(),
+			&hProcessDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessId(hProcessDuplicated);
+
+			CloseHandle(hProcessDuplicated);
+		}
+	}
 
 	if ( flNewProtect == (PAGE_EXECUTE_READWRITE ) ) {
-		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:%s:MyVirtualProtectEx:IPC Successful!", GetCurrentProcessId(), GetProcessId(hProcess), (DWORD64)lpAddress, (DWORD)dwSize, flNewProtect, szImagePath);
-		
+		sprintf_s(buf, "%lu:%lu:%016llx:%08lx:%08lx:%s*HookVirtualProtectEx: *", GetCurrentProcessId(), target_pid, (DWORD64)lpAddress, (DWORD)dwSize, flNewProtect, szImagePath);
+		//printStack(buf);
 		EnterCriticalSection(&api_cs);
 
 		memset(dllMMF, 0, MSG_SIZE);
@@ -892,7 +1014,7 @@ PDWORD lpflOldProtect)
 static LONG dwSlept = 0;
 static DWORD(WINAPI* TrueSleepEx)(DWORD dwMilliseconds, BOOL bAlertable) = SleepEx;
 
-DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
+DWORD WINAPI HookSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 {
 	//printf("sleep5.exe: is Hooked.\n");
 	ULONGLONG dwBeg = GetTickCount64();
@@ -903,8 +1025,8 @@ DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 
 	HANDLE hThread = NULL;
 	char buf[MSG_SIZE] = "";
-	sprintf_s(buf, "%lu:CallSleepEx:IPC Successful!     ", GetCurrentProcessId());
-	
+	sprintf_s(buf, "%lu:CallSleepEx: *", GetCurrentProcessId());
+	//printStack(buf);
 	EnterCriticalSection(&api_cs);
 
 	memset(dllMMF, 0, MSG_SIZE);
@@ -1062,18 +1184,18 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		// TODO: attaching
 		DetourAttach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
 		DetourAttach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
-		DetourAttach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
-		DetourAttach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
-		//DetourAttach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
-		DetourAttach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
-		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
-		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
-		DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
-		DetourAttach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
-		DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
-		DetourAttach(&(PVOID&)TrueSetPropA, MySetPropA);
-		DetourAttach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);
-		//DetourAttach(&(PVOID&)TrueSleepEx, TimedSleepEx);
+		DetourAttach(&(PVOID&)pCreateRemoteThread, HookCreateRemoteThread);
+		DetourAttach(&(PVOID&)pVirtualAllocEx, HookVirtualAllocEx);
+		//DetourAttach(&(PVOID&)TrueQueueUserAPC, HookQueueUserAPC);
+		DetourAttach(&(PVOID&)pWriteProcessMemory, HookWriteProcessMemory);
+		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, HookNtMapViewOfSection);
+		DetourAttach(&(PVOID&)TrueCreateFileMappingA, HookCreateFileMappingA);
+		DetourAttach(&(PVOID&)NtQueueApcThread, HookNtQueueApcThread);
+		DetourAttach(&(PVOID&)TrueSetThreadContext, HookSetThreadContext);
+		DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, HookSetWindowLongPtrA);
+		DetourAttach(&(PVOID&)TrueSetPropA, HookSetPropA);
+		DetourAttach(&(PVOID&)TrueVirtualProtectEx, HookVirtualProtectEx);
+		//DetourAttach(&(PVOID&)TrueSleepEx, HookSleepEx);
 
 		DetourTransactionCommit();
 
@@ -1098,18 +1220,18 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		// TODO: detaching
 		DetourDetach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
 		DetourDetach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
-		DetourDetach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
-		DetourDetach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
-		//DetourDetach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
-		DetourDetach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
-		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
-		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
-		DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
-		DetourDetach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
-		DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
-		DetourDetach(&(PVOID&)TrueSetPropA, MySetPropA);
-		DetourDetach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);
-		//DetourDetach(&(PVOID&)TrueSleepEx, TimedSleepEx);
+		DetourDetach(&(PVOID&)pCreateRemoteThread, HookCreateRemoteThread);
+		DetourDetach(&(PVOID&)pVirtualAllocEx, HookVirtualAllocEx);
+		//DetourDetach(&(PVOID&)TrueQueueUserAPC, HookQueueUserAPC);
+		DetourDetach(&(PVOID&)pWriteProcessMemory, HookWriteProcessMemory);
+		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, HookNtMapViewOfSection);
+		DetourDetach(&(PVOID&)TrueCreateFileMappingA, HookCreateFileMappingA);
+		DetourDetach(&(PVOID&)NtQueueApcThread, HookNtQueueApcThread);
+		DetourDetach(&(PVOID&)TrueSetThreadContext, HookSetThreadContext);
+		DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, HookSetWindowLongPtrA);
+		DetourDetach(&(PVOID&)TrueSetPropA, HookSetPropA);
+		DetourDetach(&(PVOID&)TrueVirtualProtectEx, HookVirtualProtectEx);
+		//DetourDetach(&(PVOID&)TrueSleepEx, HookSleepEx);
 		DetourTransactionCommit();
 
 		CloseHandle(hMonProcess);

@@ -658,7 +658,7 @@ BOOLEAN CodeSectionCheck(int pid, int caller_pid) {
                 //_tprintf(TEXT("\t%s (0x%08X)\n"), szModName, hMods[i]);
                 GetFileTitle(filePath, fileName, sizeof(fileName));
                 CompareCode(pid, caller_pid, hp, filePath, fileName, i);
-
+                
                 if (!strcmp(fileName, "Explorer.EXE")) {
                     break;
                 }
@@ -683,7 +683,7 @@ BOOLEAN CodeSectionCheck(int pid, int caller_pid) {
 
 BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fileName[], int checkNum) {
 
-    printf("%d : %d : Checking Code Section.\r\n", caller_pid, pid);
+    //printf("%d : %d : Checking Code Section.\r\n", caller_pid, pid);
 
     PIMAGE_DOS_HEADER pDH = NULL;
     PIMAGE_NT_HEADERS pNTH = NULL;
@@ -906,39 +906,41 @@ BOOLEAN CompareCode(int pid, int caller_pid, HANDLE hp, char filePath[], char fi
     char hex[6];
     if ((resultPrint == FALSE) && (checkNum == 0)) {
         std::string str(fileName);
-        printf("\"%d : %d : %s Code Section is OK(not changed)\r\n", caller_pid, pid, str.c_str());
+        printf("%d : %d : %s Code Section is OK(not changed)\r\n", caller_pid, pid, str.c_str());
     }
     else {
-       unsigned int changeSize = MaxIntegrity - MinIntegrity;
-       printf("Before : ");
-       for (unsigned int i = MinIntegrity; i <= MinIntegrity + 100; i++) {
-          sprintf_s(hex, "%02X ", ftextAddr[i]);
-          printf(hex);
-       }
-       printf("\n");
-       printf("After : ");
-       BYTE* changedCode = (BYTE*)malloc(sizeof(BYTE) * 512);
+       //unsigned int changeSize = MaxIntegrity - MinIntegrity;
+       //printf("Before : ");
+       //for (unsigned int i = MinIntegrity; i <= MinIntegrity + 100; i++) {
+       //   sprintf_s(hex, "%02X ", ftextAddr[i]);
+       //   printf(hex);
+       //}
+       //printf("\n");
+       //printf("After : ");
+       //BYTE* changedCode = (BYTE*)malloc(sizeof(BYTE) * 512);
 
-       if (changedCode == NULL) {
-           printf("Cannot allocate memory for changedCode.\n");
-           return FALSE;
-       }
+       //if (changedCode == NULL) {
+       //    printf("Cannot allocate memory for changedCode.\n");
+       //    return FALSE;
+       //}
 
-       if (ReadProcessMemory(hp, textAddr + MinIntegrity, changedCode, 512, NULL)) {
-          for (int i = 0; i < 100; i++) {
-             sprintf_s(hex, "%02X ",changedCode[i]);
-             printf(hex);
-          }
-          printf("\n\n");
-          free(changedCode);
-       }
-       else {
-          printf("FAILED 3rd ReadProcessMemory : changedCode\n");
-          fclose(pFile);
-          free(changedCode);
-          free(buffer);
-          return 0;
-       }
+       //if (ReadProcessMemory(hp, textAddr + MinIntegrity, changedCode, 512, NULL)) {
+       //   for (int i = 0; i < 100; i++) {
+       //      sprintf_s(hex, "%02X ",changedCode[i]);
+       //      printf(hex);
+       //   }
+       //   printf("\n\n");
+       //   free(changedCode);
+       //}
+       //else {
+       //   printf("FAILED 3rd ReadProcessMemory : changedCode\n");
+       //   fclose(pFile);
+       //   free(changedCode);
+       //   free(buffer);
+       //   return 0;
+       //}
+        std::string str(fileName);
+        printf("%d : %d : %s Code Section is changed.\r\n", caller_pid, pid, str.c_str());
     }
 
     fclose(pFile);

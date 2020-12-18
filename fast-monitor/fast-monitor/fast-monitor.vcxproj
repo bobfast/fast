@@ -78,14 +78,16 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>..\..\include;$(IncludePath)</IncludePath>
+    <IncludePath>..\..\\mysql-8.0.22-winx64\include;..\..\include;$(IncludePath)</IncludePath>
+    <LibraryPath>..\..\mysql-8.0.22-winx64\lib;$(LibraryPath);$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>..\..\include;$(IncludePath)</IncludePath>
+    <IncludePath>..\..\\mysql-8.0.22-winx64\include;..\..\include;$(IncludePath)</IncludePath>
+    <LibraryPath>..\..\mysql-8.0.22-winx64\lib;$(LibraryPath);$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -112,7 +114,7 @@
       <AdditionalIncludeDirectories>..\..\imnode\src;..\..\imnode\include\GL;..\..\imnode\include;..\..\SDL2-devel-2.0.12-VC\SDL2-2.0.12\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;opengl32.lib;detours.lib;capstone.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libmysql.lib;SDL2.lib;SDL2main.lib;opengl32.lib;detours.lib;capstone.lib;%(AdditionalDependencies)SDL2.lib;SDL2main.lib;opengl32.lib;detours.lib;capstone.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>main</EntryPointSymbol>
       <AdditionalLibraryDirectories>..\..\SDL2-devel-2.0.12-VC\SDL2-2.0.12\lib\x64;..\..\lib.X64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -143,7 +145,7 @@
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;opengl32.lib;detours.lib;capstone.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libmysql.lib;SDL2.lib;SDL2main.lib;opengl32.lib;detours.lib;capstone.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>main</EntryPointSymbol>
       <AdditionalLibraryDirectories>..\..\SDL2-devel-2.0.12-VC\SDL2-2.0.12\lib\x64;..\..\lib.X64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

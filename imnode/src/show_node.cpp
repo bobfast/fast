@@ -28,6 +28,8 @@ namespace Show_node
         {
 
         public:
+            bool callstack_view[3] = { false, false, false };
+
             std::string getAPI(UCHAR flags) {
 
                 if (flags & FLAG_VirtualAllocEx)
@@ -50,10 +52,9 @@ namespace Show_node
                 if (flags == FLAG_SetThreadContext)
                     return std::string("SetThreadContext");
 
-                return std::string("");
             }
 
-            void listing(int current, int attribute, int index ,std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string> tp) {
+            void listing(int current, int attribute, int index, std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string> tp) {
                 if (current == 1) {
                     imnodes::PushColorStyle(
                         imnodes::ColorStyle_TitleBar, IM_COL32(37, 142, 63, 255));
@@ -66,9 +67,9 @@ namespace Show_node
                     imnodes::PushColorStyle(
                         imnodes::ColorStyle_TitleBar, IM_COL32(230, 0, 0, 255));
                     imnodes::PushColorStyle(
-                        imnodes::ColorStyle_TitleBarSelected, IM_COL32(255, 51,51, 255));
+                        imnodes::ColorStyle_TitleBarSelected, IM_COL32(255, 51, 51, 255));
                     imnodes::PushColorStyle(
-                        imnodes::ColorStyle_TitleBarHovered, IM_COL32(255, 51,51, 255));
+                        imnodes::ColorStyle_TitleBarHovered, IM_COL32(255, 51, 51, 255));
                 }
                 else {
                     imnodes::PushColorStyle(
@@ -89,7 +90,7 @@ namespace Show_node
                 }
                 ImGui::BulletText("CALLER PID    : %s", std::get<2>(tp).c_str());
                 ImGui::BulletText("START ADDRESS : %016llx", std::get<0>(tp));
-                if (std::get<1>(tp)>0) {
+                if (std::get<1>(tp) > 0) {
                     ImGui::BulletText("END ADDRESS   : %016llx", std::get<0>(tp) + std::get<1>(tp));
                     ImGui::BulletText("SIZE          : %d", std::get<1>(tp));
                 }
@@ -98,23 +99,39 @@ namespace Show_node
                     imnodes::BeginOutputAttribute(attribute + 1); // ex attribute 3
                     imnodes::EndOutputAttribute();
                 }
+
+                char buf[256];
+                sprintf_s(buf, 256, "View Callstack of '%s()'", getAPI(std::get<3>(tp)).c_str());
+
+                if (ImGui::Button(buf))
+                    if (callstack_view[current] == false)
+                        callstack_view[current] = true;
+                    else
+                        callstack_view[current] = false;
+
                 imnodes::EndNode();
                 imnodes::PopColorStyle();
                 imnodes::PopColorStyle();
                 imnodes::PopColorStyle();
+                if (callstack_view[current])
+                {
+                    ImGui::Begin(buf, &callstack_view[current]);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+                    ImGui::Text("%s call stack :\n%s", getAPI(std::get<3>(tp)).c_str(), std::get<5>(tp).c_str());
+                    ImGui::End();
+                }
             }
-      
-            void show(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v)
+
+            void show(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>> v)
             {
-                int index = v.size();
-                int current = 1;
+                int index = v.size(); //
+                int current = 1; //
                 int attribute = 2;
                 std::vector<std::pair<int, int>> links;
                 ImGui::Begin("Attack Flow");
                 imnodes::BeginNodeEditor();
 
                 for (auto tp : v) {
-                    listing(current, attribute, index,tp );
+                    listing(current, attribute, index, tp);
                     current++;
                     attribute += 3;
                 }
@@ -134,20 +151,22 @@ namespace Show_node
                 imnodes::EndNodeEditor();
 
                 ImGui::End();
+
+
             }
         };
 
         static NodeEditor editor;
-    } 
+    }
 
     void NodeEditorInitialize(unsigned int vsize) {
-        for (int i = 1; i < vsize +1 ; i++) {
-            imnodes::SetNodeGridSpacePos(i, ImVec2( 200.0f * (i-1),  200.0f * (i-1)));
+        for (int i = 1; i < vsize + 1; i++) {
+            imnodes::SetNodeGridSpacePos(i, ImVec2(200.0f * (i - 1), 200.0f * (i - 1)));
         }
     }
 
-    void NodeEditorShow(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v) { editor.show(v); }
+    void NodeEditorShow(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>> v) { editor.show(v); }
 
     void NodeEditorShutdown() {}
 
-} 
+}
