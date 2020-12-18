@@ -110,7 +110,7 @@ void printStack(char buf[]) {
        
 
         if (!SymFromAddr(Process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol)) {
-           // sp+= sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "getlasterror:%d, %x\n",GetLastError(),stack.AddrStack.Offset );
+            sp+= sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "<br>%x\n",stack.AddrStack.Offset );
             continue;
         } 
 
@@ -134,7 +134,7 @@ void printStack(char buf[]) {
 
             if (hProc != NULL) {
                 if (GetModuleBaseNameA(hProc, hModule, module, MaxNameLen) != 0) {
-                    sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "\n\t %s!%s +0x%x", module, pSymbol->Name,stack.AddrFrame.Offset-offset);
+                    sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "\n\t<br> %s!%s +0x%x", module, pSymbol->Name,stack.AddrFrame.Offset-offset);
                     CloseHandle(hProc);
                 }
             }

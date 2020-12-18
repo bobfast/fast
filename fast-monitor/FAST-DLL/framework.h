@@ -13,7 +13,6 @@
 const int MaxNameLen = 256;
 
 using namespace std;
-#define TEMP_SIZE 1000
 #define DLLBASIC_API extern "C" __declspec(dllexport)
 #define MSG_SIZE 3000
 

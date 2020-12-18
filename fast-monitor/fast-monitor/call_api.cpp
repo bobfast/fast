@@ -35,13 +35,13 @@ void insert_index(std::string pid, std::string hash_check) {
         process_id
     );
 
-    TCHAR szImagePath[MAX_PATH] = { 0, };
+    WCHAR szImagePath[MAX_PATH] = { 0, };
     DWORD dwLen = 0;
     ZeroMemory(szImagePath, sizeof(szImagePath));
     dwLen = sizeof(szImagePath) / sizeof(TCHAR);
-    QueryFullProcessImageName(process_handle, 1, szImagePath, &dwLen);
+    QueryFullProcessImageNameW(process_handle, 0, szImagePath, &dwLen);
     CloseHandle(process_handle);
-    sprintf(query, "insert into attack_index(pid,hashcheck,targetpath,bit) values(%s,\"%s\",\"%s\",\"64bit\")", temp_pid, temp_hashcheck, szImagePath);
+    sprintf(query, "insert into attack_index(pid,hashcheck,targetpath,bit) values(%s,\"%s\",\"%S\",\"64bit\")", temp_pid, temp_hashcheck, szImagePath);
     query_stat = mysql_query(connection, query);
     if (query_stat != 0)
     {
