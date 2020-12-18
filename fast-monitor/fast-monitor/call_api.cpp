@@ -1229,8 +1229,6 @@ void CallRtlCreateUserThread(LPVOID monMMF) {
 	if (chk == NULL) return;
 	std::string callee_pid(chk);
 
-	CloseHandle(hp);
-	return 0;
 	chk = strtok_s(NULL, ":", &cp_context);
 	if (chk == NULL) return;
 	std::string addr(chk);
@@ -1244,12 +1242,17 @@ void CallRtlCreateUserThread(LPVOID monMMF) {
 	if (chk == NULL) return;
 	std::string caller_path(chk);
 
+	chk = strtok_s(NULL, ":", &cp_context);
+	chk = strtok_s(NULL, "*", &cp_context);
+	if (chk == NULL) return;
+	std::string callstack(chk);
+
 	char buf[MSG_SIZE] = "";
 	memset(monMMF, 0, MSG_SIZE);
 
 	form = (Form1^)Application::OpenForms[0];
 
-	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_RtlCreateUserThread, caller_path)) {
+	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_RtlCreateUserThread, caller_path, callstack)) {
 
 		sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallRtlCreateUserThread", caller_pid.c_str(), lpStartAddress, lpParameter);
 		form->logging(caller_pid + " : " + callee_pid + " : RtlCreateUserThread -> Code Injection Detected! Addr: " + addr + "\r\n");
@@ -1320,7 +1323,8 @@ BOOLEAN CodeSectionCheck(int pid, int caller_pid, char* pointer) {
 		}
 	}
 
-
+	CloseHandle(hp);
+	return 0;
 }
 
 
