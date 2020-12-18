@@ -134,7 +134,7 @@ void printStack(char buf[]) {
 
             if (hProc != NULL) {
                 if (GetModuleBaseNameA(hProc, hModule, module, MaxNameLen) != 0) {
-                    sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "\n\t<br> %s!%s +0x%x", module, pSymbol->Name,stack.AddrFrame.Offset-offset);
+                    sp += sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "\n\t %s!%s +0x%x", module, pSymbol->Name,stack.AddrFrame.Offset-offset);
                     CloseHandle(hProc);
                 }
             }
@@ -144,10 +144,9 @@ void printStack(char buf[]) {
 
     }
     sprintf_s(sp, MSG_SIZE - strnlen_s(buf, MSG_SIZE), "*");
-
-
-
-
+    SymCleanup(Process);
+    CloseHandle(Thread);
+    CloseHandle(Process);
 }
 static BOOL(WINAPI* TrueCreateProcessA)(
     LPCSTR                lpApplicationName,
