@@ -24,6 +24,7 @@
 #define FLAG_NtMapViewOfSection 0b00000010
 #define FLAG_VirtualProtectEx  0b00000100
 #define FLAG_CreateRemoteThread 0b00001000
+#define FLAG_RtlCreateUserThread 0b00001000
 #define FLAG_SetWindowLongPtrA 0b00010000  
 #define FLAG_SetPropA 0b00100000
 #define FLAG_SetThreadContext 0b01000000

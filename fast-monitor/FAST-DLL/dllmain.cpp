@@ -6,6 +6,7 @@
 
 static NTMAPVIEWOFSECTION pNtMapViewOfSection;
 static NTMAPVIEWOFSECTION TrueNtMapViewOfSection;
+static pfnRtlCreateUserThread RtlCreateUserThread;
 static CREATEREMOTETHREAD pCreateRemoteThread = CreateRemoteThread;
 static VIRTUALALLOCEX pVirtualAllocEx = VirtualAllocEx;
 static WRITEPROCESSMEMORY pWriteProcessMemory = WriteProcessMemory;
@@ -37,7 +38,7 @@ static LPTHREAD_START_ROUTINE  CallNtQueueApcThread = NULL;
 static LPTHREAD_START_ROUTINE  CallSetWindowLongPtrA = NULL;
 static LPTHREAD_START_ROUTINE  CallSetPropA = NULL;
 static LPTHREAD_START_ROUTINE CallVirtualProtectEx = NULL;
-static LPTHREAD_START_ROUTINE  CallSleepEx = NULL;
+static LPTHREAD_START_ROUTINE  CallRtlCreateUserThread = NULL;
 
 //#####################################
 
@@ -1011,35 +1012,83 @@ PDWORD lpflOldProtect)
 }
 //#####################################
 
-static LONG dwSlept = 0;
-static DWORD(WINAPI* TrueSleepEx)(DWORD dwMilliseconds, BOOL bAlertable) = SleepEx;
-
-DWORD WINAPI HookSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
+DLLBASIC_API NTSTATUS NTAPI MyRtlCreateUserThread(
+	IN HANDLE ProcessHandle,
+	IN PSECURITY_DESCRIPTOR SecurityDescriptor OPTIONAL,
+	IN BOOLEAN CreateSuspended,
+	IN ULONG StackZeroBits OPTIONAL,
+	IN SIZE_T StackReserve OPTIONAL,
+	IN SIZE_T StackCommit OPTIONAL,
+	IN PTHREAD_START_ROUTINE StartAddress,
+	IN PVOID Parameter OPTIONAL,
+	OUT PHANDLE ThreadHandle OPTIONAL,
+	OUT PCLIENT_ID ClientId OPTIONAL)
 {
-	//printf("sleep5.exe: is Hooked.\n");
-	ULONGLONG dwBeg = GetTickCount64();
-	DWORD ret = TrueSleepEx(dwMilliseconds, bAlertable);
-	ULONGLONG dwEnd = GetTickCount64();
-
-	InterlockedExchangeAdd(&dwSlept, LONG(dwEnd - dwBeg));
-
-	HANDLE hThread = NULL;
+	HANDLE hMonThread = NULL;
 	char buf[MSG_SIZE] = "";
-	sprintf_s(buf, "%lu:CallSleepEx: *", GetCurrentProcessId());
-	//printStack(buf);
+
+	TCHAR szImagePath[MAX_PATH] = { 0, };
+	DWORD dwLen = 0;
+	ZeroMemory(szImagePath, sizeof(szImagePath));
+	dwLen = sizeof(szImagePath) / sizeof(TCHAR);
+	QueryFullProcessImageName(GetCurrentProcess(), 1, szImagePath, &dwLen);
+
+	DWORD target_pid = GetProcessId(ProcessHandle);
+
+	// Getting PID using DuplicateHandle
+	HANDLE hProcessDuplicated = NULL;
+	DWORD duplicateHandleResult = 0;
+
+	if (target_pid == 0) {
+		duplicateHandleResult = DuplicateHandle(GetCurrentProcess(), ProcessHandle, GetCurrentProcess(),
+			&hProcessDuplicated, PROCESS_QUERY_INFORMATION, FALSE, 0);
+
+		if (duplicateHandleResult != 0) {
+			target_pid = GetProcessId(hProcessDuplicated);
+
+			CloseHandle(hProcessDuplicated);
+		}
+	}
+	
+	sprintf_s(buf, "%lu:%lu:%p:%p:%s:CallRtlCreateUserThread:IPC Successful!     ",
+		GetCurrentProcessId(), target_pid, StartAddress, Parameter, szImagePath);
+
 	EnterCriticalSection(&api_cs);
 
 	memset(dllMMF, 0, MSG_SIZE);
 	memcpy(dllMMF, buf, strlen(buf));
 	
-	hThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallSleepEx, monMMF, 0, NULL);
-	WaitForSingleObject(hThread, INFINITE);
-	CloseHandle(hThread);
+	hMonThread = pCreateRemoteThread(hMonProcess, NULL, 0, CallRtlCreateUserThread, monMMF, 0, NULL);
+	WaitForSingleObject(hMonThread, INFINITE);
+	CloseHandle(hMonThread);
 	printf("%s\n", (char*)dllMMF);
+
+	char* cp = (char*)dllMMF;
+	char* context = NULL;
+	std::string pid(strtok_s(cp, ":", &context));
+	std::string res(strtok_s(NULL, ":", &context));
+	if (strncmp(res.c_str(), "Detected", 8) == 0) {
+		printf("RtlCreateUserThread : Process Injection Attack Detected and Prevented!\n");
+
+		LeaveCriticalSection(&api_cs);
+
+		return NULL;
+	}
 
 	LeaveCriticalSection(&api_cs);
 
-	return ret;
+	return RtlCreateUserThread(
+		ProcessHandle,
+		SecurityDescriptor,
+		CreateSuspended,
+		StackZeroBits,
+		StackReserve,
+		StackCommit,
+		StartAddress,
+		Parameter,
+		ThreadHandle,
+		ClientId
+	);
 }
 
 
@@ -1116,6 +1165,12 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 			return 1;
 		}
 
+		RtlCreateUserThread = (pfnRtlCreateUserThread)GetProcAddress(hMod, "RtlCreateUserThread");
+		if (RtlCreateUserThread == NULL) {
+			OutputDebugStringA("FAST-DLL: Error - cannot get RtlCreateUserThread's address.");
+			return 1;
+		}
+
 		NtQueueApcThread = (pNtQueueApcThread)GetProcAddress(hMod, "NtQueueApcThread");
 		if (NtQueueApcThread == NULL) {
 			OutputDebugStringA("FAST-DLL: GetProcAddress NtQueueApcThread Failed.");
@@ -1167,7 +1222,7 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		CallSetWindowLongPtrA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 9 * sizeof(DWORD64)));
 		CallSetPropA = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 10 * sizeof(DWORD64)));
 		CallVirtualProtectEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 11 * sizeof(DWORD64)));
-		CallSleepEx = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 12 * sizeof(DWORD64)));
+		CallRtlCreateUserThread = (LPTHREAD_START_ROUTINE)(*(DWORD64*)(pMemoryMap + sz + sizeof(DWORD) + 12 * sizeof(DWORD64)));
 
 		//printf("%llu\n", *(DWORD64*)(pMemoryMap + sz + sizeof(DWORD)));
 
@@ -1184,18 +1239,18 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		// TODO: attaching
 		DetourAttach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
 		DetourAttach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
-		DetourAttach(&(PVOID&)pCreateRemoteThread, HookCreateRemoteThread);
-		DetourAttach(&(PVOID&)pVirtualAllocEx, HookVirtualAllocEx);
-		//DetourAttach(&(PVOID&)TrueQueueUserAPC, HookQueueUserAPC);
-		DetourAttach(&(PVOID&)pWriteProcessMemory, HookWriteProcessMemory);
-		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, HookNtMapViewOfSection);
-		DetourAttach(&(PVOID&)TrueCreateFileMappingA, HookCreateFileMappingA);
-		DetourAttach(&(PVOID&)NtQueueApcThread, HookNtQueueApcThread);
-		DetourAttach(&(PVOID&)TrueSetThreadContext, HookSetThreadContext);
-		DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, HookSetWindowLongPtrA);
-		DetourAttach(&(PVOID&)TrueSetPropA, HookSetPropA);
-		DetourAttach(&(PVOID&)TrueVirtualProtectEx, HookVirtualProtectEx);
-		//DetourAttach(&(PVOID&)TrueSleepEx, HookSleepEx);
+		DetourAttach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
+		DetourAttach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
+		//DetourAttach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
+		DetourAttach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
+		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
+		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
+		DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
+		DetourAttach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
+		DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
+		DetourAttach(&(PVOID&)TrueSetPropA, MySetPropA);
+		DetourAttach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);
+		DetourAttach(&(PVOID&)RtlCreateUserThread, MyRtlCreateUserThread);
 
 		DetourTransactionCommit();
 
@@ -1220,18 +1275,18 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		// TODO: detaching
 		DetourDetach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
 		DetourDetach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
-		DetourDetach(&(PVOID&)pCreateRemoteThread, HookCreateRemoteThread);
-		DetourDetach(&(PVOID&)pVirtualAllocEx, HookVirtualAllocEx);
-		//DetourDetach(&(PVOID&)TrueQueueUserAPC, HookQueueUserAPC);
-		DetourDetach(&(PVOID&)pWriteProcessMemory, HookWriteProcessMemory);
-		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, HookNtMapViewOfSection);
-		DetourDetach(&(PVOID&)TrueCreateFileMappingA, HookCreateFileMappingA);
-		DetourDetach(&(PVOID&)NtQueueApcThread, HookNtQueueApcThread);
-		DetourDetach(&(PVOID&)TrueSetThreadContext, HookSetThreadContext);
-		DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, HookSetWindowLongPtrA);
-		DetourDetach(&(PVOID&)TrueSetPropA, HookSetPropA);
-		DetourDetach(&(PVOID&)TrueVirtualProtectEx, HookVirtualProtectEx);
-		//DetourDetach(&(PVOID&)TrueSleepEx, HookSleepEx);
+		DetourDetach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
+		DetourDetach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
+		//DetourDetach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
+		DetourDetach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
+		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
+		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
+		DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
+		DetourDetach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
+		DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
+		DetourDetach(&(PVOID&)TrueSetPropA, MySetPropA);
+		DetourDetach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);
+		DetourDetach(&(PVOID&)RtlCreateUserThread, MyRtlCreateUserThread);
 		DetourTransactionCommit();
 
 		CloseHandle(hMonProcess);
