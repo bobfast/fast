@@ -43,7 +43,7 @@ void CallNtQueueApcThread(LPVOID monMMF);
 void CallSetWindowLongPtrA(LPVOID monMMF);
 void CallSetPropA(LPVOID monMMF);
 void CallVirtualProtectEx(LPVOID monMMF);
-void CallSleepEx(LPVOID monMMF);
+void CallRtlCreateUserThread(LPVOID monMMF);
 
 //######################################################
 
@@ -64,6 +64,23 @@ static NTSTATUS(*PNtMapViewOfSection)(
 	SECTION_INHERIT InheritDisposition,
 	ULONG AllocationType,
 	ULONG Win32Protect);
+
+typedef struct _CLIENT_ID {
+	HANDLE UniqueProcess;
+	HANDLE UniqueThread;
+} CLIENT_ID, * PCLIENT_ID;
+
+typedef NTSTATUS(NTAPI* pfnRtlCreateUserThread)(
+	IN HANDLE ProcessHandle,
+	IN PSECURITY_DESCRIPTOR SecurityDescriptor OPTIONAL,
+	IN BOOLEAN CreateSuspended,
+	IN ULONG StackZeroBits OPTIONAL,
+	IN SIZE_T StackReserve OPTIONAL,
+	IN SIZE_T StackCommit OPTIONAL,
+	IN PTHREAD_START_ROUTINE StartAddress,
+	IN PVOID Parameter OPTIONAL,
+	OUT PHANDLE ThreadHandle OPTIONAL,
+	OUT PCLIENT_ID ClientId OPTIONAL);
 
 //######################################################
 
@@ -105,6 +122,8 @@ static BOOL CALLBACK ExportCallback(_In_opt_ PVOID pContext,
 
 	return TRUE;
 }
+
+/*
 void TypeToString(DWORD Type, char* pszBuffer, size_t cBuffer);
 void StateToString(DWORD State, char* pszBuffer, size_t cBuffer);
 void ProtectToString(DWORD Protect, char* pszBuffer, size_t cBuffer);
@@ -112,6 +131,7 @@ PCHAR FindSectionName(PBYTE pbBase, PBYTE& pbEnd);
 ULONG PadToPage(ULONG Size);
 BOOL GetSections(HANDLE hp, PBYTE pbBase);
 BOOL DumpProcess(HANDLE hp);
+*/
 //######################################################
 
 

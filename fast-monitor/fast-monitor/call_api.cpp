@@ -933,9 +933,8 @@ void CallVirtualProtectEx(LPVOID monMMF) {
 }
 
 
-void CallSleepEx(LPVOID monMMF) {
-
-	//Form1^ form = (Form1^)Application::OpenForms[0];
+void CallRtlCreateUserThread(LPVOID monMMF) {
+	Form1^ form;
 
 	char* cp = (char*)monMMF;
 	char* cp_context = NULL;
@@ -947,14 +946,54 @@ void CallSleepEx(LPVOID monMMF) {
 
 	chk = strtok_s(cp, ":", &cp_context);
 	if (chk == NULL) return;
-	std::string pid(chk);
+	std::string caller_pid(chk);
 
-	if (pFile != NULL) fprintf(pFile, "%s\n", (char*)monMMF);
-	std::string buf(pid);
-	buf.append(":CallSleepEx:Response Sended!");
-	memcpy(monMMF, buf.c_str(), buf.size());
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string callee_pid(chk);
 
-	
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string addr(chk);
+	DWORD64 lpStartAddress = (DWORD64)strtoll(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	DWORD64 lpParameter = (DWORD64)strtoll(chk, NULL, 16);
+
+	chk = strtok_s(NULL, ":", &cp_context);
+	if (chk == NULL) return;
+	std::string caller_path(chk);
+
+	char buf[MSG_SIZE] = "";
+	memset(monMMF, 0, MSG_SIZE);
+
+	form = (Form1^)Application::OpenForms[0];
+
+	if (checkList(callee_pid, lpStartAddress, NULL, caller_pid, FLAG_RtlCreateUserThread, caller_path)) {
+
+		sprintf_s(buf, "%s:Detected:%016llx:%016llx:CallRtlCreateUserThread", caller_pid.c_str(), lpStartAddress, lpParameter);
+		form->logging(caller_pid + " : " + callee_pid + " : RtlCreateUserThread -> Code Injection Detected! Addr: " + addr + "\r\n");
+		memcpy(monMMF, buf, strlen(buf));
+
+		WorkAfterDetectionParam* param = (WorkAfterDetectionParam*)malloc(sizeof(WorkAfterDetectionParam));
+		if (param) {
+			param->runCompareCode = TRUE;
+			param->runMemoryRegionDump = TRUE;
+			param->runDumpIt = TRUE;
+			param->runMessageBox = TRUE;
+			strcpy_s(param->callee_pid, callee_pid.c_str());
+			strcpy_s(param->caller_pid, caller_pid.c_str());
+			strcpy_s(param->api_name, "CodeInjection");
+			param->entryPoint = (LPVOID)lpStartAddress;
+			strcpy_s(param->message, "RtlCreateUserThread Code Injection Detected! Are you want to Dumpit?");
+			param->message_type = (MB_YESNO | MB_ICONQUESTION);
+
+			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WorkAfterDetection, param, 0, NULL);
+		}
+
+		return;
+	}
 }
 
 

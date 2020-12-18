@@ -52,7 +52,7 @@ void CallNtQueueApcThread(LPVOID monMMF);
 void CallSetWindowLongPtrA(LPVOID monMMF);
 void CallSetPropA(LPVOID monMMF);
 void CallVirtualProtectEx(LPVOID monMMF);
-void CallSleepEx(LPVOID monMMF);
+void CallRtlCreateUserThread(LPVOID monMMF);
 
 //######################################################
 

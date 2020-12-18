@@ -205,3 +205,16 @@ typedef NTSTATUS(NTAPI* NTQUERYSYSTEMINFORMATION)(
 	ULONG SystemInformationLength,
 	PULONG ReturnLength
 	);
+
+// RtlCreateUserThread Function Pointer Type
+typedef NTSTATUS(NTAPI* pfnRtlCreateUserThread)(
+	IN HANDLE ProcessHandle,
+	IN PSECURITY_DESCRIPTOR SecurityDescriptor OPTIONAL,
+	IN BOOLEAN CreateSuspended,
+	IN ULONG StackZeroBits OPTIONAL,
+	IN SIZE_T StackReserve OPTIONAL,
+	IN SIZE_T StackCommit OPTIONAL,
+	IN PTHREAD_START_ROUTINE StartAddress,
+	IN PVOID Parameter OPTIONAL,
+	OUT PHANDLE ThreadHandle OPTIONAL,
+	OUT PCLIENT_ID ClientId OPTIONAL);

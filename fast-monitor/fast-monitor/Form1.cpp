@@ -122,7 +122,7 @@ void init() {
 	fp = CallVirtualProtectEx;
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 11 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
-	fp = CallSleepEx;
+	fp = CallRtlCreateUserThread;
 	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 12 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 }
 

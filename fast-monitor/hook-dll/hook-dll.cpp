@@ -31,23 +31,32 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout, BOOL isWoW64)
 DWORD getRVA(LPCSTR DllName, LPCSTR FuncName)
 {
 	HANDLE hSrcFile = CreateFileA(DllName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-	if (!hSrcFile) return NULL;
+	if (!hSrcFile) {
+		printf("getRVA: CreateFileA error.\n");
+		return NULL;
+	}
 	
 	HANDLE hMapSrcFile = CreateFileMappingA(hSrcFile, NULL, PAGE_READONLY, 0, 0, NULL);
-	if (!hMapSrcFile) return NULL;
+	if (!hMapSrcFile) {
+		printf("getRVA: CreateFileMappingA error.\n");
+		return NULL;
+	}
 	
 	PBYTE pSrcFile = (PBYTE)MapViewOfFile(hMapSrcFile, FILE_MAP_READ, 0, 0, 0);
-	if (!pSrcFile) return NULL;
+	if (!pSrcFile) {
+		printf("getRVA: MapViewOfFile error.\n");
+		return NULL;
+	}
 
 	IMAGE_DOS_HEADER* pDosHeader = (IMAGE_DOS_HEADER*)pSrcFile;
-	//printf("e_lfanew = %d\n", pDosHeader->e_lfanew);
+	printf("e_lfanew = %d\n", pDosHeader->e_lfanew);
 	IMAGE_NT_HEADERS32* pNtHdr = (IMAGE_NT_HEADERS32*)
 		((PBYTE)pDosHeader + pDosHeader->e_lfanew);
-	//printf("IMAGE_NT_HEADERS = %p\n", pNtHdr);
+	printf("IMAGE_NT_HEADERS = %p\n", pNtHdr);
 	IMAGE_SECTION_HEADER* pFirstSectionHeader = (IMAGE_SECTION_HEADER*)
 		((PBYTE)&pNtHdr->OptionalHeader +
 			pNtHdr->FileHeader.SizeOfOptionalHeader);
-	//printf("First Section Header = %p\n", pFirstSectionHeader);
+	printf("First Section Header = %p\n", pFirstSectionHeader);
 
 	IMAGE_EXPORT_DIRECTORY* pExportDirectory = NULL;
 	int fileOffset;
@@ -56,6 +65,7 @@ DWORD getRVA(LPCSTR DllName, LPCSTR FuncName)
 		IMAGE_SECTION_HEADER* pSectionHeader = &pFirstSectionHeader[i];
 		fileOffset = pSectionHeader->PointerToRawData - pSectionHeader->VirtualAddress;
 
+		printf("section header name: %s\n", pSectionHeader->Name);
 		if (strcmp(".rdata", (const char *)(pSectionHeader->Name)) == 0) {
 			pExportDirectory = (IMAGE_EXPORT_DIRECTORY*)((PBYTE)pSrcFile + fileOffset +
 					pNtHdr->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
@@ -64,16 +74,16 @@ DWORD getRVA(LPCSTR DllName, LPCSTR FuncName)
 		}
 	}
 
-	//printf("Export Directory = %p\n", pExportDirectory);
+	printf("Export Directory = %p\n", pExportDirectory);
 
 	if (pExportDirectory) {
 		PDWORD address = (PDWORD)((PBYTE)pSrcFile + fileOffset + pExportDirectory->AddressOfFunctions);
 		PDWORD name = (PDWORD)((PBYTE)pSrcFile + fileOffset + pExportDirectory->AddressOfNames);
 		PWORD ordinal = (PWORD)((PBYTE)pSrcFile + fileOffset + pExportDirectory->AddressOfNameOrdinals);
-		//printf("number of functions = %d\n", pExportDirectory->NumberOfFunctions);
-		//printf("address = %p\n", address);
-		//printf("name = %p\n", name);
-		//printf("ordinal = %p\n", ordinal);
+		printf("number of functions = %d\n", pExportDirectory->NumberOfFunctions);
+		printf("address = %p\n", address);
+		printf("name = %p\n", name);
+		printf("ordinal = %p\n", ordinal);
 
 		for (DWORD i = 0; i < (pExportDirectory->NumberOfFunctions); i++) {
 			printf("function name = %s\n", (char*)pSrcFile + fileOffset + name[i]);
