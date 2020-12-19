@@ -1012,7 +1012,7 @@ PDWORD lpflOldProtect)
 }
 //#####################################
 
-DLLBASIC_API NTSTATUS NTAPI MyRtlCreateUserThread(
+DLLBASIC_API NTSTATUS NTAPI HookRtlCreateUserThread(
 	IN HANDLE ProcessHandle,
 	IN PSECURITY_DESCRIPTOR SecurityDescriptor OPTIONAL,
 	IN BOOLEAN CreateSuspended,
@@ -1050,7 +1050,7 @@ DLLBASIC_API NTSTATUS NTAPI MyRtlCreateUserThread(
 		}
 	}
 	
-	sprintf_s(buf, "%lu:%lu:%p:%p:%s:CallRtlCreateUserThread:IPC Successful!     ",
+	sprintf_s(buf, "%lu:%lu:%p:%p:%s*CallRtlCreateUserThread: *",
 		GetCurrentProcessId(), target_pid, StartAddress, Parameter, szImagePath);
 
 	EnterCriticalSection(&api_cs);
@@ -1239,18 +1239,18 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		// TODO: attaching
 		DetourAttach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
 		DetourAttach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
-		DetourAttach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
-		DetourAttach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
-		//DetourAttach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
-		DetourAttach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
-		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
-		DetourAttach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
-		DetourAttach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
-		DetourAttach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
-		DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
-		DetourAttach(&(PVOID&)TrueSetPropA, MySetPropA);
-		DetourAttach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);
-		DetourAttach(&(PVOID&)RtlCreateUserThread, MyRtlCreateUserThread);
+		DetourAttach(&(PVOID&)pCreateRemoteThread, HookCreateRemoteThread);
+		DetourAttach(&(PVOID&)pVirtualAllocEx, HookVirtualAllocEx);
+		//DetourAttach(&(PVOID&)TrueQueueUserAPC, HookQueueUserAPC);
+		DetourAttach(&(PVOID&)pWriteProcessMemory, HookWriteProcessMemory);
+		DetourAttach(&(PVOID&)TrueNtMapViewOfSection, HookNtMapViewOfSection);
+		DetourAttach(&(PVOID&)TrueCreateFileMappingA, HookCreateFileMappingA);
+		DetourAttach(&(PVOID&)NtQueueApcThread, HookNtQueueApcThread);
+		DetourAttach(&(PVOID&)TrueSetThreadContext, HookSetThreadContext);
+		DetourAttach(&(PVOID&)TrueSetWindowLongPtrA, HookSetWindowLongPtrA);
+		DetourAttach(&(PVOID&)TrueSetPropA, HookSetPropA);
+		DetourAttach(&(PVOID&)TrueVirtualProtectEx, HookVirtualProtectEx);
+		DetourAttach(&(PVOID&)RtlCreateUserThread, HookRtlCreateUserThread);
 
 		DetourTransactionCommit();
 
@@ -1275,18 +1275,18 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved)
 		// TODO: detaching
 		DetourDetach(&(PVOID&)TrueCreateProcessA, HookCreateProcessA);
 		DetourDetach(&(PVOID&)TrueCreateProcessW, HookCreateProcessW);
-		DetourDetach(&(PVOID&)pCreateRemoteThread, MyCreateRemoteThread);
-		DetourDetach(&(PVOID&)pVirtualAllocEx, MyVirtualAllocEx);
-		//DetourDetach(&(PVOID&)TrueQueueUserAPC, MyQueueUserAPC);
-		DetourDetach(&(PVOID&)pWriteProcessMemory, MyWriteProcessMemory);
-		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, MyNtMapViewOfSection);
-		DetourDetach(&(PVOID&)TrueCreateFileMappingA, MyCreateFileMappingA);
-		DetourDetach(&(PVOID&)NtQueueApcThread, MyNtQueueApcThread);
-		DetourDetach(&(PVOID&)TrueSetThreadContext, MySetThreadContext);
-		DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, MySetWindowLongPtrA);
-		DetourDetach(&(PVOID&)TrueSetPropA, MySetPropA);
-		DetourDetach(&(PVOID&)TrueVirtualProtectEx, MyVirtualProtectEx);
-		DetourDetach(&(PVOID&)RtlCreateUserThread, MyRtlCreateUserThread);
+		DetourDetach(&(PVOID&)pCreateRemoteThread, HookCreateRemoteThread);
+		DetourDetach(&(PVOID&)pVirtualAllocEx, HookVirtualAllocEx);
+		//DetourDetach(&(PVOID&)TrueQueueUserAPC, HookQueueUserAPC);
+		DetourDetach(&(PVOID&)pWriteProcessMemory, HookWriteProcessMemory);
+		DetourDetach(&(PVOID&)TrueNtMapViewOfSection, HookNtMapViewOfSection);
+		DetourDetach(&(PVOID&)TrueCreateFileMappingA, HookCreateFileMappingA);
+		DetourDetach(&(PVOID&)NtQueueApcThread, HookNtQueueApcThread);
+		DetourDetach(&(PVOID&)TrueSetThreadContext, HookSetThreadContext);
+		DetourDetach(&(PVOID&)TrueSetWindowLongPtrA, HookSetWindowLongPtrA);
+		DetourDetach(&(PVOID&)TrueSetPropA, HookSetPropA);
+		DetourDetach(&(PVOID&)TrueVirtualProtectEx, HookVirtualProtectEx);
+		DetourDetach(&(PVOID&)RtlCreateUserThread, HookRtlCreateUserThread);
 		DetourTransactionCommit();
 
 		CloseHandle(hMonProcess);

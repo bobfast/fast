@@ -240,11 +240,11 @@ void printStack(char buf[]) {
 
 	displacement = 0;
 #if !defined(_M_AMD64)
-	stack.AddrPC.Offset = (*ctx).Eip;
+	stack.AddrPC.Offset = ctx.Eip;
 	stack.AddrPC.Mode = AddrModeFlat;
-	stack.AddrStack.Offset = (*ctx).Esp;
+	stack.AddrStack.Offset = ctx.Esp;
 	stack.AddrStack.Mode = AddrModeFlat;
-	stack.AddrFrame.Offset = (*ctx).Ebp;
+	stack.AddrFrame.Offset = ctx.Ebp;
 	stack.AddrFrame.Mode = AddrModeFlat;
 #endif
 	Process = GetCurrentProcess();
