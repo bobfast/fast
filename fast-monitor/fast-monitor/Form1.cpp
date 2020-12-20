@@ -1,14 +1,12 @@
 #include "call_api.h"
 
-
 FILE* pFile;
 std::string ghidraDirectory = "";
-static UINT32 hook_cnt = 0;
-static 	HANDLE fm = NULL;
-static char* map_addr;
-static DWORD dwBufSize = 0;
+static HANDLE fm64 = NULL;
+static char* map_addr64;
+static DWORD dwBufSize64 = 0;
 static DWORD thispid = GetCurrentProcessId();
-static LPCSTR rpszDllsOut = NULL;
+static LPCSTR rpszDllsOut64 = NULL;
 
 void init() {
 	//Initialize the log file.
@@ -54,96 +52,87 @@ void init() {
 	/////////////////////////////////////////////////////////
 	// Getting the DLL's full path.
 
-	LPCSTR rpszDllsRaw = (LPCSTR)"FAST-DLL.dll";;
+	LPCSTR rpszDllsRaw64 = (LPCSTR)"FAST-DLL-64.dll";
 
-	CHAR szDllPath[1024];
-	PCHAR pszFilePart = NULL;
+	CHAR szDllPath64[1024];
+	PCHAR pszFilePart64 = NULL;
 
-	if (!GetFullPathNameA(rpszDllsRaw, ARRAYSIZE(szDllPath), szDllPath, &pszFilePart))
+	if (!GetFullPathNameA(rpszDllsRaw64, ARRAYSIZE(szDllPath64), szDllPath64, &pszFilePart64))
 	{
 		return;
 	}
 
-	DWORD c = (DWORD)strlen(szDllPath) + 1;
-	PCHAR psz = new CHAR[c];
-	StringCchCopyA(psz, c, szDllPath);
-	rpszDllsOut = psz;
+	DWORD c64 = (DWORD)strlen(szDllPath64) + 1;
+	PCHAR psz64 = new CHAR[c64];
+	StringCchCopyA(psz64, c64, szDllPath64);
+	rpszDllsOut64 = psz64;
 
 
 
 	/////////////////////////////////////////////////////////
 	// Making shared memory.
 
-	dwBufSize = (DWORD)(strlen(rpszDllsOut) + 1) * sizeof(char);
+	dwBufSize64 = (DWORD)(strlen(rpszDllsOut64) + 1) * sizeof(char);
 
-	fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
+	fm64 = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
 		0,
-		(DWORD)((dwBufSize + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"shared");
+		(DWORD)((dwBufSize64 + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"fast-shared64");
 
 
-	map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	map_addr64 = (char*)MapViewOfFile(fm64, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
-	memcpy(map_addr, rpszDllsOut, dwBufSize);
-	memcpy(map_addr + dwBufSize, &thispid, sizeof(DWORD));
+	memcpy(map_addr64, rpszDllsOut64, dwBufSize64);
+	memcpy(map_addr64 + dwBufSize64, &thispid, sizeof(DWORD));
 
 
 
 	LPVOID fp = CallVirtualAllocEx;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD), &fp, sizeof(DWORD64));
 
 	fp = CallQueueUserAPC;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallWriteProcessMemory;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 2 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 2 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallCreateRemoteThread;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 3 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 3 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallNtMapViewOfSection;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 4 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 4 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallCreateFileMappingA;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 5 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 5 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallGetThreadContext;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 6 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 6 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallSetThreadContext;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 7 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 7 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallNtQueueApcThread;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 8 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 8 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallSetWindowLongPtrA;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 9 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 9 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallSetPropA;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 10 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallVirtualProtectEx;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 11 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 11 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 	fp = CallSleepEx;
-	memcpy(map_addr + dwBufSize + sizeof(DWORD) + 12 * sizeof(DWORD64), &fp, sizeof(DWORD64));
+	memcpy(map_addr64 + dwBufSize64 + sizeof(DWORD) + 12 * sizeof(DWORD64), &fp, sizeof(DWORD64));
 
 
-
-	//Initial Hooking.
-	//mon(0);
 
 }
 
 void exiting() {
-
-	//UnHooking All.
-	for (int i = 0; i < hook_cnt; i++)
-		mon(1);
-
-
 	//Close Everything.
-	UnmapViewOfFile(map_addr);
-	CloseHandle(fm);
+	UnmapViewOfFile(map_addr64);
+	CloseHandle(fm64);
 	fclose(pFile);
 }
 
@@ -157,21 +146,37 @@ void vol(char* path, int op) {
 		str = "yarascan.YaraScan";
 
 	char cmd[512] = "";
-	sprintf_s(cmd, "/C vol.exe -f %s  %s", path, str.c_str());
+	sprintf_s(cmd, "/C python volatility3-master\\vol.py -f %s  %s", path, str.c_str());
 	Form1^ form = (Form1^)Application::OpenForms[0];
 	form->logging(std::string(cmd)+"\r\n");
 
 	HANDLE vh = ShellExecute(NULL, "open", "cmd.exe", cmd, ".", SW_NORMAL);
 	if (!vh)
-		MessageBoxA(NULL, "Executing Volatility.exe Failed!", "Volatility.exe Failed.!", MB_OK | MB_ICONQUESTION);
+		MessageBoxA(NULL, "Executing Volatility.exe Failed!", "Volatility.exe Failed.!", MB_OK | MB_ICONERROR);
 
 
 }
 
 
+void cuckoo(char* path, char* auth, char* host, char* port) {
 
 
-void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v)
+
+
+	char cmd[512] = "";
+	sprintf_s(cmd, "/C curl -H \"Authorization: Bearer %s\" -F file=@%s http://%s:%s/tasks/create/file", auth, path, host, port);
+	Form1^ form = (Form1^)Application::OpenForms[0];
+	form->logging(std::string(cmd) + "\r\n");
+
+	HANDLE vh = ShellExecute(NULL, "open", "cmd.exe", cmd, ".", SW_NORMAL);
+	if (!vh)
+		MessageBoxA(NULL, "Running Cuckoo Analysis Failed!", "Cuckoo Failed.!", MB_OK | MB_ICONERROR);
+
+
+}
+
+
+void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>> v)
 {
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
 	{
@@ -291,7 +296,6 @@ void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::strin
 	return;
 }
 
-
 // Find injected 'FAST-DLL.dll' handle from monitored process.
 HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 {
@@ -313,148 +317,6 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 		}
 	}
 	return NULL;
-}
-
-
-
-
-// main.
-//
-int CDECL mon(int isFree_)
-{
-	// Hook/Unhook flag 
-	BOOLEAN isFree = (BOOLEAN)isFree_;
-
-
-
-	///////////////////////////////////////////////////////// Validate DLLs. (get the full path name.)
-
-	HMODULE hDll = LoadLibraryExA(rpszDllsOut, NULL, DONT_RESOLVE_DLL_REFERENCES);
-	if (hDll == NULL)
-	{
-		return 1;
-	}
-
-	ExportContext ec;
-	ec.fHasOrdinal1 = FALSE;
-	ec.nExports = 0;
-	DetourEnumerateExports(hDll, &ec, ExportCallback);
-	FreeLibrary(hDll);
-
-	if (!ec.fHasOrdinal1)
-	{
-		return 1;
-	}
-
-
-	/////////////////////////////////////////////////////////
-
-
-
-
-	HANDLE hProcess = NULL, hThread = NULL;
-	HMODULE hMod = NULL;
-
-
-	LPTHREAD_START_ROUTINE pThreadProc = NULL;
-
-
-	LPVOID lpMap = 0;
-	SIZE_T viewsize = 0;
-
-	PNtMapViewOfSection = (NTSTATUS(*)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID * BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect)) GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtMapViewOfSection");
-
-
-	hMod = GetModuleHandleA("kernel32.dll");
-	if (!hMod)
-	{
-		return 1;
-	}
-
-
-
-
-	if (!isFree)
-	{
-		hook_cnt++;
-		fprintf(pFile, "Hook DLLs!\n");
-		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryA");
-
-
-	}
-	else
-	{
-		if (hook_cnt > 0)
-			hook_cnt--;
-		fprintf(pFile, "UnHook DLLs!\n");
-		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "FreeLibrary");
-
-	}
-
-	if (!pThreadProc)
-	{
-		return 1;
-	}
-
-
-
-
-	/////////////////////////////////////////////////////////
-	// Traversing the process list, inject the dll to processes. 
-	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	PROCESSENTRY32 entry = { sizeof(PROCESSENTRY32) };
-	Process32First(hSnap, &entry);
-	do
-	{
-
-		if (thispid == entry.th32ProcessID)
-			continue;
-		hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, entry.th32ProcessID);
-		if (!(hProcess))
-		{
-			continue;
-		}
-
-		PNtMapViewOfSection(fm, hProcess, &lpMap, 0, dwBufSize,
-			nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
-
-
-
-
-		if (!isFree)
-		{
-			hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
-			if (!hThread)
-			{
-				CloseHandle(hProcess);
-				continue;
-			}
-		}
-		else
-		{
-			HMODULE fdllpath = findRemoteHModule(entry.th32ProcessID, (const char*)rpszDllsOut);
-			if (fdllpath != NULL)
-			{
-				hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
-				if (!hThread)
-				{
-					CloseHandle(hProcess);
-					continue;
-				}
-			}
-		}
-
-		CloseHandle(hThread);
-		hThread = NULL;
-		CloseHandle(hProcess);
-		hProcess = NULL;
-
-	} while (Process32Next(hSnap, &entry));
-
-	CloseHandle(hSnap);
-
-
-	return 0;
 }
 
 
@@ -486,12 +348,13 @@ System::Void Form1::runGhidraToolStripMenuItem_Click(System::Object^ sender, Sys
 	}
 
 	if (thereIsBinFile) {
-		Diagnostics::Process^ proc =  Diagnostics::Process::Start(analyzeHeadless_bat, args);  // RUN analyzeHeadless.bat with arguments
+		Diagnostics::Process^ proc = Diagnostics::Process::Start(analyzeHeadless_bat, args);  // RUN analyzeHeadless.bat with arguments
 		proc->WaitForExit();
 	}
-	else
+	else {
 		MessageBox::Show("There is no dumped *.bin file.", "New Ghidra Project Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
-
+		return;
+	}
 
 	if (!IO::File::Exists("GhidraMemdmpProject.gpr")) {
 		MessageBox::Show("There is no Ghidra project (GhidraMemdmpProject.gpr) file.", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);

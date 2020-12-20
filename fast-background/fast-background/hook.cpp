@@ -54,7 +54,7 @@ void init() {
 	/////////////////////////////////////////////////////////
 	// Getting the DLL's full path.
 
-	LPCSTR rpszDllsRaw = (LPCSTR)"FAST-DLL.dll";;
+	LPCSTR rpszDllsRaw = (LPCSTR)"FAST-DLL.dll";
 
 	CHAR szDllPath[1024];
 	PCHAR pszFilePart = NULL;
@@ -78,15 +78,13 @@ void init() {
 
 	fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
 		0,
-		(DWORD)((dwBufSize + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"shared");
+		(DWORD)((dwBufSize + sizeof(DWORD) + 13 * sizeof(DWORD64))), (LPCSTR)"fast-shared64");
 
 
 	map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
 	memcpy(map_addr, rpszDllsOut, dwBufSize);
 	memcpy(map_addr + dwBufSize, &thispid, sizeof(DWORD));
-
-
 
 	LPVOID fp = CallVirtualAllocEx;
 	memcpy(map_addr + dwBufSize + sizeof(DWORD), &fp, sizeof(DWORD64));

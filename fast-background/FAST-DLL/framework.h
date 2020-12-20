@@ -4,6 +4,8 @@
 
 #define DLLBASIC_API extern "C" __declspec(dllexport)
 #define MSG_SIZE 256
+#define NT_SUCCESS(status) (((NTSTATUS)(status)) >= 0)
+
 
 // Enumeration type for NtMapViewOfSection
 typedef enum class _SECTION_INHERIT {

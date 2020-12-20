@@ -24,29 +24,30 @@
 #define FLAG_NtMapViewOfSection 0b00000010
 #define FLAG_VirtualProtectEx  0b00000100
 #define FLAG_CreateRemoteThread 0b00001000
+#define FLAG_RtlCreateUserThread 0b00001000
 #define FLAG_SetWindowLongPtrA 0b00010000  
 #define FLAG_SetPropA 0b00100000
 #define FLAG_SetThreadContext 0b01000000
 #define FLAG_NtQueueApcThread 0b10000000 
 #define FLAG_WriteProcessMemory 0b10000000 
 
-
 #define indexof( datum, data ) ( &datum - &*data.begin() )
 
 void init();
-int mon(int isFree_);
 void exiting();
 void vol(char* path, int op);
+void cuckoo(char* path, char* auth, char* host, char* port);
 
-
-
-
-void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v);
-static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>> detectionInfo;
+void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>> v);
+static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>>> detectionInfo;
+static bool hooked = false;
 extern std::string ghidraDirectory;
 
 
-
+static char* anal_filepath = NULL;
+static char* api_server_auth = NULL;
+static char* api_server_host = NULL;
+static char* api_server_port = NULL;
 
 namespace CppCLRWinformsProjekt {
 
@@ -57,6 +58,190 @@ namespace CppCLRWinformsProjekt {
 	using namespace System::Data;
 	using namespace System::Drawing;
 	using namespace System::Runtime::InteropServices;
+
+	public ref class Form2 : public System::Windows::Forms::Form {
+	public:
+		Form2(void)
+		{
+			InitializeComponent();
+
+			//
+			//TODO: Konstruktorcode hier hinzuf?en.
+			//
+		}
+
+	protected:
+		/// <summary>
+		/// Verwendete Ressourcen bereinigen.
+		/// </summary>
+		~Form2()
+		{
+			if (components)
+			{
+				delete components;
+			}
+		}
+
+	private: System::Windows::Forms::Label^ auth_label;
+	private: System::Windows::Forms::Label^ host_label;
+	private: System::Windows::Forms::Label^ port_label;
+	private: System::Windows::Forms::TextBox^ auth;
+	private: System::Windows::Forms::TextBox^ host;
+	private: System::Windows::Forms::TextBox^ port;
+	private: System::Windows::Forms::Button^ submit_button;
+
+	private:
+		/// <summary>
+		/// Erforderliche Designervariable.
+		/// </summary>
+		System::ComponentModel::Container^ components;
+
+#pragma region Windows Form Designer generated code
+		/// <summary>
+		/// Erforderliche Methode f? die Designerunterst?zung.
+		/// Der Inhalt der Methode darf nicht mit dem Code-Editor ge?dert werden.
+		/// </summary>
+		void InitializeComponent(void)
+		{
+			this->auth_label = (gcnew System::Windows::Forms::Label());
+			this->host_label = (gcnew System::Windows::Forms::Label());
+			this->port_label = (gcnew System::Windows::Forms::Label());
+			this->auth = (gcnew System::Windows::Forms::TextBox());
+			this->host = (gcnew System::Windows::Forms::TextBox());
+			this->port = (gcnew System::Windows::Forms::TextBox());
+			this->submit_button = (gcnew System::Windows::Forms::Button());
+			this->SuspendLayout();
+			// 
+			// auth_label
+			// 
+			this->auth_label->AutoSize = true;
+			this->auth_label->Location = System::Drawing::Point(10, 10);
+			this->auth_label->Name = L"auth_label";
+			this->auth_label->Size = System::Drawing::Size(118, 24);
+			this->auth_label->TabIndex = 3;
+			this->auth_label->Text = L"Authentication";
+			// 
+			// host_label
+			// 
+			this->host_label->AutoSize = true;
+			this->host_label->Location = System::Drawing::Point(10, 70);
+			this->host_label->Name = L"host_label";
+			this->host_label->Size = System::Drawing::Size(118, 24);
+			this->host_label->TabIndex = 3;
+			this->host_label->Text = L"Host IP";
+			// 
+			// port_label
+			// 
+			this->port_label->AutoSize = true;
+			this->port_label->Location = System::Drawing::Point(10, 130);
+			this->port_label->Name = L"port_label";
+			this->port_label->Size = System::Drawing::Size(118, 24);
+			this->port_label->TabIndex = 3;
+			this->port_label->Text = L"Port";
+			// 
+			// auth
+			// 
+			this->auth->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(35)), static_cast<System::Int32>(static_cast<System::Byte>(32)),
+				static_cast<System::Int32>(static_cast<System::Byte>(39)));
+			this->auth->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
+			this->auth->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(129)));
+			this->auth->ForeColor = System::Drawing::Color::LightGray;
+			this->auth->Location = System::Drawing::Point(10, 40);
+			this->auth->Margin = System::Windows::Forms::Padding(2);
+			this->auth->Name = L"auth";
+			this->auth->ScrollBars = System::Windows::Forms::ScrollBars::Both;
+			this->auth->Size = System::Drawing::Size(200, 20);
+			this->auth->TabIndex = 2;
+			this->auth->Text = gcnew String(api_server_auth);
+			// 
+			// host
+			// 
+			this->host->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(35)), static_cast<System::Int32>(static_cast<System::Byte>(32)),
+				static_cast<System::Int32>(static_cast<System::Byte>(39)));
+			this->host->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
+			this->host->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(129)));
+			this->host->ForeColor = System::Drawing::Color::LightGray;
+			this->host->Location = System::Drawing::Point(10, 100);
+			this->host->Margin = System::Windows::Forms::Padding(2);
+			this->host->Name = L"host";
+			this->host->ScrollBars = System::Windows::Forms::ScrollBars::Both;
+			this->host->Size = System::Drawing::Size(200, 20);
+			this->host->TabIndex = 2;
+			this->host->Text = gcnew String(api_server_host);
+			// 
+			// port
+			// 
+			this->port->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(35)), static_cast<System::Int32>(static_cast<System::Byte>(32)),
+				static_cast<System::Int32>(static_cast<System::Byte>(39)));
+			this->port->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
+			this->port->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(129)));
+			this->port->ForeColor = System::Drawing::Color::LightGray;
+			this->port->Location = System::Drawing::Point(10, 160);
+			this->port->Margin = System::Windows::Forms::Padding(2);
+			this->port->Name = L"port";
+			this->port->ScrollBars = System::Windows::Forms::ScrollBars::Both;
+			this->port->Size = System::Drawing::Size(100, 20);
+			this->port->TabIndex = 2;
+			this->port->Text = gcnew String(api_server_port);
+			// 
+			// submit_button
+			// 
+			this->submit_button->Location = System::Drawing::Point(180, 140);
+			this->submit_button->Name = L"submit_button";
+			this->submit_button->Size = System::Drawing::Size(100, 40);
+			this->submit_button->TabIndex = 0;
+			this->submit_button->Text = L"Submit";
+			//this->submit_button->UseVisualStyleBackColor = true;
+			this->submit_button->Click += gcnew System::EventHandler(this, &Form2::submit_button_Click);
+			// 
+			// Form2
+			// 
+			this->AutoScaleDimensions = System::Drawing::SizeF(16, 27);
+			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
+			this->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(11)), static_cast<System::Int32>(static_cast<System::Byte>(7)),
+				static_cast<System::Int32>(static_cast<System::Byte>(17)));
+			this->ClientSize = System::Drawing::Size(300, 200);
+			this->Controls->Add(this->auth_label);
+			this->Controls->Add(this->host_label);
+			this->Controls->Add(this->port_label);
+			this->Controls->Add(this->auth);
+			this->Controls->Add(this->host);
+			this->Controls->Add(this->port);
+			this->Controls->Add(this->submit_button);
+			this->Font = (gcnew System::Drawing::Font(L"±¼¸²", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point, static_cast<System::Byte>(0)));
+			this->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(235)), static_cast<System::Int32>(static_cast<System::Byte>(42)),
+				static_cast<System::Int32>(static_cast<System::Byte>(83)));
+			this->FormBorderStyle = System::Windows::Forms::FormBorderStyle::FixedSingle;
+			this->Margin = System::Windows::Forms::Padding(2);
+			this->MaximizeBox = false;
+			this->Name = L"Form2";
+			this->Text = L"FAST-Monitor";
+			this->Load += gcnew System::EventHandler(this, &Form2::Form2_Load);
+			this->ResumeLayout(false);
+			this->PerformLayout();
+		};
+
+
+	private: System::Void submit_button_Click(System::Object^ sender, System::EventArgs^ e) {
+
+
+		api_server_auth = (char*)(void*)Marshal::StringToHGlobalAnsi(this->auth->Text);
+		api_server_host = (char*)(void*)Marshal::StringToHGlobalAnsi(this->host->Text);
+		api_server_port = (char*)(void*)Marshal::StringToHGlobalAnsi(this->port->Text);
+		this->Close();
+
+	}
+
+	private: System::Void Form2_Load(System::Object^ sender, System::EventArgs^ e) {
+	}
+
+
+	};
+
+
 
 	/// <summary>
 	/// Zusammenfassung f? Form1
@@ -112,11 +297,14 @@ namespace CppCLRWinformsProjekt {
 	private: System::Windows::Forms::ColumnHeader^ callee_pid;
 	private: System::Windows::Forms::ColumnHeader^ attack_num;
 	private: System::Windows::Forms::ColumnHeader^ timestamp;
-
 	private: System::Windows::Forms::ToolStripMenuItem^ ghidraToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ runGhidraToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ setGhidraPathToolStripMenuItem;
 	private: System::Windows::Forms::ToolStripMenuItem^ yarascanToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ cuckooToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ runAnalysisToolStripMenuItem;
+	private: System::Windows::Forms::ToolStripMenuItem^ aPIServerSettingToolStripMenuItem;
+	private: System::Windows::Forms::Button^ web_report;
 
 	protected:
 
@@ -148,6 +336,8 @@ namespace CppCLRWinformsProjekt {
 			this->ghidraToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->setGhidraPathToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->runGhidraToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->cuckooToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->runAnalysisToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->openFileDialog1 = (gcnew System::Windows::Forms::OpenFileDialog());
 			this->api_list = (gcnew System::Windows::Forms::ListView());
 			this->caller_pid = (gcnew System::Windows::Forms::ColumnHeader());
@@ -159,6 +349,8 @@ namespace CppCLRWinformsProjekt {
 			this->attack_num = (gcnew System::Windows::Forms::ColumnHeader());
 			this->timestamp = (gcnew System::Windows::Forms::ColumnHeader());
 			this->yarascanToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->aPIServerSettingToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->web_report = (gcnew System::Windows::Forms::Button());
 			this->menuStrip1->SuspendLayout();
 			this->SuspendLayout();
 			// 
@@ -200,9 +392,9 @@ namespace CppCLRWinformsProjekt {
 				static_cast<System::Byte>(129)));
 			this->menuStrip1->GripMargin = System::Windows::Forms::Padding(2, 2, 0, 2);
 			this->menuStrip1->ImageScalingSize = System::Drawing::Size(32, 32);
-			this->menuStrip1->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(3) {
+			this->menuStrip1->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(4) {
 				this->monitoringToolStripMenuItem,
-					this->volatilityexeToolStripMenuItem, this->ghidraToolStripMenuItem
+					this->volatilityexeToolStripMenuItem, this->ghidraToolStripMenuItem, this->cuckooToolStripMenuItem
 			});
 			this->menuStrip1->Location = System::Drawing::Point(0, 0);
 			this->menuStrip1->Name = L"menuStrip1";
@@ -285,6 +477,25 @@ namespace CppCLRWinformsProjekt {
 			this->runGhidraToolStripMenuItem->Size = System::Drawing::Size(543, 44);
 			this->runGhidraToolStripMenuItem->Text = L"Run Ghidra and Open Project";
 			this->runGhidraToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::runGhidraToolStripMenuItem_Click);
+			// 
+			// cuckooToolStripMenuItem
+			// 
+			this->cuckooToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
+				this->aPIServerSettingToolStripMenuItem,
+					this->runAnalysisToolStripMenuItem
+			});
+			this->cuckooToolStripMenuItem->Font = (gcnew System::Drawing::Font(L"µ¸¿ò", 9.75F, System::Drawing::FontStyle::Bold));
+			this->cuckooToolStripMenuItem->ForeColor = System::Drawing::Color::LightGray;
+			this->cuckooToolStripMenuItem->Name = L"cuckooToolStripMenuItem";
+			this->cuckooToolStripMenuItem->Size = System::Drawing::Size(131, 31);
+			this->cuckooToolStripMenuItem->Text = L"Cuckoo";
+			// 
+			// runAnalysisToolStripMenuItem
+			// 
+			this->runAnalysisToolStripMenuItem->Name = L"runAnalysisToolStripMenuItem";
+			this->runAnalysisToolStripMenuItem->Size = System::Drawing::Size(394, 44);
+			this->runAnalysisToolStripMenuItem->Text = L"Run Analysis";
+			this->runAnalysisToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::runAnalysisToolStripMenuItem_Click);
 			// 
 			// openFileDialog1
 			// 
@@ -373,12 +584,29 @@ namespace CppCLRWinformsProjekt {
 			this->timestamp->Text = L"timestamp";
 			this->timestamp->Width = 175;
 			// 
+			// aPIServerSettingToolStripMenuItem
+			// 
+			this->aPIServerSettingToolStripMenuItem->Name = L"aPIServerSettingToolStripMenuItem";
+			this->aPIServerSettingToolStripMenuItem->Size = System::Drawing::Size(394, 44);
+			this->aPIServerSettingToolStripMenuItem->Text = L"API Server Setting";
+			this->aPIServerSettingToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::aPIServerSettingToolStripMenuItem_Click);
+			// 
 			// yarascanToolStripMenuItem
 			// 
 			this->yarascanToolStripMenuItem->Name = L"yarascanToolStripMenuItem";
 			this->yarascanToolStripMenuItem->Size = System::Drawing::Size(359, 44);
 			this->yarascanToolStripMenuItem->Text = L"yarascan";
 			this->yarascanToolStripMenuItem->Click += gcnew System::EventHandler(this, &Form1::yarascanToolStripMenuItem_Click);
+			// 
+			// button1
+			// 
+			this->web_report->Location = System::Drawing::Point(538, 5);
+			this->web_report->Name = L"web_report";
+			this->web_report->Size = System::Drawing::Size(98, 21);
+			this->web_report->TabIndex = 9;
+			this->web_report->Text = L"Web Report";
+			this->web_report->UseVisualStyleBackColor = true;
+			this->web_report->Click += gcnew System::EventHandler(this, &Form1::web_report_Click);
 			// 
 			// Form1
 			// 
@@ -387,6 +615,7 @@ namespace CppCLRWinformsProjekt {
 			this->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(11)), static_cast<System::Int32>(static_cast<System::Byte>(7)),
 				static_cast<System::Int32>(static_cast<System::Byte>(17)));
 			this->ClientSize = System::Drawing::Size(782, 490);
+			this->Controls->Add(this->web_report);
 			this->Controls->Add(this->detected);
 			this->Controls->Add(this->api_list);
 			this->Controls->Add(this->targetPID);
@@ -403,6 +632,7 @@ namespace CppCLRWinformsProjekt {
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 			this->Text = L"FAST-Monitor";
 			this->Load += gcnew System::EventHandler(this, &Form1::Form1_Load);
+			this->FormClosing += gcnew System::Windows::Forms::FormClosingEventHandler(this, &Form1::Form1_Closing);
 			this->menuStrip1->ResumeLayout(false);
 			this->menuStrip1->PerformLayout();
 			this->ResumeLayout(false);
@@ -421,10 +651,10 @@ namespace CppCLRWinformsProjekt {
 	}
 
 
-	public: Void show_detection(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v) {
+	public: Void show_detection(std::string callee_pid, std::vector< std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>> v) {
 
 		System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(callee_pid.c_str()));
-		item->SubItems->Add(gcnew String(std::get<3>(v[0]).ToString()));
+		item->SubItems->Add(gcnew String(getAttack(std::get<3>(v[0])).c_str()));
 		System::DateTime^ dt = gcnew System::DateTime();
 		item->SubItems->Add(dt->Now.ToString("yyyy-MM-dd-HH-mm-ss"));
 
@@ -445,13 +675,37 @@ namespace CppCLRWinformsProjekt {
 	}
 	private: System::Void Form1_Load(System::Object^ sender, System::EventArgs^ e) {
 	}
+	private: System::Void Form1_Closing(System::Object^ sender, System::Windows::Forms::FormClosingEventArgs^ e) {
+		if (hooked) {
+			Diagnostics::ProcessStartInfo^ pinfo = gcnew Diagnostics::ProcessStartInfo("hook-dll.exe", "off");
+			pinfo->CreateNoWindow = false;
+			pinfo->WindowStyle = Diagnostics::ProcessWindowStyle::Hidden;
+
+
+			Diagnostics::Process^ proc = Diagnostics::Process::Start(pinfo);
+			proc->WaitForExit();
+		}
+	}
 	private: System::Void startToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		this->logBox->AppendText("Hook DLLs!\r\n\r\n");
-		mon(0);
+		Diagnostics::ProcessStartInfo^ pinfo = gcnew Diagnostics::ProcessStartInfo("hook-dll.exe", "on");
+		pinfo->CreateNoWindow = false;
+		pinfo->WindowStyle = Diagnostics::ProcessWindowStyle::Hidden;
+
+		Diagnostics::Process^ proc = Diagnostics::Process::Start(pinfo);
+		proc->WaitForExit();
+		hooked = true;
 	}
 	private: System::Void stopToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 		this->logBox->AppendText("Unhook DLLs!\r\n\r\n");
-		mon(1);
+		Diagnostics::ProcessStartInfo^ pinfo = gcnew Diagnostics::ProcessStartInfo("hook-dll.exe", "off");
+		pinfo->CreateNoWindow = false;
+		pinfo->WindowStyle = Diagnostics::ProcessWindowStyle::Hidden;
+
+
+		Diagnostics::Process^ proc = Diagnostics::Process::Start(pinfo);
+		proc->WaitForExit();
+		hooked = false;
 	}
 	private: System::Void browserawToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
 
@@ -477,14 +731,14 @@ namespace CppCLRWinformsProjekt {
 
 		this->api_list->Items->Clear();
 
-		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v = detectionInfo.at(this->detected->FocusedItem->Index);
+		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>> v = detectionInfo.at(this->detected->FocusedItem->Index);
 
 		for (auto tp : v) {
 			mon_listing(tp);
 		}
 	}
 
-	private: Void mon_listing(std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string> tp) {
+	private: Void mon_listing(std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string> tp) {
 
 
 		System::Windows::Forms::ListViewItem^ item = gcnew System::Windows::Forms::ListViewItem(gcnew String(std::get<2>(tp).c_str()));
@@ -511,7 +765,7 @@ namespace CppCLRWinformsProjekt {
 
 
 	private: System::Void detected_MouseDoubleClick(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e) {
-		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>> v = detectionInfo.at(this->detected->FocusedItem->Index);
+		std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>> v = detectionInfo.at(this->detected->FocusedItem->Index);
 		imgui(v);
 
 	}
@@ -535,11 +789,73 @@ namespace CppCLRWinformsProjekt {
 			return std::string("SetWindowLongPtrA");
 		if (flags == FLAG_SetPropA)
 			return std::string("SetPropA");
+		if (flags == FLAG_SetThreadContext)
+			return std::string("SetThreadContext");
 
+		return std::string("");
 	}
 
-	};
+	private: std::string getAttack(UCHAR flags) {
 
+		if (flags & FLAG_VirtualAllocEx) {
+			if (flags & FLAG_CreateRemoteThread)
+				return std::string("#1");
+			if (flags & FLAG_SetWindowLongPtrA)
+				return std::string("#5");
+			if (flags & FLAG_SetPropA)
+				return std::string("#7");
+			if (flags & FLAG_SetThreadContext)
+				return std::string("#4");
+
+		}
+
+		if (flags & FLAG_NtMapViewOfSection)
+		{
+			if (flags & FLAG_CreateRemoteThread)
+				return std::string("#2");
+			if (flags & FLAG_SetWindowLongPtrA)
+				return std::string("#5-2");
+			if (flags & FLAG_SetPropA)
+				return std::string("#7-2");
+			if (flags & FLAG_SetThreadContext)
+				return std::string("#4-2");
+
+		}
+		if (flags & FLAG_VirtualProtectEx)
+		{
+			if (flags & FLAG_CreateRemoteThread)
+				return std::string("#8");
+			if (flags & FLAG_SetWindowLongPtrA)
+				return std::string("#5-8");
+			if (flags & FLAG_SetPropA)
+				return std::string("#7-8");
+			if (flags & FLAG_SetThreadContext)
+				return std::string("#4-8");
+
+		}
+
+		return std::string("");
+	}
+
+	private: System::Void runAnalysisToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+
+		System::Windows::Forms::DialogResult dr = this->openFileDialog1->ShowDialog();
+		if (System::Windows::Forms::DialogResult::OK == dr) {
+			anal_filepath = (char*)(void*)Marshal::StringToHGlobalAnsi(this->openFileDialog1->FileName);
+			cuckoo(anal_filepath, api_server_auth, api_server_host, api_server_port);
+		}
+
+
+	}
+	private: System::Void aPIServerSettingToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+		Form2^ dlg = gcnew Form2();
+		dlg->ShowDialog();
+	}
+
+	private: System::Void web_report_Click(System::Object^ sender, System::EventArgs^ e) {
+		System::Diagnostics::Process::Start("http://localhost/index.php");
+	}
+	};
 }
 
 
