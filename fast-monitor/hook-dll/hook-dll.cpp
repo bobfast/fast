@@ -2,16 +2,18 @@
 
 
 // Find injected 'FAST-DLL.dll' handle from monitored process.
-HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout, BOOL isWoW64)
+HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout)
 {
 	MODULEENTRY32 me = { sizeof(me) };
 	BOOL bMore = FALSE;
 	HANDLE hSnapshot;
 
-	if (isWoW64)
-		hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, dwProcessId);
-	else
-		hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
+#ifdef _X86_
+	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE32, dwProcessId);
+#endif
+#ifdef _AMD64_
+	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
+#endif
 
 	if (hSnapshot == (HANDLE)-1) {
 		;
@@ -21,7 +23,7 @@ HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout, BOOL isWoW64)
 	{
 		if (!_tcsicmp((LPCTSTR)me.szExePath, szdllout))
 		{
-			if (isWoW64) printf("%s\n", me.szExePath);
+			//if (isWoW64) printf("%s\n", me.szExePath);
 			return (HMODULE)me.modBaseAddr;
 		}
 	}
@@ -166,82 +168,53 @@ void init() {
 	/////////////////////////////////////////////////////////
 	// Getting the DLL's full path.
 
-	LPCSTR rpszDllsRaw32, rpszDllsRaw64;
+	LPCSTR rpszDllsRaw;
 
-	rpszDllsRaw32 = (LPCSTR)"FAST-DLL-32.dll";
-	rpszDllsRaw64 = (LPCSTR)"FAST-DLL-64.dll";
+#ifdef _X86_
+	rpszDllsRaw = (LPCSTR)"FAST-DLL-32.dll";
+#endif
+#ifdef _AMD64_
+	rpszDllsRaw = (LPCSTR)"FAST-DLL-64.dll";
+#endif
 
-	CHAR szDllPath32[1024], szDllPath64[1024];
-	PCHAR pszFilePart32 = NULL, pszFilePart64 = NULL;
+	CHAR szDllPath[1024];
+	PCHAR pszFilePart = NULL;
 
-	if (!GetFullPathNameA(rpszDllsRaw32, ARRAYSIZE(szDllPath32), szDllPath32, &pszFilePart32))
+	if (!GetFullPathNameA(rpszDllsRaw, ARRAYSIZE(szDllPath), szDllPath, &pszFilePart))
 	{
 		printf("Error: GetFullPathNameA failed.\n");
 		return;
 	}
 
-	DWORD c32 = (DWORD)strlen(szDllPath32) + 1;
-	PCHAR psz32 = new CHAR[c32];
-	StringCchCopyA(psz32, c32, szDllPath32);
-	rpszDllsOut32 = psz32;
+	DWORD c = (DWORD)strlen(szDllPath) + 1;
+	PCHAR psz = new CHAR[c];
+	StringCchCopyA(psz, c, szDllPath);
+	rpszDllsOut = psz;
 
-	dwBufSize32 = (DWORD)(strlen(rpszDllsOut32) + 1) * sizeof(char);
+	dwBufSize = (DWORD)(strlen(rpszDllsOut) + 1) * sizeof(char);
 
-	fm32 = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, dwBufSize32, NULL);
+	fm = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, dwBufSize, NULL);
 
-	if (!fm32) {
+	if (!fm) {
 		printf("Error: CreateFileMappingA failed.\n");
 		return;
 	}
 
-	map_addr32 = (char*)MapViewOfFile(fm32, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	map_addr = (char*)MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
-	if (!map_addr32) {
+	if (!map_addr) {
 		printf("Error: MapViewOfFile failed.\n");
 		return;
 	}
 
-	memcpy(map_addr32, rpszDllsOut32, dwBufSize32);
-
-	/////////////////////////
-
-	if (!GetFullPathNameA(rpszDllsRaw64, ARRAYSIZE(szDllPath64), szDllPath64, &pszFilePart64))
-	{
-		printf("Error: GetFullPathNameA failed.\n");
-		return;
-	}
-
-	DWORD c64 = (DWORD)strlen(szDllPath64) + 1;
-	PCHAR psz64 = new CHAR[c64];
-	StringCchCopyA(psz64, c64, szDllPath64);
-	rpszDllsOut64 = psz64;
-
-	dwBufSize64 = (DWORD)(strlen(rpszDllsOut64) + 1) * sizeof(char);
-
-	fm64 = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_EXECUTE_READWRITE, 0, dwBufSize64, NULL);
-
-	if (!fm64) {
-		printf("Error: CreateFileMappingA failed.\n");
-		return;
-	}
-
-	map_addr64 = (char*)MapViewOfFile(fm64, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-
-	if (!map_addr64) {
-		printf("Error: MapViewOfFile failed.\n");
-		return;
-	}
-
-	memcpy(map_addr64, rpszDllsOut64, dwBufSize64);
+	memcpy(map_addr, rpszDllsOut, dwBufSize);
 }
 
 void existing()
 {
 	//Close Everything.
-	UnmapViewOfFile(map_addr32);
-	CloseHandle(fm32);
-	UnmapViewOfFile(map_addr64);
-	CloseHandle(fm64);
+	UnmapViewOfFile(map_addr);
+	CloseHandle(fm);
 }
 
 // main.
@@ -253,7 +226,7 @@ int mon(int isFree_)
 
 	///////////////////////////////////////////////////////// Validate DLLs. (get the full path name.)
 
-	HMODULE hDll = LoadLibraryExA(rpszDllsOut64, NULL, DONT_RESOLVE_DLL_REFERENCES);
+	HMODULE hDll = LoadLibraryExA(rpszDllsOut, NULL, DONT_RESOLVE_DLL_REFERENCES);
 	if (hDll == NULL)
 	{
 		printf("Error: DLL load error.\n");
@@ -277,10 +250,10 @@ int mon(int isFree_)
 	HMODULE hModKernel32 = NULL;
 
 	LPTHREAD_START_ROUTINE pThreadProc;
-	DWORD pProcRVA;
+	//DWORD pProcRVA;
 
-	LPVOID lpMap32 = 0, lpMap64 = 0;
-	SIZE_T viewsize32 = 0, viewsize64 = 0;
+	LPVOID lpMap = 0;
+	SIZE_T viewsize = 0;
 
 	hModKernel32 = GetModuleHandleA("kernel32.dll");
 	if (!hModKernel32)
@@ -293,33 +266,35 @@ int mon(int isFree_)
 	{
 		hook_cnt++;
 		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hModKernel32, "LoadLibraryA");
-		pProcRVA = getRVA("C:\\WINDOWS\\SysWOW64\\KERNEL32.DLL", "LoadLibraryA");
+		//pProcRVA = getRVA("C:\\WINDOWS\\SysWOW64\\KERNEL32.DLL", "LoadLibraryA");
 	}
 	else
 	{
 		if (hook_cnt > 0)
 			hook_cnt--;
 		pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hModKernel32, "FreeLibrary");
-		pProcRVA = getRVA("C:\\WINDOWS\\SysWOW64\\KERNEL32.DLL", "FreeLibrary");
+		//pProcRVA = getRVA("C:\\WINDOWS\\SysWOW64\\KERNEL32.DLL", "FreeLibrary");
 	}
 
 	if (!pThreadProc)
 	{
-		printf("Error: WinAPI (64bit) load error.\n");
+		printf("Error: WinAPI load error.\n");
 		return 1;
 	}
 
+	/*
 	if (!pProcRVA)
 	{
 		printf("Error: WoW64 kernel32.dll (32bit) load error.\n");
 		return 1;
 	}
+	*/
 
 	/////////////////////////////////////////////////////////
 	// Traversing the process list, inject the dll to processes. 
 	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	PROCESSENTRY32 entry = { sizeof(PROCESSENTRY32) };
-	BOOL wow64;
+	//BOOL wow64;
 
 	Process32First(hSnap, &entry);
 	
@@ -337,95 +312,34 @@ int mon(int isFree_)
 
 		printf("Open PID=%d succeeded.\n", entry.th32ProcessID);
 
-		IsWow64Process(hProcess, &wow64);
+		//IsWow64Process(hProcess, &wow64);
 
-		if (wow64) {
-			//PNtMapViewOfSection(fm32, hProcess, &lpMap32, 8, dwBufSize32,
-			//	nullptr, &viewsize32, ViewUnmap, 0, PAGE_READONLY);
-		}
-		else
-			PNtMapViewOfSection(fm64, hProcess, &lpMap64, 0, dwBufSize64,
-				nullptr, &viewsize64, ViewUnmap, 0, PAGE_READONLY);
+		PNtMapViewOfSection(fm, hProcess, &lpMap, 0, dwBufSize,
+			nullptr, &viewsize, ViewUnmap, 0, PAGE_READONLY);
 
 		if (!isFree)
 		{
-			if (wow64) {
-				
-				//LPTHREAD_START_ROUTINE pThreadProc32 = 
-				//	(LPTHREAD_START_ROUTINE) findRemoteHModule(entry.th32ProcessID, "C:\\WINDOWS\\SysWOW64\\KERNEL32.DLL", wow64);
-				//if (!pThreadProc32)
-				//{
-				//	printf("Error: kernel32.dll (32bit) load error.\n");
-				//	continue;
-				//}
-				//
-				//pThreadProc32 = (LPTHREAD_START_ROUTINE)((DWORD64)pThreadProc32 + (DWORD64)pProcRVA); // + WoW64 LoadLibraryA RVA
-				//printf("WoW64.LoadLibraryA = %p\n", pThreadProc32);
-				//printf("32bit MapViewOfSection = %p\n", lpMap32);
-				///*
-				//if (!DetourProcessViaHelperA(entry.th32ProcessID, rpszDllsOut32, CreateProcessA)) {
-				//	printf("Error: DetourProcesViaHelperA failed.\n");
-				//	continue;
-				//}
-				//*/
-
-				//hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc32, lpMap32, 0, NULL);
-				//if (!hThread)
-				//{
-				//	printf("CreateRemoteThread failed.\n");
-				//	CloseHandle(hProcess);
-				//	continue;
-				//}
-			}
-			else {
-				//printf("%p\n", pThreadProc);
-				hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap64, 0, NULL);
-				if (!hThread)
-				{
-					printf("CreateRemoteThread failed.\n");
-					CloseHandle(hProcess);
-					continue;
-				}
+			//printf("%p\n", pThreadProc);
+			hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, lpMap, 0, NULL);
+			if (!hThread)
+			{
+				printf("CreateRemoteThread failed.\n");
+				CloseHandle(hProcess);
+				continue;
 			}
 		}
 		else
 		{
 			HMODULE fdllpath;
 
-			if (wow64) {
-				//fdllpath = findRemoteHModule(entry.th32ProcessID, (const char*)rpszDllsOut32, wow64);
-				//if (fdllpath != NULL)
-				//{
-				//	LPTHREAD_START_ROUTINE pThreadProc32 = 
-				//		(LPTHREAD_START_ROUTINE) findRemoteHModule(entry.th32ProcessID, "C:\\WINDOWS\\SysWOW64\\KERNEL32.DLL", wow64);
-				//	if (!pThreadProc32)
-				//	{
-				//		printf("Error: kernel32.dll (32bit) load error.\n");
-				//		continue;
-				//	}
-
-				//	pThreadProc32 = (LPTHREAD_START_ROUTINE)((DWORD64)pThreadProc32 + (DWORD64)pProcRVA); // + WoW64 FreeLibrary RVA
-				//	printf("WoW64.FreeLibrary = %p\n", pThreadProc32);
-
-				//	hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc32, fdllpath, 0, NULL);
-				//	if (!hThread)
-				//	{
-				//		printf("CreateRemoteThread failed.\n");
-				//		CloseHandle(hProcess);
-				//		continue;
-				//	}
-				//}
-			}
-			else {
-				fdllpath = findRemoteHModule(entry.th32ProcessID, (const char*)rpszDllsOut64, wow64);
-				if (fdllpath != NULL)
+			fdllpath = findRemoteHModule(entry.th32ProcessID, (const char*)rpszDllsOut);
+			if (fdllpath != NULL)
+			{
+				hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
+				if (!hThread)
 				{
-					hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, fdllpath, 0, NULL);
-					if (!hThread)
-					{
-						CloseHandle(hProcess);
-						continue;
-					}
+					CloseHandle(hProcess);
+					continue;
 				}
 			}
 		}

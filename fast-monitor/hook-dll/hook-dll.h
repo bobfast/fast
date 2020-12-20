@@ -148,14 +148,14 @@ static BOOL CALLBACK ExportCallback(_In_opt_ PVOID pContext,
 	return TRUE;
 }
 
-static LPCSTR rpszDllsOut32 = NULL, rpszDllsOut64 = NULL;
+static LPCSTR rpszDllsOut = NULL;
 static UINT32 hook_cnt = 0;
 static DWORD thispid = GetCurrentProcessId();
-static HANDLE fm32 = NULL, fm64 = NULL;
-static DWORD dwBufSize32 = 0, dwBufSize64 = 0;
-static char* map_addr32, *map_addr64;
+static HANDLE fm = NULL;
+static DWORD dwBufSize = 0;
+static char* map_addr;
 
-HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout, BOOL isWoW64);
+HMODULE findRemoteHModule(DWORD dwProcessId, const char* szdllout);
 DWORD getRVA(LPCSTR DllName, LPCSTR FuncName);
 void init();
 void exiting();
