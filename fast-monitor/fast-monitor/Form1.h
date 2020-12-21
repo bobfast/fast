@@ -42,7 +42,7 @@ void imgui(std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::strin
 static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string, std::string>>> detectionInfo;
 static bool hooked = false;
 extern std::string ghidraDirectory;
-
+extern char baseOutputDirectory[256];
 
 static char* anal_filepath = NULL;
 static char* api_server_auth = NULL;

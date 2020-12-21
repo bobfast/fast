@@ -2,6 +2,7 @@
 
 FILE* pFile;
 std::string ghidraDirectory = "";
+char baseOutputDirectory[256] = "";
 static HANDLE fm64 = NULL;
 static char* map_addr64;
 static DWORD dwBufSize64 = 0;
@@ -9,6 +10,14 @@ static DWORD thispid = GetCurrentProcessId();
 static LPCSTR rpszDllsOut64 = NULL;
 
 void init() {
+	ExpandEnvironmentStringsA("C:%HOMEPATH%\\Documents\\FAST Detection Results",
+		baseOutputDirectory, 256);
+
+	// directory does not exists, then create new
+	if (GetFileAttributesA(baseOutputDirectory) == INVALID_FILE_ATTRIBUTES) {
+		CreateDirectoryA(baseOutputDirectory, NULL);
+	}
+
 	//Initialize the log file.
 
 	time_t t = time(NULL);
@@ -328,11 +337,12 @@ System::Void Form1::runGhidraToolStripMenuItem_Click(System::Object^ sender, Sys
 		return;
 	}
 
-	array<String^>^ currentdirfiles = IO::Directory::GetFiles(".");
+	array<String^>^ currentdirfiles = IO::Directory::GetFiles(gcnew String(baseOutputDirectory));
 	bool thereIsBinFile = false;
 
 	String^ analyzeHeadless_bat = gcnew String((ghidraDirectory + "\\support\\analyzeHeadless.bat").c_str());
-	String^ args = gcnew String(". GhidraMemdmpProject -import ");
+	String^ args = gcnew String("\"") + gcnew String(baseOutputDirectory) + "\" GhidraMemdmpProject -import ";
+	String^ GhidraMemdmpProject = gcnew String(baseOutputDirectory) + "\\GhidraMemdmpProject.gpr";
 
 	if (!IO::File::Exists(analyzeHeadless_bat)) {
 		MessageBox::Show(analyzeHeadless_bat + " not found.", "New Ghidra Project Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
@@ -358,7 +368,7 @@ System::Void Form1::runGhidraToolStripMenuItem_Click(System::Object^ sender, Sys
 		return;
 	}
 
-	if (!IO::File::Exists("GhidraMemdmpProject.gpr")) {
+	if (!IO::File::Exists(GhidraMemdmpProject)) {
 		MessageBox::Show("There is no Ghidra project (GhidraMemdmpProject.gpr) file.", "Running Ghidra Failed!", MessageBoxButtons::OK, MessageBoxIcon::Error);
 		return;
 	}
@@ -370,5 +380,5 @@ System::Void Form1::runGhidraToolStripMenuItem_Click(System::Object^ sender, Sys
 		return;
 	}
 
-	Diagnostics::Process::Start(ghidraRun_bat, IO::Path::GetFullPath("GhidraMemdmpProject.gpr"));
+	Diagnostics::Process::Start(ghidraRun_bat, String::Concat("\"", GhidraMemdmpProject, "\""));
 }

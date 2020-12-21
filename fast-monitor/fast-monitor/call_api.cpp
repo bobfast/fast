@@ -335,8 +335,8 @@ void exGhidraHeadless(LPCSTR filename)
 	stShellInfo.lpVerb = TEXT("open");
 	stShellInfo.lpFile = TEXT("cmd");
 	stShellInfo.lpParameters = TEXT(
-		(std::string("/c \"") + analyzeHeadless_bat + "\" . GhidraMemdmpProject -import "
-			+ filename).c_str()
+		(std::string("/c \"") + analyzeHeadless_bat + "\" \"" + baseOutputDirectory
+			+ "\" GhidraMemdmpProject -import \"" + filename + "\"").c_str()
 	);
 	stShellInfo.nShow = SW_SHOWNORMAL;
 	bShellExecute = ShellExecuteEx(&stShellInfo);
@@ -387,7 +387,8 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 				sprintf_s(basefilename_disasm, "%d_%s_%p_%p_(%d)", pid, name, recentWrittenBaseAddress, entryPoint, i);
 			}
 
-			filename_memdmp = std::string("[memdmp]") + std::string(basefilename_memdmp) + std::string(".bin");
+			filename_memdmp = std::string(baseOutputDirectory) + std::string("\\[memdmp]")
+				+ std::string(basefilename_memdmp) + std::string(".bin");
 
 			if (!fileExists((TCHAR*)(filename_memdmp.c_str()))) {
 				break;
@@ -431,7 +432,8 @@ void memory_region_dump(DWORD pid, const char* name, LPVOID entryPoint, std::uno
 				break;
 			}
 
-			filename_disasm = std::string("[disasm]") + std::string(basefilename_disasm) + std::string(".txt");
+			filename_disasm = std::string(baseOutputDirectory) + std::string("\\[disasm]")
+				+ std::string(basefilename_disasm) + std::string(".txt");
 			fopen_s(&disasm_f, filename_disasm.c_str(), "wt");
 			insert_dump(filename_disasm);
 

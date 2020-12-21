@@ -2,6 +2,7 @@
 
 FILE* pFile;
 std::string ghidraDirectory = "";
+char baseOutputDirectory[256] = "";
 static HANDLE fm32 = NULL;
 static char* map_addr32;
 static DWORD dwBufSize32 = 0;
@@ -9,6 +10,14 @@ static DWORD thispid = GetCurrentProcessId();
 static LPCSTR rpszDllsOut32 = NULL;
 
 void init() {
+	ExpandEnvironmentStringsA("C:%HOMEPATH%\\Documents\\FAST Detection Results",
+		baseOutputDirectory, 256);
+
+	// directory does not exists, then create new
+	if (GetFileAttributesA(baseOutputDirectory) == INVALID_FILE_ATTRIBUTES) {
+		CreateDirectoryA(baseOutputDirectory, NULL);
+	}
+
 	//Initialize the log file.
 
 	time_t t = time(NULL);

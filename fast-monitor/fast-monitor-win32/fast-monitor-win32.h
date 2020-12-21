@@ -38,3 +38,4 @@ void exiting();
 static std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>> detectionInfo;
 static bool hooked = false;
 extern std::string ghidraDirectory;
+extern char baseOutputDirectory[256];

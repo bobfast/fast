@@ -6,6 +6,7 @@
 
 static std::unordered_map<std::string, std::vector<std::vector<std::tuple<DWORD64, DWORD, std::string, UCHAR, std::string>>>> rwxList;
 extern FILE* pFile;
+extern char baseOutputDirectory[256];
 
 void exDumpIt();
 void insertList(std::string callee_pid, DWORD64 ret, DWORD dwSize, std::string caller_pid, UCHAR flags, std::string caller_path);
