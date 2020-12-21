@@ -1,7 +1,7 @@
 Unicode true
 SetCompressor /FINAL /SOLID lzma
 
-!define PRODUCT_NAME "FAST - Fileless Attack Solution"
+!define PRODUCT_NAME "FAST"
 !define PRODUCT_VERSION "1.0"
 !define PRODUCT_PUBLISHER "Fileless Attack Solution Team"
 !define PRODUCT_WEB_SITE ""
@@ -21,11 +21,12 @@ SetCompressor /FINAL /SOLID lzma
 !insertmacro MUI_PAGE_WELCOME
 ; License page
 ;!insertmacro MUI_PAGE_LICENSE "C:\path\to\license\YourSoftwareLicense.txt"
-; Instfiles page
+; Directory page
 !insertmacro MUI_PAGE_DIRECTORY
+; Instfiles page
 !insertmacro MUI_PAGE_INSTFILES
 ; Finish page
-!define MUI_FINISHPAGE_RUN "$INSTDIR\fast-monitor.exe"
+;!define MUI_FINISHPAGE_RUN "$INSTDIR\fast-monitor.exe"
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstaller pages
@@ -44,18 +45,25 @@ InstallDirRegKey HKLM "${PRODUCT_DIR_REGKEY}" ""
 ShowInstDetails show
 ShowUnInstDetails show
 
-;Function InstallVCRedist_x86
-;   Call CheckVCRedist_x86
-;   Pop $R0
-;   StrCmp $R0 "No" 0 +3
-;   ExecWait '"$TEMP\vcredist_x86.exe" /qb /norestart'
-;FunctionEnd
-;
-;Function CheckVCRedist_x86
-;   Push $R0
-;   ClearErrors
-;   SetRegView 32
-;
+Function CheckVCRedist_x86
+   Push $R9
+   ClearErrors
+   ReadRegDword $R9 HKLM "Software\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\X86" "Installed"
+   IfErrors 0 VSRedistInstalled
+      StrCpy $R9 "No"
+   VSRedistInstalled:
+      Exch $R9
+FunctionEnd
+
+Function CheckVCRedist_x64
+   Push $R9
+   ClearErrors
+   ReadRegDword $R9 HKLM "Software\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\X64" "Installed"
+   IfErrors 0 VSRedistInstalled
+      StrCpy $R9 "No"
+   VSRedistInstalled:
+      Exch $R9
+FunctionEnd
 
 !define MSVC_VER "14.28.29325"
 
@@ -87,10 +95,20 @@ Section "Visual Studio Runtime"
    SetOutPath "$INSTDIR"
    File "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\${MSVC_VER}\vcredist_x86.exe"
    File "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\${MSVC_VER}\vcredist_x64.exe"
-   ExecWait "$INSTDIR\vcredist_x64.exe"
-   Delete "$INSTDIR\vcredist_x64.exe"
-   ExecWait "$INSTDIR\vcredist_x86.exe"
-   Delete "$INSTDIR\vcredist_x86.exe"
+
+   Call CheckVCRedist_x64
+      Pop $R9
+      StrCmp $R9 "No" 0 +3
+      MessageBox MB_OK|MB_ICONSTOP "Install Visual C++ 2008 Redistributable 64 bit to run the program."
+      ExecWait "$INSTDIR\vcredist_x64.exe"
+      Delete "$INSTDIR\vcredist_x64.exe"
+
+   Call CheckVCRedist_x86
+      Pop $R9
+      StrCmp $R9 "No" 0 +3
+      MessageBox MB_OK|MB_ICONSTOP "Install Visual C++ 2008 Redistributable 32 bit to run the program."
+      ExecWait "$INSTDIR\vcredist_x86.exe"
+      Delete "$INSTDIR\vcredist_x86.exe"
 SectionEnd
 
 Section "MainSection" SEC01

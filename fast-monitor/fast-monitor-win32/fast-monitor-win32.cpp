@@ -15,9 +15,11 @@ void init() {
 	struct tm pLocal;
 	localtime_s(&pLocal, &t);
 
-	char buf[256];
-	sprintf_s(buf, "log-%04d-%02d-%02d-%02d-%02d-%02d.txt",
-		pLocal.tm_year + 1900, pLocal.tm_mon + 1, pLocal.tm_mday,
+	char buf[256], temp[256];
+	ExpandEnvironmentStringsA("%TEMP%", temp, 256);
+
+	sprintf_s(buf, "%s\\fastlog32-%04d-%02d-%02d-%02d-%02d-%02d.txt",
+		temp, pLocal.tm_year + 1900, pLocal.tm_mon + 1, pLocal.tm_mday,
 		pLocal.tm_hour, pLocal.tm_min, pLocal.tm_sec);
 
 	fopen_s(&pFile, buf, "w");
