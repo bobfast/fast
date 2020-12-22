@@ -2,7 +2,7 @@ Unicode true
 SetCompressor /FINAL /SOLID lzma
 
 !define PRODUCT_NAME "FAST"
-!define PRODUCT_VERSION "1.0"
+!define PRODUCT_VERSION "2.0"
 !define PRODUCT_PUBLISHER "Fileless Attack Solution Team"
 !define PRODUCT_WEB_SITE ""
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\FAST\fast-monitor.exe"
@@ -164,7 +164,7 @@ Section Uninstall
    Delete "$SMPROGRAMS\FAST\FAST Monitor.lnk"
    Delete "$SMPROGRAMS\FAST\FAST Monitor (x86 console).lnk"
    RMDir "$SMPROGRAMS\FAST"
-   RMDir "$INSTDIR"
+   RMDir /r "$INSTDIR"
    DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"
    SetAutoClose true
 SectionEnd
