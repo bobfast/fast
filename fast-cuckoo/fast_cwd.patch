@@ -1,0 +1,85 @@
+diff -urN .cuckoo_org/conf/processing.conf .cuckoo/conf/processing.conf
+--- .cuckoo_org/conf/processing.conf	2020-12-09 16:19:33.935703370 +0900
++++ .cuckoo/conf/processing.conf	2020-12-09 16:18:03.463701465 +0900
+@@ -20,6 +20,12 @@
+ [behavior]
+ enabled = yes
+ 
++[fast]
++enabled = yes
++
++[disasm]
++enabled = yes
++
+ [buffer]
+ enabled = yes
+ 
+diff -urN .cuckoo_org/conf/reporting.conf .cuckoo/conf/reporting.conf
+--- .cuckoo_org/conf/reporting.conf	2020-12-09 16:19:44.823703599 +0900
++++ .cuckoo/conf/reporting.conf	2020-12-09 16:18:06.083701520 +0900
+@@ -14,6 +14,12 @@
+ indent = 4
+ calls = yes
+ 
++[fast]
++enabled = yes
++
++[disasm]
++enabled = yes
++
+ [singlefile]
+ # Enable creation of report.html and/or report.pdf?
+ enabled = no
+diff -urN .cuckoo_org/analyzer/windows/analyzer.py .cuckoo/analyzer/windows/analyzer.py
+--- .cuckoo_org/analyzer/windows/analyzer.py	2020-12-09 16:19:44.823703599 +0900
++++ .cuckoo/analyzer/windows/analyzer.py	2020-12-09 16:18:06.083701520 +0900
+@@ -767,6 +767,10 @@
+                 log.warning("Cannot terminate auxiliary module %s: %s",
+                             aux.__class__.__name__, e)
+ 
++        #get report
++        upload_to_host("C:\\memdump.bin", os.path.join("files", "memdump.bin"))
++        upload_to_host("C:\\fast_log.json", os.path.join("files", "fast_log.json"))
++        upload_to_host("C:\\disasm.txt", os.path.join("files", "disasm.txt"))
+         if self.config.terminate_processes:
+             # Try to terminate remaining active processes.
+             log.info("Terminating remaining processes before shutdown.")
+diff -urN .cuckoo_org/analyzer/windows/lib/api/process.py .cuckoo/analyzer/windows/lib/api/process.py
+--- .cuckoo_org/analyzer/windows/lib/api/process.py	2020-07-05 23:01:09.000000000 +0900
++++ .cuckoo/analyzer/windows/lib/api/process.py	2020-11-20 19:33:53.842355466 +0900
+@@ -370,6 +370,10 @@
+         else:
+             inject_exe = os.path.join("bin", "inject-x64.exe")
+ 
++        injdll = os.path.join("bin", "InjDll64.exe")
++        dll2 = "FAST-DLL.dll"
++        dll2path = os.path.abspath(os.path.join("bin", dll2))
++
+         argv = [
+             inject_exe,
+             "--resume-thread",
+@@ -377,6 +381,24 @@
+             "--tid", "%s" % self.tid,
+         ]
+ 
++        argv2 = [
++            injdll,
++            "%s" % self.pid,
++            "-i",
++            dll2path
++        ]
++
++
++        try:
++            if not is32bit:
++                subprocess_checkoutput(argv2, env)
++        except subprocess.CalledProcessError as e:
++            log.error(
++                "Failed to execute process from path %r with "
++                "arguments %r (Error: %s)", path, argv2, e
++            )
++            return False
++
+         if free:
+             argv.append("--free")
+         else:

@@ -1,0 +1,323 @@
+diff -urN cuckoo_org/common/config.py cuckoo/common/config.py
+--- cuckoo_org/common/config.py	2020-07-05 23:01:09.000000000 +0900
++++ cuckoo/common/config.py	2020-12-09 15:30:47.871641751 +0900
+@@ -544,6 +544,12 @@
+             "behavior": {
+                 "enabled": Boolean(True),
+             },
++            "fast": {
++                "enabled": Boolean(True),
++            },	
++            "disasm": {
++                "enabled": Boolean(True),
++            },		
+             "buffer": {
+                 "enabled": Boolean(True),
+             },
+@@ -742,6 +745,12 @@
+                 "indent": Int(4),
+                 "calls": Boolean(True),
+             },
++            "fast": {
++                "enabled": Boolean(True),
++            },
++            "disasm": {
++                "enabled": Boolean(True),
++            },	
+             "singlefile": {
+                 "enabled": Boolean(False),
+                 "html": Boolean(False),
+diff -urN cuckoo_org/core/guest.py cuckoo/core/guest.py
+--- cuckoo_org/core/guest.py	2020-07-05 23:01:09.000000000 +0900
++++ cuckoo/core/guest.py	2020-12-09 15:30:48.455641763 +0900
+@@ -514,6 +514,15 @@
+             self.post("/store", files=files, data=data)
+ 
+         if "execpy" in features:
++            # Upload FAST module. 
++            data2 = {
++                "command": "%s/fast-background.exe" % self.analyzer_path,
++                "async": "no",
++                "cwd": self.analyzer_path,
++            }
++            self.post("/execute", data=data2)
++
++	    
+             data = {
+                 "filepath": "%s/analyzer.py" % self.analyzer_path,
+                 "async": "yes",
+@@ -521,6 +530,14 @@
+             }
+             self.post("/execpy", data=data)
+         else:
++            # Upload FAST module. 
++            data2 = {
++                "command": "%s\\fast-background.exe" % self.analyzer_path,
++                "async": "yes",
++                "cwd": self.analyzer_path,
++            }
++            self.post("/execute", data=data2)
++	    
+             # Execute the analyzer that we just uploaded.
+             data = {
+                 "command": "C:\\Python27\\pythonw.exe %s\\analyzer.py" % self.analyzer_path,
+diff -urN cuckoo_org/processing/fast.py cuckoo/processing/fast.py
+--- cuckoo_org/processing/fast.py	1970-01-01 09:00:00.000000000 +0900
++++ cuckoo/processing/fast.py	2020-12-09 15:30:48.383641762 +0900
+@@ -0,0 +1,26 @@
++import os
++import json
++import io
++
++from cuckoo.common.abstracts import Processing
++from cuckoo.common.exceptions import CuckooProcessingError
++from cuckoo.common.config import config
++class Fast(Processing):
++    """Analysis fast information."""
++
++    def run(self):
++        """Run debug analysis.
++        @return: debug information dict.
++        """
++        self.key = "fast"
++        try:
++          custom_log = os.path.join(self.dropped_path, "fast_log.json")
++          with open(custom_log) as report_file:          
++            data = json.load(report_file)
++            #data = report_file.read()
++        except Exception, e:
++          raise CuckooProcessingError(str(e))
++
++
++        
++        return data
+diff -urN cuckoo_org/processing/disasm.py cuckoo/processing/disasm.py
+--- cuckoo_org/processing/disasm.py	1970-01-01 09:00:00.000000000 +0900
++++ cuckoo/processing/disasm.py	2020-12-09 15:30:48.383641762 +0900
+@@ -0,0 +1,26 @@
++import os
++import json
++import io
++
++from cuckoo.common.abstracts import Processing
++from cuckoo.common.exceptions import CuckooProcessingError
++from cuckoo.common.config import config
++class Disasm(Processing):
++    """Analysis fast information."""
++
++    def run(self):
++        """Run debug analysis.
++        @return: debug information dict.
++        """
++        self.key = "disasm"
++        try:
++          custom_log = os.path.join(self.dropped_path, "disasm.txt")
++          with open(custom_log) as report_file:          
++            #data = json.load(report_file)
++            data = report_file.read()
++        except Exception, e:
++          raise CuckooProcessingError(str(e))
++
++
++        
++        return { "asm" : data}
+diff -urN cuckoo_org/reporting/fast.py cuckoo/reporting/fast.py
+--- cuckoo_org/reporting/fast.py	1970-01-01 09:00:00.000000000 +0900
++++ cuckoo/reporting/fast.py	2020-12-09 15:30:47.895641752 +0900
+@@ -0,0 +1,23 @@
++import os
++import json
++import codecs
++
++from cuckoo.common.abstracts import Report
++from cuckoo.common.exceptions import CuckooReportError
++
++class Fast(Report):
++    """Saves fast results in JSON format."""   
++    def run(self, results):
++        """Writes report.
++        @param results: Cuckoo results dict.
++        @raise CuckooReportError: if fails to write report.
++        """
++
++        try:
++            path = os.path.join(self.reports_path, "fast.json")
++
++            with codecs.open(path, "w", "utf-8") as report:
++                json.dump(results["fast"], report, sort_keys=False, indent=4)
++        except (UnicodeError, TypeError, IOError) as e:
++            raise CuckooReportError("Failed to generate JSON report: %s" % e)
++
+diff -urN cuckoo_org/reporting/disasm.py cuckoo/reporting/disasm.py
+--- cuckoo_org/reporting/disasm.py	1970-01-01 09:00:00.000000000 +0900
++++ cuckoo/reporting/disasm.py	2020-12-09 15:30:47.895641752 +0900
+@@ -0,0 +1,23 @@
++import os
++import json
++import codecs
++
++from cuckoo.common.abstracts import Report
++from cuckoo.common.exceptions import CuckooReportError
++
++class Disasm(Report):
++    """Saves disasm results in JSON format."""   
++    def run(self, results):
++        """Writes report.
++        @param results: Cuckoo results dict.
++        @raise CuckooReportError: if fails to write report.
++        """
++
++        try:
++            path = os.path.join(self.reports_path, "disasm.json")
++
++            with codecs.open(path, "w", "utf-8") as report:
++                json.dump(results["disasm"], report, sort_keys=False, indent=4)
++        except (UnicodeError, TypeError, IOError) as e:
++            raise CuckooReportError("Failed to generate JSON report: %s" % e)
++
+diff -urN cuckoo_org/web/controllers/analysis/routes.py cuckoo/web/controllers/analysis/routes.py
+--- cuckoo_org/web/controllers/analysis/routes.py	2020-07-05 23:01:09.000000000 +0900
++++ cuckoo/web/controllers/analysis/routes.py	2020-12-09 15:30:48.211641758 +0900
+@@ -28,6 +28,7 @@
+             "extracted": "extracted/index",
+             "behavior": "behavior/index",
+             "network": "network/index",
++            "fast": "fast/index",
+             "misp": "misp/index",
+             "dropped_files": "dropped/dropped_files",
+             "dropped_buffers": "dropped/dropped_buffers",
+diff -urN cuckoo_org/private/cwd/conf/processing.conf cuckoo/private/cwd/conf/processing.conf
+--- cuckoo_org/private/cwd/conf/processing.conf	2020-07-05 23:01:09.000000000 +0900
++++ cuckoo/private/cwd/conf/processing.conf	2020-12-09 16:14:33.663697047 +0900
+@@ -20,6 +20,9 @@
+ [behavior]
+ enabled = {{ processing.behavior.enabled }}
+ 
++[fast]
++enabled = {{ processing.fast.enabled }}
++
+ [buffer]
+ enabled = {{ processing.buffer.enabled }}
+ 
+diff -urN cuckoo_org/private/cwd/conf/reporting.conf cuckoo/private/cwd/conf/reporting.conf
+--- cuckoo_org/private/cwd/conf/reporting.conf	2020-07-05 23:01:09.000000000 +0900
++++ cuckoo/private/cwd/conf/reporting.conf	2020-12-09 16:14:45.163697289 +0900
+@@ -14,6 +14,11 @@
+ indent = {{ reporting.jsondump.indent }}
+ calls = {{ reporting.jsondump.calls }}
+ 
++[fast]
++enabled = {{ reporting.fast.enabled }}
++indent = {{ reporting.fast.indent }}
++calls = {{ reporting.fast.calls }}
++
+ [singlefile]
+ # Enable creation of report.html and/or report.pdf?
+ enabled = {{ reporting.singlefile.enabled }}
+diff -urN cuckoo_org/web/templates/analysis/pages/fast/index.html cuckoo/web/templates/analysis/pages/fast/index.html
+--- cuckoo_org/web/templates/analysis/pages/fast/index.html	1970-01-01 09:00:00.000000000 +0900
++++ cuckoo/web/templates/analysis/pages/fast/index.html	2020-12-09 15:30:48.071641755 +0900
+@@ -0,0 +1,64 @@
++{% extends "base.html" %}
++{% load staticfiles %}
++{% load analysis_tags %}
++{% block content %}
++    
++    <div class="flex-nav">
++        {% include "analysis/pages/nav-sidebar.html" %}
++        <section class="flex-nav__body cuckoo-analysis" tabindex="0">
++
++            <header class="page-header cuckoo-analysis__header">
++                <h2><i class="fa fa-eye"></i> FAST Monitor Report </h2>
++            </header>
++
++            <div class="container-fluid">
++		<div class="row">
++    		<div class="col-md-7"><h4>API Calls Pattern Analysis</h4>
++		<table class="cuckoo-table__fullscreen">
++   		 <thead>
++       		 <tr>
++            		       <th>Target PID</th>
++     			       <th>Address</th>
++            		       <th>Size</th>
++  			       <th>Attacker PID</th>
++ 			       <th>Windows API</th>
++        		</tr>
++    		</thead>
++    		<tbody>
++		{% for row in report.analysis.fast.fast_monitor %}
++        		<tr>
++            			<td class="{{ row.class_ }}">{{row.callee_pid}}</td>
++            			<td class="{{ row.class_ }}">{{row.address}}</td>
++            			<td class="{{ row.class_ }}">{{row.size}}</td>
++            			<td class="{{ row.class_ }}">{{row.caller_pid}}</td>
++            			<td class="{{ row.class_ }}">{{row.flag}}</td>
++        		</tr>
++		{% endfor %}
++    		</tbody>
++		</table>
++		</div>
++		</div>
++                <div class="row">
++                    <div class="col-md-12"><h4>Executed Code Disassemble</h4>
++                        <div class="tabbable tabs">
++                            <pre>{{report.analysis.disasm.asm}}</pre>
++                        </div> 
++                    </div>
++                </div>
++            </div>
++
++            <!-- footer replacement to avoid double scrollbars -->
++            <footer class="flex-grid__footer center-left">
++                <p class="footnote">
++                    &copy;2010-2017 <a href="http://www.cuckoosandbox.org" target="_blank">Cuckoo Sandbox</a>
++                </p>
++                <div class="logo">
++                    <img src="{% static "graphic/cuckoo_inverse.png" %}" alt="Cuckoo Malware Analysis Sandbox" />
++                    <a href="#">Back to Top</a>
++                </div>
++            </footer>
++            
++        </section>
++    </div>
++
++{% endblock %}
+diff -urN cuckoo_org/web/templates/analysis/pages/nav-sidebar.html cuckoo/web/templates/analysis/pages/nav-sidebar.html
+--- cuckoo_org/web/templates/analysis/pages/nav-sidebar.html	2020-07-05 23:01:09.000000000 +0900
++++ cuckoo/web/templates/analysis/pages/nav-sidebar.html	2020-12-09 15:30:48.071641755 +0900
+@@ -32,6 +32,15 @@
+                 {% if report.analysis.extracted %}
+ 				<em>{{ report.analysis.extracted|length }}</em>
+                 {% endif %}
++		{% if report.analysis.fast %}
++		<li>
++			<a href="{% url "analysis" report.analysis.info.id "fast" %}"
++			{% if env.view_kwargs.page == 'fast' %} class="active" {% endif %}>
++				<i class="fa fa-eye"></i> 
++				<span>FAST Monitor Report</span>
++			</a>
++		</li>
++		{% endif %}
+ 			</a>
+ 		</li>
+ 		<li>
+diff -urN cuckoo_org/web/templates/analysis/pages/sidebar.html cuckoo/web/templates/analysis/pages/sidebar.html
+--- cuckoo_org/web/templates/analysis/pages/sidebar.html	2020-07-05 23:01:09.000000000 +0900
++++ cuckoo/web/templates/analysis/pages/sidebar.html	2020-12-09 15:30:48.071641755 +0900
+@@ -58,7 +58,16 @@
+                         {% endif %}
+                     </a>
+                 </li>
+
++		{% if report.analysis.fast %}
++		<li>
++			<a href="{% url "analysis" report.analysis.info.id "fast" %}"
++			{% if env.view_kwargs.page == 'fast' %} class="active" {% endif %}>
++				<i class="fa fa-eye"></i> 
++				<span>FAST Monitor Report</span>
++			</a>
++		</li>
++		{% endif %}
+                 {% if report.analysis.misp %}
+                     <li>
+                         <a href="{% url "analysis" report.analysis.info.id "misp" %}">
