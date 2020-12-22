@@ -83,6 +83,12 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
 
 ## 설치 방법
 
+## FAST Monitor/DLL
+
+1. fast-setup.exe 실행하여 설치
+2. Volatility 모듈을 설치하려는 경우 fast-volatility3-plugin.exe 실행
+
+
 ### FAST Web Report
 
 1. 환경 구성
@@ -105,10 +111,7 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
     - (APM 서버주소)/dbinit.php
     - (APM 서버주소)/dbinit_fast.php
 
-## FAST Monitor/DLL
 
-1. fast-setup.exe 실행하여 설치
-2. Volatility 모듈을 설치하려는 경우 fast-volatility3-plugin.exe 실행
 
 ## FAST Cuckoo Sandbox Plugin
 
