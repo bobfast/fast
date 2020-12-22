@@ -87,6 +87,7 @@ FAST 프로젝트는 API 후킹을 통해 파일리스 공격을 탐지/차단�
 
 1. fast-setup.exe 실행하여 설치
 2. Volatility 모듈을 설치하려는 경우 fast-volatility3-plugin.exe 실행
+3. Ghidra 연동, Cuckoo Sandbox 연동 기능을 사용하려면 환경을 따로 구축하고 모니터 메뉴에서 설정을 적용해야 함
 
 
 ## FAST Web Report
